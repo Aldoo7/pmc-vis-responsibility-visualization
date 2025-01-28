@@ -32,7 +32,6 @@ function updateHeights() {
 }
 
 function spawnPane(
-    dims,
     { spawner, id, newPanePosition },
     nodesIds,
     spawnerNodes
@@ -41,6 +40,7 @@ function spawnPane(
     //     destroyPanes(panes[spawner].spawned);
     // }
   
+    const dims = calcPaneDims();
     const panesLength = Object.keys(panes).length;
     const index = panesLength % colorList.length;
     const backgroundColor = colorList[index];
@@ -124,20 +124,18 @@ function spawnPane(
     return pane;
 }
 
-function calcPaneDims(numNodes) {
+function calcPaneDims() {
     let paneHeight, paneWidth;
     const paneAmount = Object.keys(panes).length;
 
     paneHeight = height; // for now, always use all height (lane)
-    if (paneAmount < 2) {
-        paneWidth = width; // take all space
-    } else if (paneAmount >= 2) {
-        if (numNodes < 3) {
-            paneWidth = 130;
-        } else {
-            paneWidth = Math.min(1000, (numNodes / 3 + 1) * 150);
-        }
-    }
+    paneWidth = width;
+
+    if (paneAmount >= 3) {
+        paneWidth = width/3;
+    } else if (paneAmount !== 0) {
+        paneWidth = width/paneAmount;
+    } 
 
     return { height: paneHeight, width: paneWidth };
 }
@@ -350,8 +348,6 @@ function destroyPanes(firstId, firstOnly = false) {
 }
 
 function highlightPaneById(paneId) {
-    const windWidth = window.innerWidth;
-
     const paneDiv = document.getElementById(paneId);
     setPane(paneId);
     if (paneDiv) {
@@ -389,7 +385,7 @@ function updateDocDims() {
         document.documentElement.clientHeight ||
         document.body.clientHeight);
 
-    width -= document.getElementById("config")?.clientWidth + 50;
+    width -= document.getElementById("config")?.clientWidth;
     updateHeights();
 }
 
@@ -640,7 +636,6 @@ export {
     getPanes,
     updatePanes,
     destroyPanes,
-    calcPaneDims,
     togglePane,
     expandPane,
     collapsePane,

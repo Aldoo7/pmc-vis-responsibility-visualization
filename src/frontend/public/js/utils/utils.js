@@ -49,6 +49,5 @@ const colorList = [
   "#F8F32B",
   "#f79205",
 ];
-const recurringNodeColor = "#4da3ff";
 
-export { h, t, fixed, getRandomColor, colorList, recurringNodeColor };
+export { h, t, fixed, getRandomColor, colorList };

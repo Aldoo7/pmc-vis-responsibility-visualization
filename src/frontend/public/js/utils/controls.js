@@ -468,9 +468,7 @@ function makeDetailPropsCheckboxes(options, propsName) {
         ? [
           meta[k].icon
             ? h("i", { class: meta[k].identifier + " prop-text-label-icon" })
-            : h("span", { class: "prop-text-label-icon" }, [
-              t(meta[k].identifier),
-            ]),
+            : h("span", { class: "prop-text-label-icon" }, [ t(meta[k].identifier), ]),
           t(k),
         ]
         : [t(k)];
@@ -603,7 +601,7 @@ function makePCPSettings() {
   $pcp_config.appendChild(countPrinter);
 
   const jsonPrinter = h("div", { class: "content" });
-  jsonPrinter.innerHTML = `<pre id="json" style="height: 500px; overflow-y:auto; font-size: 10px">${
+  jsonPrinter.innerHTML = `<pre id="json" style="max-height: 500px; overflow-y:auto; font-size: 10px">${
     pane.cy.pcp
       ? JSON.stringify(pane.cy.pcp.getSelection(), undefined, 2)
       : null
@@ -644,13 +642,13 @@ function makeRecurringNodeMarkSettings() {
     []
   );
   const $buttonMark = h("button", { class: "ui button", id: "child-button" }, [
-    h("span", {}, [t("Mark recurring nodes")]),
+    h("span", {}, [t("Mark recurring")]),
   ]);
 
   const $buttonUnmark = h(
     "button",
     { class: "ui button", id: "child-button" },
-    [h("span", {}, [t("Unmark recurring nodes")])]
+    [h("span", {}, [t("Unmark recurring")])]
   );
 
   $buttonMark.addEventListener("click", async function () {

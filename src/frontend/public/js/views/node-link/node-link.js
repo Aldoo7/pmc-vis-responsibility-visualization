@@ -4,7 +4,6 @@ import {
   stylesheet,
 } from "../../../style/views/cy-style.js";
 import {
-  calcPaneDims,
   getPanes,
   spawnPane,
   togglePane,
@@ -21,7 +20,6 @@ import {
   t,
   fixed,
   getRandomColor,
-  recurringNodeColor,
 } from "../../utils/utils.js";
 import {
   makeTippy,
@@ -244,7 +242,6 @@ function setStyles(cy) {
 
 // requests outgoing edges from a selection of nodes and adds them to the graph
 function graphExtend(cy, node) {
-  node.addClass("visited");
   const g = node.data();
 
   Promise.all([
@@ -311,7 +308,6 @@ function graphExtend(cy, node) {
     const paneNodeIds = (
       panes[cy.paneId].nodesIds || []
     ).concat(nodesIds);
-    console.log(paneNodeIds)
     panes[cy.paneId].nodesIds = paneNodeIds;
     updatePanes(panes);
   });
@@ -361,10 +357,6 @@ function spawnGraph(pane, data, params, vars = {}, src) {
     });
 
     cy.startBatch();
-    if (src) {
-      cy.$("#" + src.map((n) => n.id).join(", #")).addClass("centralNode");
-    }
-
     // init props used from elsewhere
     cy.params = params;
     cy.paneId = pane.id;
@@ -408,48 +400,7 @@ function initHTML(cy) {
   }
 
   cy.nodeHtmlLabel([
-    {
-      query: ".s",
-      tpl: function (data) {
-        const icons = Object.values(data.details[NAMES.atomicPropositions])
-          .filter((ap) => ap.value)
-          .map((ap) =>
-            ap.icon
-              ? `<i class="${ap.identifier}"></i>`
-              : `<p>${ap.identifier}</p>`
-          );
-
-        const template = `<div class="cy-html cy-html-${cy.paneId}" id="${
-          data.id + "-" + cy.paneId
-        }">
-            ${icons.join("&nbsp;")} ${data.id} 
-          </div>`;
-
-        return template;
-      },
-    },
-    {
-      query: ".s.visited, .centralNode",
-      tpl: function (data) {
-        const icons = Object.values(data.details[NAMES.atomicPropositions])
-          .filter((ap) => ap.value)
-          .map((ap) =>
-            ap.icon
-              ? `<i class="${ap.identifier} inverted-text"></i>`
-              : `<p class="inverted-text">${ap.identifier}</p>`
-          );
-
-        const template = `<div class="cy-html cy-html-${cy.paneId}" id="${
-          data.id + "-" + cy.paneId
-        }">
-              ${icons.join("&nbsp;")} <span class="inverted-text">${
-          data.id
-        }</span>
-            </div>`;
-
-        return template;
-      },
-    },
+    
   ]);
 }
 
@@ -532,7 +483,6 @@ function fetchAndSpawn(cy, nodes) {
 
     const newPanePosition = cy.vars["panePosition"];
     const pane = spawnPane(
-      calcPaneDims(data.nodes.length),
       { spawner: cy.container().parentElement.id, id: null, newPanePosition }, // pane that spawns the new one
       nodesIds,
       spawnerNodes
@@ -1406,7 +1356,6 @@ function duplicatePane(cy, initSpawner) {
 
   const spawnerNodes = paneData.spawnerNodes;
   const pane = spawnPane(
-    calcPaneDims(data.nodes.length),
     {
       // spawner: cy.container().parentElement.id,
       spawner: initSpawner || paneData.spawner,
@@ -1461,7 +1410,7 @@ function unmarkRecurringNodes() {
   const panes = getPanes();
   Object.keys(panes).forEach(function (paneId) {
     const paneCy = panes[paneId].cy;
-    paneCy.nodes().style("background-color", "#555");
+    paneCy.nodes().removeClass("recurring");
   });
 }
 
@@ -1488,9 +1437,7 @@ function markRecurringNodes() {
       const randomColor = getRandomColor();
       duplicatePanes.forEach((paneId) => {
         const paneCy = panes[paneId].cy;
-        paneCy.$("#" + nodeId).style({
-          "background-color": randomColor,
-        });
+        paneCy.$("#" + nodeId).addClass("recurring");
       });
     }
   });
@@ -1520,10 +1467,7 @@ function markRecurringNodesById(markId, showInOverview = false) {
 
       duplicatePanes.forEach((paneId) => {
         const paneCy = panes[paneId].cy;
-        paneCy.$("#" + nodeId).style({
-          "background-color": recurringNodeColor,
-          opacity: "1",
-        });
+        paneCy.$("#" + nodeId).addClass("recurring");
       });
     }
     if (showInOverview) {
@@ -1559,7 +1503,6 @@ function mergePane(panesToMerge, cy, prevSpawners) {
       .map((node) => node.data?.id)
       .filter((id) => !id.includes("t_"));
     const pane = spawnPane(
-      calcPaneDims(data.nodes.length),
       {
         spawner: spawnerIds,
         id: "MERGED-" + spawnerIds.join("-"),

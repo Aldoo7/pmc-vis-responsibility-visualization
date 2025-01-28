@@ -1,5 +1,9 @@
 @import 'colors.css';
 
+:root {
+    --config-width: 350px;
+}
+
 .minimap {
     position: absolute;
     left: 10px;
@@ -10,6 +14,13 @@ body {
     height: 100%;
     overflow: hidden;
     background-color: var(--body-bg-color);
+}
+
+body, .ui, h1, h2, h3, h4, h5, svg text, 
+.ui.accordion .accordion>.title, 
+.ui.accordion.menu .item>.title, 
+.ui.accordion>.title {
+    font-family: monospace, monospace !important;
 }
 
 body ::-webkit-scrollbar-thumb {
@@ -34,14 +45,14 @@ body.config-closed #container {
 .config {
     position: fixed;
     right: 0;
-    top: 35px;
+    top: 0;
     bottom: 0;
     background: var(--config-bg-color);
     box-sizing: border-box;
     overflow-y: auto;
     overflow-x: hidden;
     z-index: 1;
-    width: 350px;
+    width: var(--config-width);
     transition: width .5s;
 }
 
@@ -86,13 +97,17 @@ body.config-closed #container {
     margin-right: 5px;
 }
 
-.config-toggle {
+#config-toggle {
     cursor: pointer;
     color: var(--config-icon-color-active);
+    margin-right: var(--config-width);
+    transition: margin .5s;
 }
 
-.config-toggle.icon-inactive {
+#config-toggle.icon-inactive {
     color: var(--config-icon-color-inactive);
+    transition: margin .5s;
+    margin-right: 0px;
 }
 
 .tip-link {
@@ -123,13 +138,6 @@ body.config-closed #container {
 
 .inverted-text {
     color: var(--dark-text-color);
-}
-
-.prop-text-label-icon {
-    display: inline-block;
-    overflow: hidden;         /*prevent text from being shown outside the border */
-    text-overflow: ellipsis;  /*cut off text with an ellipsis*/
-    padding-right: 7px;
 }
 
 .legend {
@@ -229,6 +237,10 @@ body.config-closed #container {
     margin-left: 15px;
     font-size: 10px !important;
     padding-bottom: 5px;
+}
+
+.prop-text-label-icon {
+    padding-right: 7px;
 }
 
 .prop-text-label-text {

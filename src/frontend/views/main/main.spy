@@ -28,7 +28,7 @@
 
     <div class="nav-wrapper-right">
       <div class="right-buttons"> 
-        <i class="fa fa-bars config-toggle" id="config-toggle" aria-hidden="true"></i>
+        <i class="fa fa-bars" id="config-toggle" aria-hidden="true"></i>
       </div>
     </div>
   </nav>
@@ -42,72 +42,75 @@
 
   <div id="config" class="config ui">
     <div class="ui segment">
+
       <h3 class="label label-info">Project </h3>
-
-      <details class="ui accordion" closed="">
-        
-        <div class="content">
-          <div class="preamble">
-            <p class="label inline label-info">Active pane:
-            <p class="label inline label-info" id="selected-pane"></p>
-            </p>
-          </div>
-          <div id="info-box">
-
-          </div>
-
-          <!-- Legend -->
-          <div class="ui segment">
-            <div>
-              <b>States</b>
-              <div style="display:flex">
-                <span class="legend-node unvisited"></span>
-                <p class="legend-p">Collapsed</p>
-              </div>
-              <div style="display:flex">
-                <span class="legend-node visited"></span>
-                <p class="legend-p">Expanded</p>
-              </div>
-            </div>
-            <br>
-            <div>
-              <b>Actions</b>
-              <div style="display:flex">
-                <span class="legend-node actions"></span>
-                <p class="legend-p">Action nodes</p>
-              </div>
-              <div style="display:flex">
-                <span class="legend-edge chosen-edge"></span>
-                <p class="legend-p">Preferred action(s)</p>
-              </div>
-              <div style="display:flex">
-                <span class="legend-edge not-chosen-edge"></span>
-                <p class="legend-p">Other action(s)</p>
-              </div>
-            </div>
-            <br>
-            <div>
-              <b>Selection Colors</b>
-              <div style="display:flex">
-                <span class="legend-node states-selected"></span>
-                <p class="legend-p">States</p>
-              </div>
-              <div style="display:flex">
-                <span class="legend-node actions-selected"></span>
-                <p class="legend-p">Actions</p>
-              </div>
-            </div>
-          </div>
+      <div class="content">
+        <div class="preamble">
+          <p class="label inline label-info">Active pane:
+          <p class="label inline label-info" id="selected-pane"></p>
+          </p>
+        </div>
+        <div id="info-box">
 
         </div>
-      </details>
 
-      <div class="param">
-        <a id="new-project"> New project... </a>
-        <a id="download" style="display:none"></a>
-        <br>
-        <a id="export-strat"> Export marked nodes... </a>
+        <div class="param">
+          <a id="new-project"> New project... </a>
+          <a id="download" style="display:none"></a>
+          <br>
+          <a id="export-strat"> Export marked nodes... </a>
+        </div>
+
       </div>
+
+    </div>
+
+    <div class="ui segment">
+      <h3 class="label label-info">Legend </h3>
+      <div style="display:flex">
+        <div style="float:right">  
+          <b>Nodes</b>
+          <div style="display:flex">
+            <span class="legend-node unvisited"></span>
+            <p class="legend-p">State (collapsed) </p>
+          </div>
+          <div style="display:flex">
+            <span class="legend-node visited"></span>
+            <p class="legend-p">State (expanded) </p>
+          </div>
+          <div style="display:flex">
+            <span class="legend-node actions"></span>
+            <p class="legend-p">Action</p>
+          </div>
+        </div>
+
+        <div style="margin-left:15px">
+          <b>Selections</b>
+          <div style="display:flex">
+            <span class="legend-node states-selected"></span>
+            <p class="legend-p">States</p>
+          </div>
+          <div style="display:flex">
+            <span class="legend-node actions-selected"></span>
+            <p class="legend-p">Actions</p>
+          </div>
+        </div>
+      </div>
+      <br>
+      <div>
+        <b>Edges</b>
+        
+        <div style="display:flex">
+          <span class="legend-edge chosen-edge"></span>
+          <p class="legend-p">Recommended actions</p>
+        </div>
+        <div style="display:flex">
+          <span class="legend-edge not-chosen-edge"></span>
+          <p class="legend-p">Other actions</p>
+        </div>
+      </div>
+        
+      
 
     </div>
 

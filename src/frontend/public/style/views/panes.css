@@ -37,9 +37,9 @@
     -moz-box-sizing: border-box;    /* Firefox, other Gecko */
     box-sizing: border-box; 
 
-    border-left-color: var(--active-pane);
-    border-left-width: 5px;
-    border-left-style: solid;
+    border-top-color: var(--active-pane);
+    border-top-width: 5px;
+    border-top-style: solid;
 }
 
 #container {

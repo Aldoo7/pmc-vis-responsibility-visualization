@@ -7,6 +7,7 @@ const colors = {
 
   SELECTED_BORDER: "#4887b9",
 
+  RECURRING: "#4da3ff",
   SECONDARY_NODE_COLOR: "#afafaf",
   CENTRAL_NODE_COLOR: "#E5C07B",
   SELECTED_NODE_COLOR: "#4887b9",
@@ -28,7 +29,7 @@ const selections = {
     "border-color": colors.SELECTED_BORDER,
     "border-width": outlines.width_selected,
     "border-style": "double",
-    opacity: 1,
+    //opacity: 1,
   },
   secondary: {
     "border-color": colors.SECONDARY_SELECTION,
@@ -36,7 +37,7 @@ const selections = {
     "border-style": "double",
     width: "10px",
     height: "10px",
-    opacity: 1,
+    //opacity: 1,
   },
 };
 
@@ -58,8 +59,9 @@ const stylesheet = [
   {
     selector: "node.s",
     style: {
-      //"label": "data(id)",
+      "label": "data(id)",
       "font-size": 10,
+      "font-family": "monospace", 
       "text-valign": "center",
       "text-halign": "center",
       "background-color": colors.NODE_COLOR,
@@ -109,19 +111,19 @@ const stylesheet = [
     style: selections.secondary,
   },
   {
-    selector: "node.visited",
+    selector: "node.s[[outdegree > 0]]", // expanded node
     style: {
-      // "background-opacity": 0.3,
+      "background-opacity": 0,
       color: colors.DARK_TEXT,
-      "border-color": "#439843",
+      "border-color": colors.NODE_COLOR,
     },
   },
   {
-    selector: "node.centralNode",
+    selector: "node.recurring",
     style: {
-      // "background-opacity": 0.3,
-      color: colors.DARK_TEXT,
-      "border-color": "#439843",
+      "background-opacity": 1,
+      "background-color": colors.RECURRING,
+      "border-color": colors.RECURRING,
     },
   },
   {
