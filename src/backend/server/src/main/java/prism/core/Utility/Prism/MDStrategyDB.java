@@ -9,7 +9,6 @@ import prism.db.Database;
 import prism.db.mappers.PairMapper;
 import strat.MDStrategy;
 import strat.Strategy;
-import strat.StrategyExportOptions;
 import strat.StrategyWithStates;
 
 import java.util.ArrayList;
@@ -88,13 +87,25 @@ public class MDStrategyDB extends StrategyWithStates<Double> implements MDStrate
     }
 
     @Override
-    public void exportInducedModel(PrismLog out, StrategyExportOptions options) throws PrismException
+    public void exportInducedModel(PrismLog out) throws PrismException
     {
         throw new PrismException("Induced model construction not yet supported for symbolic engines");
     }
 
     @Override
-    public void exportDotFile(PrismLog out, StrategyExportOptions options) throws PrismException
+    public void exportInducedModel(PrismLog out, int precision) throws PrismException
+    {
+        throw new PrismException("Induced model construction not yet supported for symbolic engines");
+    }
+
+    @Override
+    public void exportDotFile(PrismLog out) throws PrismException
+    {
+        throw new PrismException("Strategy dot export not yet supported for symbolic engines");
+    }
+
+    @Override
+    public void exportDotFile(PrismLog out, int precision) throws PrismException
     {
         throw new PrismException("Strategy dot export not yet supported for symbolic engines");
     }
