@@ -961,11 +961,15 @@ function bindListeners(cy) {
   cy.on("boxselect tapselect tapunselect", function (e) {
     // automatically syncs node selection to the PCP
     const nodes = cy.$('node:selected');
-    if (nodes.length > 0) { // needed for tapunselect
+    if (
+      nodes.length > 0 // needed for tapunselect
+      && cy.vars["fullSync"].value
+    ) { 
       spawnPCP(cy);
     }
   });
 
+  // ensure that selections don't go away when clicking the background once
   cy.on('click', (e) => {
     if (e.target === cy) { // background
       cy.nodes().unselectify();
@@ -974,7 +978,8 @@ function bindListeners(cy) {
     }
   });
 
-  cy.on('dblclick', _ => {
+  // re-enable selections after the previous check happened
+  cy.on('dblclick mousemove', _ => {
     cy.nodes().selectify();
   });
 
@@ -1118,14 +1123,17 @@ function updateDetailsToShow(cy, { update, mode = NAMES.results }) {
 
 function updateScheduler(cy, prop) {
   cy.vars['scheduler'].value = prop;
-
   setStyles(cy);
-
   cy.resize();
 }
 
 function updateNewPanePosition(cy, prop) {
   cy.vars["panePosition"].value = prop;
+}
+
+function toggleFullSync(cy, prop) {
+  console.log(cy.vars)
+  cy.vars["fullSync"].value = prop;
 }
 
 function keyboardShortcuts(cy, e) {
@@ -1136,7 +1144,9 @@ function keyboardShortcuts(cy, e) {
   } else if (e.keyCode === 65 && e.ctrlKey) { // ctrl+a
     e.preventDefault(); 
     cy.nodes().select();
-    spawnPCP(cy);
+    if (cy.vars["fullSync"].value) {
+      spawnPCP(cy);
+    }
   }
 }
 
@@ -1333,6 +1343,10 @@ function setPublicVars(cy, preset) {
     panePosition: {
       value: "end",
       fn: updateNewPanePosition,
+    },
+    fullSync: {
+      value: true,
+      fn: toggleFullSync,
     },
   };
 

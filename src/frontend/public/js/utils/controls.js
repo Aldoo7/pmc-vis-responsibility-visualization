@@ -135,6 +135,7 @@ function createControllers(params) {
   makeDetailCheckboxes();
   makeAppendDropdown();
   makeSelectionModesDropdown();
+  makeFullSyncToggle();
 
   // graph view settings
   $graph_config.innerHTML = "";
@@ -682,6 +683,37 @@ function makeAppendDropdown() {
     "New Pane Position",
     $props_config
   );
+}
+
+function makeFullSyncToggle() {
+  const param = "fullSync"
+  const value = pane.cy.vars[param].value;
+
+  const $label = h("label", { class: "label label-default" }, [
+    t("Automatically synchronize selections")
+  ]);
+  const $param = h("div", {
+    class: "param ui small checkbox",
+    style: "display: flex",
+  });
+  const $toggle = h("input", {
+    type: "checkbox",
+    name: "checkbox" + param,
+    id: "checkbox-" + param,
+    class: "param-" + param,
+    style: "margin-right: 5px",
+  });
+
+  $toggle.checked = value;
+  $param.appendChild($toggle);
+  $param.appendChild($label);
+
+  const update = (e) => {
+    pane.cy.vars["fullSync"].fn(pane.cy,  e.target.checked)
+  };
+
+  $toggle.addEventListener("change", update);
+  $props_config.appendChild($param);
 }
 
 function makeOverviewSettings() {
