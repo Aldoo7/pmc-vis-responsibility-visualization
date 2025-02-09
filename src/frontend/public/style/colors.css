@@ -1,10 +1,11 @@
 :root {
-    --tool-color: #252525;
+    --tool-color: #bfbfbf;
     --body-bg-color: #ffffff;
 
     --state-color: #555;
     --action-color: #afafaf;
-    --dark-text-color: #555;
+    --dark-text-color: #000;
+    --dark-text-color-hover: #555;
     --light-text-color: #dadada;
     --light-text-color-hover: #bbbbbb;
 
@@ -34,7 +35,7 @@
     /* Config menu */
     --config-bg-color: #f3f3f3;
     --config-icon-color-active: #818181;
-    --config-icon-color-inactive: #fff;
+    --config-icon-color-inactive: #000;
 
     --wildcard: #b8b8b8;
 }

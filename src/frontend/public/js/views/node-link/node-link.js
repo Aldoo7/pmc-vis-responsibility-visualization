@@ -285,9 +285,11 @@ async function graphExtend(cy, nodes, onLayoutStopFn) {
 
   cy.nodes().lock();
   cy.add(elements);
-  cy.$("#" + elements.nodes.map((n) => n.data.id).join(", #")).position(
-    nodes[0].position()
-  ); // alternatively, cy.nodes().position(node.position())
+  if (elements.nodes.length > 0) {
+    cy.$("#" + elements.nodes.map((n) => n.data.id).join(", #")).position(
+      nodes[0].position()
+    ); // alternatively, cy.nodes().position(node.position())
+  }
   cy.nodes().unlock();
 
   const layout = cy.layout(cy.params);
@@ -728,11 +730,7 @@ async function expandBestPath(cy, allSources) {
     });
   } else { // follow only the "best" path according to DOI/scheduler
     await graphExtend(cy, sources, function() {
-      const ids = sources
-        .map(src => getNextBestInPath(cy, src.data().id))
-        .filter(n => n && n.nextBestNode)
-        .map(n => n.nextBestNode.data.id);
-  
+      const ids = sources.map(src => getNextBestInPath(cy, src.data().id).bestNext);
       const nextBests = cy.nodes("#" + ids.join(", #"));
       iteration++;
   
@@ -745,6 +743,10 @@ async function expandBestPath(cy, allSources) {
 
 // for a state, returns best next state based on DOI/scheduler
 function getNextBestInPath(cy, sourceNodeId) {
+  if (cy.$(`#${sourceNodeId}`).outgoers().length === 0) {
+    return { cy, bestNext: sourceNodeId };
+  }
+  
   let bestValue = 0;
   let bestNext = "";
   let tId = "";
@@ -787,26 +789,49 @@ function getNextBestInPath(cy, sourceNodeId) {
     }
   });
 
-  const nextBestNode = cy.elementMapper.nodes.get(bestNext);
-  return { cy, nextBestNode };
+  return { cy, bestNext: cy.elementMapper.nodes.get(bestNext).data.id };
 }
 
 // for a state, returns all possible next states
 function getNextInPath(cy, sourceNodeId) {
-  
+  if (cy.$(`#${sourceNodeId}`).outgoers().length === 0) {
+    return { cy, next: sourceNodeId };
+  }
+
   // gathers children actions 
   const nextActions = cy
     .$(`#${sourceNodeId}`)
-    .outgoers('node')
+    .outgoers('node.t')
     .map(n => n.data().id);
 
   // gathers states children to the actions
   const next = cy
     .$('#' + nextActions.join(', #'))
-    .outgoers('node')
+    .outgoers('node.s')
     .map(n => n.data().id);
   
   return { cy, next };
+}
+
+// for a state, returns all states that led to it
+function getPreviousInPath(cy, sourceNodeId) {
+  if (cy.$(`#${sourceNodeId}`).incomers().length === 0) {
+    return { cy, prev: sourceNodeId };
+  }
+
+  // gathers children actions 
+  const prevActions = cy
+    .$(`#${sourceNodeId}`)
+    .incomers('node.t')
+    .map(n => n.data().id);
+
+  // gathers states children to the actions
+  const prev = cy
+    .$('#' + prevActions.join(', #'))
+    .incomers('node.s')
+    .map(n => n.data().id);
+  
+  return { cy, prev };
 }
 
 function resetPaneNodeMarkings() {
@@ -1141,19 +1166,39 @@ function keyboardShortcuts(cy, e) {
 
   // left arrow
   if (e.keyCode === 37) { 
+    const sources = cy.$('node.s:selected');
+    sources.deselect();
+
     if (modifier) {
       // go to previous pane 
     } else {
-      // if parent, select parent
+      // if parents, select parents
+      const ids = sources.map(src => getPreviousInPath(cy, src.data().id).prev).flat();
+      const parents = cy.nodes("#" + ids.join(", #"));
+      parents.select();
     }
   }
-
+  
   // right arrow
   if (e.keyCode === 39) { 
+    const sources = cy.$('node.s:selected');
+    sources.deselect();
+
     if (modifier) {
       // go to next pane 
     } else {
       // if children, select next best
+      if (cy.vars["scheduler"].value === "_none_") { 
+        // open everything, as there is no decider / DOI / scheduler
+        const ids = sources.map(src => getNextInPath(cy, src.data().id).next).flat();
+        const nexts = cy.nodes("#" + ids.join(", #"));    
+        nexts.select();
+      } else { 
+        // follow only the "best" path according to DOI/scheduler
+        const ids = sources.map(src => getNextBestInPath(cy, src.data().id).bestNext);
+        const nextBests = cy.nodes("#" + ids.join(", #"));
+        nextBests.select();
+      }
     }
   }
 

@@ -112,6 +112,14 @@ body.config-closed #container {
     transition: margin .5s;
 }
 
+#config-toggle:hover {
+    color: var(--config-icon-color-inactive);
+}
+
+#config-toggle.icon-inactive:hover {
+    color: var(--config-icon-color-active);
+}
+
 #config-toggle.icon-inactive {
     color: var(--config-icon-color-inactive);
     transition: margin .5s;
@@ -327,7 +335,7 @@ a:hover {
 
 nav {
 	background-color: var(--tool-color);    
-    color: var(--light-text-color);
+    color: var(--dark-text-color);
     display: flex;
     justify-content: space-between;
 }
@@ -353,12 +361,12 @@ nav .nav-wrapper-right {
 
 nav .tool-name {
     margin-left: 10px;
-    color: var(--light-text-color)
+    color: var(--dark-text-color)
 }
 
 nav .tool-name:hover {
     margin-left: 10px;
-    color: var(--light-text-color-hover)
+    color: var(--dark-text-color-hover)
 }
 
 .tool-title {
