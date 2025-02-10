@@ -1,10 +1,10 @@
 FROM ubuntu:18.04
 WORKDIR /usr/src/pmc-vis
 
-### 1. node 16
+### 1. node 20
 RUN apt-get update && \
     apt-get install -y curl gnupg build-essential && \
-    curl --silent --location https://deb.nodesource.com/setup_16.x | bash - && \
+    curl --silent --location https://deb.nodesource.com/setup_20.x | bash - && \
     curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - && \
     echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list && \
     apt-get remove -y --purge cmdtest && \

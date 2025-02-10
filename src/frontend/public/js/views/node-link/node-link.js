@@ -1155,10 +1155,20 @@ function keyboardShortcuts(cy, e) {
     cy.vars['ur'].value.redo(); 
   } 
   
-  // ctrl+a
+  // ctrl+a: select all nodes
   if (e.keyCode === 65 && modifier) { 
     e.preventDefault(); 
     cy.nodes().select();
+    if (cy.vars["fullSync"].value) {
+      spawnPCP(cy);
+    }
+  } 
+
+  // ctrl+i: select initial states 
+  if (e.keyCode === 73 && modifier) { 
+    e.preventDefault(); 
+    cy.nodes().deselect();
+    cy.nodes('node.s[[indegree = 0]]').select();
     if (cy.vars["fullSync"].value) {
       spawnPCP(cy);
     }
@@ -1176,6 +1186,9 @@ function keyboardShortcuts(cy, e) {
       const ids = sources.map(src => getPreviousInPath(cy, src.data().id).prev).flat();
       const parents = cy.nodes("#" + ids.join(", #"));
       parents.select();
+      if (cy.vars["fullSync"].value) {
+        spawnPCP(cy);
+      }
     }
   }
   
@@ -1198,6 +1211,10 @@ function keyboardShortcuts(cy, e) {
         const ids = sources.map(src => getNextBestInPath(cy, src.data().id).bestNext);
         const nextBests = cy.nodes("#" + ids.join(", #"));
         nextBests.select();
+      }
+
+      if (cy.vars["fullSync"].value) {
+        spawnPCP(cy);
       }
     }
   }
@@ -1398,7 +1415,7 @@ function setPublicVars(cy, preset) {
     ur: {
       value: cy.undoRedo(),
       avoidInClone: true, // workaround for structuredClone
-      fn: keyboardShortcuts,
+      fn: _.throttle(keyboardShortcuts, 100),
     },
     mode: {
       value: 's',
