@@ -3,29 +3,52 @@
 /* the logic for resizing panes is in panes.js */
 .dragbar {
     background-color: var(--dragbar);
-    width: 5px;
-    cursor: col-resize;
+    width: 7px;
+    cursor: e-resize;
 }
 
 .dragbar:hover {
     background-color: var(--dragbar-hover);
-    width: 5px;
+    width: 7px;
     z-index: 2;
+}
+
+.dragbar:before {
+    position: absolute;
+    margin-top: 15%;
+    content: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='5' height='18'%3E%3Cpath d='M2 0h3v3H2zm0 5h3v3H2zm0 5h3v3H2zm0 5h3v3H2z' style='fill:%239da7b7'/%3E%3C/svg%3E");
+    box-sizing: border-box;
+}
+
+.dragbar:after {
+    position: absolute;
+    margin-top: 62%;
+    content: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='5' height='18'%3E%3Cpath d='M2 0h3v3H2zm0 5h3v3H2zm0 5h3v3H2zm0 5h3v3H2z' style='fill:%239da7b7'/%3E%3C/svg%3E");
+    box-sizing: border-box;
 }
 
 /* the logic for resizing the split inside panes is in panes.js */
 .split-dragbar {
     background-color: var(--dragbar);
-    height: 5px;
+    height: 7px;
     position: absolute;
     width: 100%;
-    cursor: row-resize;
+    cursor: s-resize;
     z-index: 1;
+}
+
+.split-dragbar:after {
+    position: absolute;
+    content: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='5'%3E%3Cpath d='M0 1.5h3v3H0zm5 0h3v3H5zm5 0h3v3h-3zm5 0h3v3h-3z' style='fill:%239da7b7'/%3E%3C/svg%3E");
+    box-sizing: border-box;
+    display: block;
+    line-height: 0;
+    margin-left: 48%;
 }
 
 .split-dragbar:hover {
     background-color: var(--dragbar-hover);
-    height: 5px;
+    height: 7px;
 }
 
 .pane {
