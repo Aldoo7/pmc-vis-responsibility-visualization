@@ -1385,7 +1385,7 @@ function ctxmenu(cy) {
           togglePane(
             document.getElementById(
               document.getElementById("selected-pane").innerHTML
-            )
+            ),
           );
         },
         hasTrailingDivider: true,

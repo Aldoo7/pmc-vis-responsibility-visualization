@@ -3,7 +3,8 @@ import { colorList } from "../../utils/utils.js";
 import { INTERACTIONS } from "../../utils/names.js";
 import events from "../../utils/events.js";
 
-const MIN_LANE_SIZE = 10;
+const MIN_FLEX_GROW = 0.005;
+const MIN_SIZE = 10;
 const socket = io();
 
 const panes = {}; // governs the pane-based exploration
@@ -159,13 +160,10 @@ function createPaneControls(pane) {
     return buttons;
 }
 
-function resizePane(div, pwidth) {
-
-    return; 
-    
-    const _width = Math.max(MIN_LANE_SIZE, pwidth);
+function resizePane(div, flexGrow) {
+    const _width = Math.max(MIN_FLEX_GROW, flexGrow);
     const _height = div.getBoundingClientRect().height;
-    div.style.width = _width + "px";
+    div.style.flexGrow = flexGrow;
 
     panes[div.id].width = _width;
     panes[div.id].height = _height;
@@ -174,7 +172,7 @@ function resizePane(div, pwidth) {
 function resizeSplit(div, pheight) {
     const _height = Math.min(
         height - height * 0.05,
-        Math.max(MIN_LANE_SIZE, pheight)
+        Math.max(MIN_SIZE, pheight)
     );
     div.style.height = _height + "px";
     panes[div.parentElement.id].split =
@@ -183,23 +181,29 @@ function resizeSplit(div, pheight) {
 
 function togglePane(div) {
     if (div) {
-        if (div.style.width === MIN_LANE_SIZE + "px") {
-            // pane is closed
-            resizePane(div, panes[div.id].oldWidth);
+        const fg = Number(getComputedStyle(div).flexGrow)
+
+        if (fg === MIN_FLEX_GROW) {
+            if (panes[div.id].oldFlexGrowth < MIN_FLEX_GROW*2) {
+                resizePane(div, 1);
+            } else {
+                resizePane(div, panes[div.id].oldFlexGrowth);
+            }
         } else {
-            panes[div.id].oldWidth = div.offsetWidth;
-            resizePane(div, MIN_LANE_SIZE);
+            panes[div.id].oldFlexGrowth = fg;
+            resizePane(div, MIN_FLEX_GROW);
+            const keys = Object.keys(panes); 
+            resizePane(document.getElementById(panes[keys[keys.length-1]].id), 1);
         }
 
-        dispatchEvent(events.RESIZE_ONE(panes[div.id]));
+        dispatchEvent(events.RESIZE_ALL);
         refreshCys();
     }
 }
 
 function expandPane(div) {
-    const windWidth = window.innerWidth;
     if (div) {
-        resizePane(div, windWidth);
+        resizePane(div, 1);
         dispatchEvent(events.RESIZE_ONE(panes[div.id]));
         refreshCys();
     }
@@ -208,10 +212,9 @@ function expandPane(div) {
 function collapsePane(div) {
     if (div) {
         if (panes[div.id]) {
-            panes[div.id].oldWidth = div.offsetWidth;
-        } else {
-        }
-        resizePane(div, MIN_LANE_SIZE);
+            panes[div.id].oldFlexGrowth = Number(getComputedStyle(div).flexGrow);
+        } 
+        resizePane(div, MIN_FLEX_GROW);
         dispatchEvent(events.RESIZE_ONE(panes[div.id]));
         refreshCys();
     }
@@ -316,32 +319,10 @@ function enablePaneDragBars() {
                 refreshCys();
             };
         };
-    }
 
-    return; 
-    // let dragging = false;
-    for (const d of dragbars) {
-        d.onmousedown = function (e) {
-            const elementId = e.target ? e.target.id : e.srcElement.id;
-            const div = document.getElementById(elementId).parentElement;
-            dragging = panes[div.id];
-            document.onmousemove = function (ex) {
-                resizePane(div, ex.x - div.getBoundingClientRect().left);
-            };
-
-            document.onmouseup = function (e) {
-                document.onmousemove = null;
-                if (dragging) {
-                    // resize vis inside pane
-                    dispatchEvent(events.RESIZE_ONE(dragging));
-                    dragging = false;
-                }
-                refreshCys();
-            };
-        };
         d.ondblclick = function (e) {
             const elementId = e.target ? e.target.id : e.srcElement.id;
-            const div = document.getElementById(elementId).parentElement;
+            const div = document.getElementById(elementId).previousElementSibling;
             togglePane(div);
         };
     }
@@ -422,19 +403,16 @@ function highlightPaneById(paneId) {
     const paneDiv = document.getElementById(paneId);
     setPane(paneId);
     if (paneDiv) {
-        expandPane(paneDiv);
-        dispatchEvent(events.RESIZE_ONE(panes[paneDiv.id]));
         if (panes) {
             Object.keys(panes).forEach((id) => {
                 if (id !== paneId) {
                     const otherPaneDiv = document.getElementById(id);
-                    // resizePane(otherPaneDiv, 20);
                     collapsePane(otherPaneDiv);
                 }
             });
         }
-
-        // refreshCys();
+        
+        expandPane(paneDiv);
     }
 }
 

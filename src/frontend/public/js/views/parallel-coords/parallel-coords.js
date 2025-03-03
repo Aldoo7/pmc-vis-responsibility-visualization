@@ -558,7 +558,6 @@ const parallelCoords = function (pane, data, metadata) {
     updateCountStrings();
 
     function resize(e) {
-        // assigning it to this div disables it on remove()
         if (e.detail.pane && (e.detail.pane === 'all' || e.detail.pane.id === pane.id)) {
             draw(pane, data);
         }
