@@ -44,16 +44,11 @@ public abstract class Property implements Namespace {
         this.expression = prismProperty.getExpression();
         this.propertiesFile = propertiesFile;
 
-        try {
-            if (project.getDatabase().question(String.format("SELECT name FROM pragma_table_info('%s') WHERE name = '%s'", project.getStateTableName(), this.getPropertyCollumn()))){
-                alreadyChecked = true;
-            }else {
-                project.getDatabase().execute(String.format("ALTER TABLE %s ADD COLUMN %s TEXT", project.getStateTableName(), this.getPropertyCollumn()));
-                project.getDatabase().execute(String.format("ALTER TABLE %s ADD COLUMN %s TEXT", project.getTransitionTableName(), this.getPropertyCollumn()));
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
+
+        if (project.getDatabase().question(String.format("SELECT name FROM pragma_table_info('%s') WHERE name = '%s'", project.getStateTableName(), this.getPropertyCollumn()))) {
+            alreadyChecked = true;
         }
+
     }
 
     public static Property createProperty(Project project, int id, PropertiesFile propertiesFile, parser.ast.Property prismProperty){

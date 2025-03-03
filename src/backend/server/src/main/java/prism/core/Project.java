@@ -1,13 +1,9 @@
 package prism.core;
 
-import parser.VarList;
+
 import parser.ast.Expression;
 import parser.ast.ModulesFile;
 import parser.ast.PropertiesFile;
-import parser.type.Type;
-import parser.type.TypeBool;
-import parser.type.TypeDouble;
-import parser.type.TypeInt;
 import prism.*;
 import prism.api.AP;
 import prism.api.Graph;
@@ -25,11 +21,12 @@ import prism.db.Database;
 import prism.db.mappers.PairMapper;
 import prism.db.mappers.StateMapper;
 import prism.db.mappers.TransitionMapper;
+import prism.server.PRISMServerConfiguration;
+import prism.server.TaskManager;
 import simulator.TransitionList;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.nio.file.Files;
 import java.util.*;
@@ -42,14 +39,15 @@ import java.util.stream.Collectors;
  */
 public class Project implements Namespace{
 
-    private static final Type[] valueTypes = {TypeInt.getInstance(), TypeDouble.getInstance(), TypeBool.getInstance()};
-
     private final String id;
 
     private final ModulesFile modulesFile;
 
     //private final Prism prism;
     private final ModelChecker modelChecker;
+    private final ModelParser modelParser;
+
+    private final TaskManager taskManager;
 
     private final Database database;
     //Name of the associated table for states in the database
@@ -79,10 +77,15 @@ public class Project implements Namespace{
     private MdpGraph mdpGraph = null;
     private final File outLog;
 
+    private boolean built = false;
 
-    public Project(String id, String rootDir, Database database,long cuddMaxMem, int numIterations, boolean debug) throws Exception {
+    public Project(String id, String rootDir, TaskManager taskManager, Database database, PRISMServerConfiguration config) throws Exception {
+        this(id, rootDir, taskManager, database, config.getCUDDMaxMem(), config.getIterations(), config.getDebug());
+    }
+
+    public Project(String id, String rootDir, TaskManager taskManager, Database database, long cuddMaxMem, int numIterations, boolean debug) throws Exception {
         this.id = id;
-
+        this.taskManager = taskManager;
         this.debug = debug;
         this.rootDir = rootDir;
         File file = new File(String.format("%s/%s/", rootDir, id) + PROJECT_MODEL);
@@ -103,6 +106,7 @@ public class Project implements Namespace{
 
         this.modelChecker = new ModelChecker(this, file, TABLE_STATES, TABLE_TRANS, TABLE_SCHED, TABLE_RES, String.format("%dm", cuddMaxMem), numIterations, debug);
         this.modulesFile = modelChecker.getModulesFile();
+        this.modelParser = new ModelParser(this, modulesFile, debug);
 
         this.database = database;
         this.info = new TreeMap<>();
@@ -161,9 +165,7 @@ public class Project implements Namespace{
 
         if (clearViewsOnStartup) clearViews();
 
-        loadSchedulers();
-
-        System.out.printf("Project %s opened\n", id);
+        //System.out.printf("Project %s opened\n", id);
         if (debug){
             System.out.println("----------Times----------");
             try (BufferedReader br = new BufferedReader(new FileReader(outLog))) {
@@ -176,31 +178,16 @@ public class Project implements Namespace{
         }
     }
 
-    private void loadSchedulers() {
-        String scheduleEntryQuery = String.format("SELECT %s, %s FROM %s", ENTRY_SCH_NAME, ENTRY_SCH_ID, TABLE_SCHED);
-        List<Pair<String, String>> schedulerEntries = database.executeCollectionQuery(scheduleEntryQuery, new PairMapper<>(ENTRY_SCH_NAME, ENTRY_SCH_ID, String.class, String.class));
+    public TaskManager getTaskManager() {
+        return taskManager;
+    }
 
-        //Remove all already existing scheduler
-        for (Scheduler s : schedulers){
-            String name = s.getName();
-            int match = -1;
-            int i = 0;
-            for (Pair<String, String> entry: schedulerEntries) {
-                if (entry.first.equals(name)){
-                    match = i;
-                    break;
-                }
-                i++;
-            }
-            if (match > -1){
-                schedulerEntries.remove(match);
-            }
-        }
+    public boolean isBuilt() {
+        return this.built;
+    }
 
-        //Load all existing schedulers left
-        for (Pair<String, String> entry: schedulerEntries) {
-            schedulers.add(Scheduler.loadScheduler(entry.first, Integer.parseInt(entry.second)));
-        }
+    public void setBuilt(boolean built) {
+        this.built = built;
     }
 
     public void addCustomScheduler(File description) throws Exception {
@@ -289,14 +276,16 @@ public class Project implements Namespace{
         return TABLE_RES;
     }
 
-    public MdpGraph getMdpGraph() { return mdpGraph; }
+    public MdpGraph getMdpGraph() {
+        return mdpGraph;
+    }
+
+    public ModelParser getModelParser() {
+        return modelParser;
+    }
 
     public void buildMdpGraph() {
         this.mdpGraph = new MdpGraph(this);
-    }
-
-    public boolean isBuilt() {
-        return (database.question(String.format("SELECT name FROM sqlite_schema WHERE type='table' AND name='%s'", TABLE_STATES)) & database.question(String.format("SELECT name FROM sqlite_schema WHERE type='table' AND name='%s'", TABLE_TRANS)));
     }
 
     public boolean existsProperty(String name) {
@@ -313,154 +302,6 @@ public class Project implements Namespace{
         if (existsProperty(name)) return name;
         properties.add(Property.createProperty(this, properties.size(), propertiesFile, prismProperty));
         return name;
-    }
-
-    public String normalizeStateName(String stateDescription) {
-        String intern = stateDescription.replace(" ", "");
-
-        // Remove parentheses if necessary
-        if (intern.startsWith("(")) {
-            intern = stateDescription.substring(1, stateDescription.length() - 1);
-        }
-
-        //Replace , by ;
-        if (!intern.contains(";")) {
-            intern = intern.replace(",", ";");
-        }
-
-        try {
-            if (stateDescription.contains("=")) {
-                String[] ids = intern.split(";");
-                String[] ordered = new String[ids.length];
-                VarList v  = modulesFile.createVarList();
-
-                for (String id : ids) {
-                    String[] assignment = id.split("=");
-                    if (assignment.length != 2) {
-                        throw new RuntimeException("Invalid assignment: " + id);
-                    }
-                    int loc = v.getIndex(assignment[0]);
-                    ordered[loc] = assignment[1];
-                }
-                StringBuilder out = null;
-                for (String o : ordered) {
-                    if (out == null) {
-                        out = new StringBuilder();
-                    } else {
-                        out.append(";");
-                    }
-                    out.append(o);
-                }
-                intern = (out == null ? null : out.toString());
-            }
-        } catch (PrismException e) {
-            throw new RuntimeException(e);
-        }
-        return intern;
-    }
-
-    public parser.State parseState(String stringValues) throws PrismLangException {
-        String intern = stringValues;
-
-        // Remove parentheses if necessary
-        if (intern.startsWith("(")) {
-            intern = stringValues.substring(1, stringValues.length() - 1);
-        }
-
-        //Replace , by ;
-        if (!intern.contains(";")) {
-            intern = intern.replace(",", ";");
-        }
-
-        //Construct Prism State manually , Prism internal function slightly broken
-        String[] ids = intern.split(";");
-        parser.State state = new parser.State(ids.length);
-
-        if (!stringValues.contains("=")) {
-            //Assignment per order
-            int i = 0;
-            for (String id : ids) {
-                String assignment = id.strip();
-                Object value = null;
-                for (Type t : valueTypes) {
-                    try {
-                        value = castStringToType(assignment, t);
-                        break;
-                    } catch (PrismLangException e) {
-                        value = null;
-                    } catch (java.lang.NumberFormatException e){
-                        value = null;
-                    }
-                }
-                if (value == null) {
-                    System.out.println(id);
-                    throw new PrismLangException("Invalid value: " + id);
-                }
-                state.setValue(i, value);
-                i++;
-            }
-        } else {
-            //Direct Assignment
-            for (String id : ids) {
-                String[] assignment = id.split("=");
-                if (assignment.length != 2) {
-                    throw new PrismLangException("Invalid assignment: " + id);
-                }
-                Object value = null;
-                for (Type t : valueTypes) {
-                    try {
-                        value = castStringToType(assignment[1], t);
-                        break;
-                    } catch (PrismLangException | NumberFormatException e) {
-                        value = null;
-                    }
-                }
-                if (value == null) {
-                    throw new PrismLangException("Invalid value in: " + id);
-                }
-                state.setValue(modulesFile.getVarIndex(assignment[0]), value);
-            }
-        }
-        return state;
-    }
-
-    public Map<String, Object> parseParameters(String stringValues) throws PrismLangException {
-        parser.State state = parseState(stringValues);
-        Map<String, Object> variables = new HashMap<>();
-        for (int i = 0; i < state.varValues.length; i++) {
-            variables.put(modulesFile.getVarName(i), state.varValues[i]);
-        }
-        return variables;
-    }
-
-    public static Object castStringToType(String s, Type t) throws PrismLangException {
-        switch (t.getTypeString()) {
-            case "int":
-                return t.castValueTo(Integer.valueOf(s));
-            case "double":
-                return t.castValueTo(Double.valueOf(s));
-            case "bool":
-                return t.castValueTo(Boolean.valueOf(s));
-        }
-        throw new PrismLangException("Unknown Type");
-    }
-
-    public Expression parseSingleExpressionString(String expression) throws PrismLangException {
-        return Prism.parseSingleExpressionString(expression);
-    }
-
-    public Map<String, PropertiesFile> propertyFileMap() throws PrismLangException, FileNotFoundException {
-        Map<String, PropertiesFile> out = new HashMap<>();
-        for (File file : Objects.requireNonNull(new File(String.format("%s/%s", rootDir, id)).listFiles())) {
-            if (!Namespace.FILES_RESERVED.contains(file.getName())) {
-                PropertiesFile propertiesFile = getPrism().parsePropertiesFile(file);
-                for (int i = 0; i < propertiesFile.getNumProperties(); i++) {
-                    String name = propertiesFile.getPropertyName(i);
-                    out.put(name, propertiesFile);
-                }
-            }
-        }
-        return out;
     }
 
     // access to Structural Information
@@ -490,23 +331,6 @@ public class Project implements Namespace{
             }
         } else {
             initials.add(this.getDefaultInitialState());
-        }
-
-        return initials;
-    }
-
-    public List<parser.State> getInitialStateObjects() throws Exception {
-        List<parser.State> initials = new ArrayList<>();
-
-        if (modulesFile.getInitialStates() != null) {
-            Expression initialExpression = modulesFile.getInitialStates();
-            for (parser.State state : modulesFile.createVarList().getAllStates()) {
-                if (initialExpression.evaluateBoolean(state)) {
-                    initials.add(state);
-                }
-            }
-        } else {
-            initials.add(modulesFile.getDefaultInitialState());
         }
 
         return initials;
@@ -546,6 +370,7 @@ public class Project implements Namespace{
 
 
     public TreeMap<String, String> modelCheckAll() throws Exception {
+        modelChecker.buildModel();
         TreeMap<String, String> info = null;
         boolean fileForModelCheckingFound = false;
         for (File file : Objects.requireNonNull(new File(String.format("%s/%s", rootDir, id)).listFiles())) {
@@ -572,47 +397,47 @@ public class Project implements Namespace{
         return info;
     }
 
-    public TreeMap<String, String> modelCheckAllStatistical(long maxPathLength, String simulationMethod, boolean parallel, Optional<String> schedulerName) throws Exception {
-        TreeMap<String, String> info = new TreeMap<>();
-
-        Optional<Scheduler> scheduler = Optional.empty();
-        //Find scheduler
-        if (schedulerName.isPresent()){
-            for (Scheduler sched : schedulers){
-                if (sched.getName().equals(schedulerName.get())){
-                    scheduler = Optional.of(sched);
-                    break;
-                }
-            }
-            if (scheduler.isEmpty()){
-                System.out.println("Could not find scheduler " + schedulerName.get());
-            }
-        }
-
-        for (File file : Objects.requireNonNull(new File(String.format("%s/%s", rootDir, id)).listFiles())) {
-            if (!Namespace.FILES_RESERVED.contains(file.getName())) {
-                //Match simulation Method
-                List<Result[]> r = modelChecker.modelCheckSimulator(file, null, maxPathLength, simulationMethod, parallel, scheduler);
-                StringBuilder out = new StringBuilder();
-
-                //for (int i = 0; i < r.length; i++){
-                //    out.append("-----------------------");
-                //    out.append(r.toString());
-                //}
-
-                //info.put(file.getName(), out.toString());
-            }
-        }
-        if (this.debug) {
-            System.out.printf("Statistical Model Checking in Project %s finished%n", id);
-        }
-        return info;
-    }
+//    public TreeMap<String, String> modelCheckAllStatistical(long maxPathLength, String simulationMethod, boolean parallel, Optional<String> schedulerName) throws Exception {
+//        TreeMap<String, String> info = new TreeMap<>();
+//
+//        Optional<Scheduler> scheduler = Optional.empty();
+//        //Find scheduler
+//        if (schedulerName.isPresent()){
+//            for (Scheduler sched : schedulers){
+//                if (sched.getName().equals(schedulerName.get())){
+//                    scheduler = Optional.of(sched);
+//                    break;
+//                }
+//            }
+//            if (scheduler.isEmpty()){
+//                System.out.println("Could not find scheduler " + schedulerName.get());
+//            }
+//        }
+//
+//        for (File file : Objects.requireNonNull(new File(String.format("%s/%s", rootDir, id)).listFiles())) {
+//            if (!Namespace.FILES_RESERVED.contains(file.getName())) {
+//                //Match simulation Method
+//                List<Result[]> r = modelParser.modelCheckSimulator(file, null, maxPathLength, simulationMethod, parallel, scheduler);
+//                StringBuilder out = new StringBuilder();
+//
+//                //for (int i = 0; i < r.length; i++){
+//                //    out.append("-----------------------");
+//                //    out.append(r.toString());
+//                //}
+//
+//                //info.put(file.getName(), out.toString());
+//            }
+//        }
+//        if (this.debug) {
+//            System.out.printf("Statistical Model Checking in Project %s finished%n", id);
+//        }
+//        return info;
+//    }
 
     // access to database
 
     public long getStateID(String stateDescription) {
-        String stateName = normalizeStateName(stateDescription);
+        String stateName = modelParser.normalizeStateName(stateDescription);
         Optional<Long> results = database.executeLookupQuery(String.format("SELECT %s FROM %s WHERE %s = '%s';", ENTRY_S_ID, TABLE_STATES, ENTRY_S_NAME, stateName), Long.class);
         if (results.isEmpty()) return -1;
         return results.get();
@@ -661,8 +486,15 @@ public class Project implements Namespace{
         return database.executeCollectionQuery(String.format("SELECT * FROM %s", TABLE_TRANS), new TransitionMapper(this));
     }
 
-    // output Functions
+    // Output Functions
     public Graph getInitialNodes() {
+        if (!built){
+            try {
+                return modelParser.getInitialNodes();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
         try {
             List<State> initials = database.executeCollectionQuery(String.format("SELECT * FROM %s WHERE %s = 1", TABLE_STATES, ENTRY_S_INIT), new StateMapper(this, null));
 
@@ -706,6 +538,13 @@ public class Project implements Namespace{
     }
 
     public Graph getGraph() {
+        if (!built) {
+            try {
+                return modelParser.getGetGraph();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
         List<State> states = database.executeCollectionQuery(String.format("SELECT * FROM %s", TABLE_STATES), new StateMapper(this, null));
         List<Transition> transitions = database.executeCollectionQuery(String.format("SELECT * FROM %s", TABLE_TRANS), new TransitionMapper(this));
         return new Graph(this, states, transitions);
@@ -748,6 +587,13 @@ public class Project implements Namespace{
     }
 
     public Graph getSubGraph(List<Long> stateIDs) {
+        if (!built) {
+            try {
+                return modelParser.getSubGraph(stateIDs);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
         List<String> stringIds = stateIDs.stream().map(l -> Long.toString(l)).collect(Collectors.toList());
         String stateID = stateIDs.stream().map(l -> Long.toString(l)).collect(Collectors.joining(","));
         List<State> states = database.executeCollectionQuery(String.format("SELECT * FROM %s WHERE %s in (%s)", TABLE_STATES, ENTRY_S_ID, stateID) , new StateMapper(this, null));
@@ -812,6 +658,15 @@ public class Project implements Namespace{
     }
 
     public Graph getState(long stateID) {
+        if (!built) {
+            try {
+                List<Long> stateIDs = new ArrayList<>();
+                stateIDs.add(stateID);
+                return modelParser.getSubGraph(stateIDs);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
         Optional<State> results = database.executeLookupQuery(String.format("SELECT * FROM %s WHERE %s = %s", TABLE_STATES, ENTRY_S_ID, stateID), new StateMapper(this, null));
         if (results.isEmpty()) return null;
         List<State> states = new ArrayList<>();
@@ -820,6 +675,13 @@ public class Project implements Namespace{
     }
 
     public Graph getOutgoing(List<Long> stateIDs) {
+        if (!built) {
+            try {
+                return modelParser.getOutgoing(stateIDs);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
         String stateID = stateIDs.stream().map(l -> Long.toString(l)).collect(Collectors.joining(","));
         List<Transition> transitions = database.executeCollectionQuery(String.format("SELECT * FROM %s WHERE %s IN (%s)", TABLE_TRANS, ENTRY_T_OUT, stateID), new TransitionMapper(this));
         Set<String> statesOfInterest = new HashSet<>();

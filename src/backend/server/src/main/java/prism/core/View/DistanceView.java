@@ -80,7 +80,7 @@ public class DistanceView extends View {
                     .collect(Collectors.toSet());
             visiting.addAll(subsetInitStates);
         } else {
-            Set<Long> subsetStates = model.getStatesByExpression(model.parseSingleExpressionString(identifierExpression).toString())
+            Set<Long> subsetStates = model.getStatesByExpression(model.getModelParser().parseSingleExpressionString(identifierExpression).toString())
                     .stream()
                     .filter(stateId -> relevantStates.contains(stateId))
                     .collect(Collectors.toSet());

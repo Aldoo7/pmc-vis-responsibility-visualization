@@ -7,6 +7,7 @@ import parser.type.TypeBool;
 import parser.type.TypeDouble;
 import parser.type.TypeInt;
 import prism.PrismLangException;
+import prism.core.ModelParser;
 import prism.core.Project;
 
 import java.util.ArrayList;
@@ -53,7 +54,7 @@ public class BaseState {
                 Object value = null;
                 for (Type t : valueTypes) {
                     try {
-                        value = Project.castStringToType(assignment, t);
+                        value = ModelParser.castStringToType(assignment, t);
                         break;
                     } catch (PrismLangException e) {
                         value = null;
@@ -76,7 +77,7 @@ public class BaseState {
                 Object value = null;
                 for (Type t : valueTypes) {
                     try {
-                        value = Project.castStringToType(assignment[1], t);
+                        value = ModelParser.castStringToType(assignment[1], t);
                         break;
                     } catch (PrismLangException e) {
                         value = null;
@@ -113,7 +114,7 @@ public class BaseState {
     private Expression parseExpression(String expression) throws PrismLangException
     {
         ModulesFile model = parent.getModulesFile();
-        Expression expr = parent.parseSingleExpressionString(expression);
+        Expression expr = parent.getModelParser().parseSingleExpressionString(expression);
         expr = (Expression) expr.findAllFormulas(model.getFormulaList());
         expr = (Expression) expr.expandFormulas(model.getFormulaList(), false);
         expr = (Expression) expr.findAllConstants(model.getConstantList());

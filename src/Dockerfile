@@ -13,7 +13,7 @@ RUN apt-get update && \
 WORKDIR /usr/src/pmc-vis/backend/
 RUN git clone https://github.com/prismmodelchecker/prism prism
 WORKDIR /usr/src/pmc-vis/backend/prism/prism
-RUN git checkout 03c6c15
+RUN git checkout c541affb994f3ed044ae4e1dce3ed3dd078323be
 RUN make
 
 ### 3. install backend server

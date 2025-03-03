@@ -11,6 +11,7 @@ import org.jdbi.v3.core.Jdbi;
 import prism.core.Project;
 import prism.db.Database;
 import prism.server.PRISMServerConfiguration;
+import prism.server.TaskManager;
 
 import java.io.*;
 import java.nio.file.FileAlreadyExistsException;
@@ -102,8 +103,9 @@ public class StatisticalChecker extends ConfiguredCommand<PRISMServerConfigurati
 
         final Jdbi jdbi = factory.build(new Environment("temp"), dbfactory, projectID);
         Database database = new Database(jdbi, configuration.getDebug());
+        TaskManager taskManager = new TaskManager();
 
-        Project project = new Project(projectID, configuration.getPathTemplate(),  database, configuration.getCUDDMaxMem(), configuration.getIterations(), configuration.getDebug());
+        Project project = new Project(projectID, configuration.getPathTemplate(), taskManager,  database, configuration.getCUDDMaxMem(), configuration.getIterations(), configuration.getDebug());
 
         Optional<String> scheduler;
         if (namespace.get("scheduler") == null){
@@ -119,7 +121,7 @@ public class StatisticalChecker extends ConfiguredCommand<PRISMServerConfigurati
             Files.delete(schedulerFile.toPath());
         }
 
-        project.modelCheckAllStatistical(namespace.getLong("maxPath"), namespace.get("simMethod"), namespace.getBoolean("parallel"), scheduler);
+        //project.modelCheckAllStatistical(namespace.getLong("maxPath"), namespace.get("simMethod"), namespace.getBoolean("parallel"), scheduler);
         project.removeFiles();
     }
 
