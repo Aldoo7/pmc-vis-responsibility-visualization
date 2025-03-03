@@ -57,6 +57,9 @@ public class Probability extends Property{
             vals.iterate(map, false);
             Map<Long, Double> values = map.output();
 
+            project.getDatabase().execute(String.format("ALTER TABLE %s ADD COLUMN %s TEXT", project.getStateTableName(), this.getPropertyCollumn()));
+            project.getDatabase().execute(String.format("ALTER TABLE %s ADD COLUMN %s TEXT", project.getTransitionTableName(), this.getPropertyCollumn()));
+
             try (Batch toExecute = project.getDatabase().createBatch(String.format("UPDATE %s SET %s = ? WHERE %s = ?", project.getStateTableName(), this.getPropertyCollumn(), ENTRY_S_ID), 2)) {
                 for (Long stateID : values.keySet()) {
                     toExecute.addToBatch(String.valueOf(values.get(stateID)), String.valueOf(stateID));

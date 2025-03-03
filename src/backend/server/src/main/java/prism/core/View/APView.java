@@ -32,7 +32,7 @@ public class APView extends View {
             while (states.hasNext()) {
                 State state = states.next();
                 if (!relevantStates.contains(state.getNumId())) continue;
-                String combination = String.join(";", model.getLabels(model.parseState(state.getParameterString())));
+                String combination = String.join(";", model.getLabels(model.getModelParser().parseState(state.getParameterString())));
 //            combination = semiGrouping && combination.isEmpty() ? ENTRY_C_BLANK : combination;
                 toExecute.add(String.format("UPDATE %s SET %s = '%s' WHERE %s = '%s'", model.getStateTableName(), getCollumn(), combination, ENTRY_S_ID, state.getNumId()));
 

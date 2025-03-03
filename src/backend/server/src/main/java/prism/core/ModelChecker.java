@@ -12,6 +12,9 @@ import prism.core.Utility.Prism.MDStrategyDB;
 import prism.core.Utility.Prism.Updater;
 import prism.core.Utility.Timer;
 import prism.db.Batch;
+import prism.db.Database;
+import prism.misc.Debug;
+import prism.server.Task;
 import simulator.Choice;
 import simulator.SimulatorEngine;
 import simulator.TransitionList;
@@ -26,7 +29,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
-public class ModelChecker implements Namespace{
+public class ModelChecker implements Namespace {
 
     private final Project project;
     private final Prism prism;
@@ -55,7 +58,7 @@ public class ModelChecker implements Namespace{
         prism.initialise();
         prism.setStoreVector(true);
 
-        try (prism.core.Utility.Timer parse = new prism.core.Utility.Timer("parsing project", project.getLog())){
+        try (prism.core.Utility.Timer parse = new prism.core.Utility.Timer("parsing project", project.getLog())) {
             ModulesFile modulesFile = prism.parseModelFile(modelFile, ModelType.MDP);
             prism.loadPRISMModel(modulesFile);
             this.modulesFile = modulesFile;
@@ -94,21 +97,20 @@ public class ModelChecker implements Namespace{
                 System.out.println(
                         "Translated ProFeat file to Prism files");
                 System.out.println(output);
-            }else
+            } else
                 throw new RuntimeException(String.format("Could not translate profeat file:\n%s", output));
-        }
-        catch (InterruptedException e) {
+        } catch (InterruptedException e) {
             throw new RuntimeException(e);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
 
-        String cuddMem = String.format("%dm", cuddMaxMem/(numThreads*2));
+        String cuddMem = String.format("%dm", cuddMaxMem / (numThreads * 2));
 
         //load every resulting model into its own modelchecker instance
         List<ModelChecker> instances = new ArrayList<>();
         int i = 0;
-        for (File file : modelDir.listFiles()){
+        for (File file : modelDir.listFiles()) {
             String stateTable = String.format("%s_%s", project.getStateTableName(), i);
             String transTable = String.format("%s_%s", project.getTransitionTableName(), i);
             String schedTable = String.format("%s_%s", project.getSchedulerTableName(), i);
@@ -121,7 +123,7 @@ public class ModelChecker implements Namespace{
         //compute the familiy at parallel
         ExecutorService executorService = Executors.newFixedThreadPool(numThreads);
         List<CompletableFuture<Void>> futures = new ArrayList<>();
-        for(ModelChecker instance : instances){
+        for (ModelChecker instance : instances) {
             CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
                 try {
                     instance.buildModel();
@@ -139,7 +141,7 @@ public class ModelChecker implements Namespace{
 
     }
 
-    public static File translateProFeat(File profeatFile, File targetFile){
+    public static File translateProFeat(File profeatFile, File targetFile) {
         try {
             Process process
                     = Runtime.getRuntime().exec(String.format("profeat %s -t -o %s", profeatFile.getPath(), targetFile.getPath()));
@@ -162,10 +164,9 @@ public class ModelChecker implements Namespace{
                 System.out.println(output);
                 File existingFile = new File(targetFile.getPath());
                 return existingFile;
-            }else
+            } else
                 throw new RuntimeException(String.format("Could not translate profeat file:\n%s", output));
-        }
-        catch (InterruptedException e) {
+        } catch (InterruptedException e) {
             throw new RuntimeException(e);
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -176,93 +177,109 @@ public class ModelChecker implements Namespace{
         return this.prism;
     }
 
-    public Updater getUpdater(){
+    public Updater getUpdater() {
         return this.updater;
     }
 
-    public Model getModel(){
+    public Model getModel() {
         return this.model;
     }
 
-    public ModulesFile getModulesFile(){
+    public ModulesFile getModulesFile() {
         return this.modulesFile;
     }
 
-    public void buildModel() throws PrismException{
-        TreeMap<String, Object> info = new TreeMap<>();
+    public boolean isBuilt() {
+        return (project.getDatabase().question(String.format("SELECT name FROM sqlite_schema WHERE type='table' AND name='%s'", stateTable)) & project.getDatabase().question(String.format("SELECT name FROM sqlite_schema WHERE type='table' AND name='%s'", transTable)));
+    }
 
-        try(prism.core.Utility.Timer build = new prism.core.Utility.Timer("Build Project", project.getLog())) {
-            prism.buildModelIfRequired();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+    private class modelBuildTask implements Task {
+        Database database;
+
+        public modelBuildTask() {
+            this.database = project.getDatabase();
         }
-        this.model = prism.getBuiltModel();
-        if (model == null) {
-            return;
-        }
-        info.put("States", model.getNumStatesString());
-        info.put("Transitions", model.getNumTransitionsString());
-        if (!project.isBuilt()) {
-            try(prism.core.Utility.Timer build = new Timer("Build Database", project.getLog())){
+
+        @Override
+        public void run() {
+            try (prism.core.Utility.Timer build = new prism.core.Utility.Timer("Build Project", project.getLog())) {
+                prism.buildModelIfRequired();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+
+            model = prism.getBuiltModel();
+            if (model == null || isBuilt()) {
+                project.setBuilt(true);
+                return;
+            }
+
+            try {
+                Debug.sleep(100000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+
+            try (prism.core.Utility.Timer build = new Timer("Build Database", project.getLog())) {
                 int numRewards = modulesFile.getNumRewardStructs();
                 try {
-                    project.getDatabase().execute(String.format("CREATE TABLE %s (%s INTEGER PRIMARY KEY NOT NULL, %s TEXT, %s BOOLEAN)", stateTable , ENTRY_S_ID, ENTRY_S_NAME, ENTRY_S_INIT));
-                    project.getDatabase().execute(String.format("CREATE TABLE %s (%s INTEGER PRIMARY KEY, %s INTEGER NOT NULL, %s TEXT, %s INTEGER);", transTable, ENTRY_T_ID, ENTRY_T_OUT, ENTRY_T_ACT, ENTRY_T_PROB));
-                    project.getDatabase().execute(String.format("CREATE TABLE %s (%s TEXT, %s TEXT)", schedTable, ENTRY_SCH_ID, ENTRY_SCH_NAME));
-                    project.getDatabase().execute(String.format("CREATE TABLE %s (%s TEXT, %s TEXT, %s TEXT)", resTable, ENTRY_R_ID, ENTRY_R_NAME, ENTRY_R_INFO));
+                    database.execute(String.format("CREATE TABLE %s (%s INTEGER PRIMARY KEY NOT NULL, %s TEXT, %s BOOLEAN)", stateTable, ENTRY_S_ID, ENTRY_S_NAME, ENTRY_S_INIT));
+                    database.execute(String.format("CREATE TABLE %s (%s INTEGER PRIMARY KEY, %s INTEGER NOT NULL, %s TEXT, %s INTEGER);", transTable, ENTRY_T_ID, ENTRY_T_OUT, ENTRY_T_ACT, ENTRY_T_PROB));
+                    database.execute(String.format("CREATE TABLE %s (%s TEXT, %s TEXT)", schedTable, ENTRY_SCH_ID, ENTRY_SCH_NAME));
+                    database.execute(String.format("CREATE TABLE %s (%s TEXT, %s TEXT, %s TEXT)", resTable, ENTRY_R_ID, ENTRY_R_NAME, ENTRY_R_INFO));
 
-                    for (int i = 0; i < numRewards; i++){
-                        project.getDatabase().execute(String.format("ALTER TABLE %s ADD COLUMN %s TEXT", stateTable , ENTRY_REW + i));
-                        project.getDatabase().execute(String.format("ALTER TABLE %s ADD COLUMN %s TEXT", transTable, ENTRY_REW + i));
+                    for (int i = 0; i < numRewards; i++) {
+                        database.execute(String.format("ALTER TABLE %s ADD COLUMN %s TEXT", stateTable, ENTRY_REW + i));
+                        database.execute(String.format("ALTER TABLE %s ADD COLUMN %s TEXT", transTable, ENTRY_REW + i));
                     }
 
                 } catch (SQLException e) {
                     throw new RuntimeException(e.toString());
                 }
 
-                List<String> stateList = this.model.getReachableStates().exportToStringList();
+                List<String> stateList = model.getReachableStates().exportToStringList();
                 Map<State, Integer> states = new HashMap<>();
 
-                String stateInsertCall = String.format("INSERT INTO %s (%s,%s,%s) VALUES(?,?,?)", stateTable , ENTRY_S_ID, ENTRY_S_NAME, ENTRY_S_INIT);
+                String stateInsertCall = String.format("INSERT INTO %s (%s,%s,%s) VALUES(?,?,?)", stateTable, ENTRY_S_ID, ENTRY_S_NAME, ENTRY_S_INIT);
                 String transitionInsertCall = String.format("INSERT INTO %s(%s,%s,%s) VALUES (?,?,?)", transTable, ENTRY_T_OUT, ENTRY_T_ACT, ENTRY_T_PROB);
-                if (numRewards > 0){
+                if (numRewards > 0) {
                     String[] rewardHeader = new String[numRewards];
                     String[] questionHeader = new String[numRewards];
-                    for (int i=0; i < numRewards; i++){
+                    for (int i = 0; i < numRewards; i++) {
                         rewardHeader[i] = ENTRY_REW + i;
                         questionHeader[i] = "?";
                     }
-                    stateInsertCall = String.format("INSERT INTO %s (%s,%s,%s,%s) VALUES(?,?,?,%s)", stateTable , ENTRY_S_ID, ENTRY_S_NAME, ENTRY_S_INIT, String.join(",", rewardHeader), String.join(",", questionHeader));
-                    transitionInsertCall = String.format("INSERT INTO %s(%s,%s,%s,%s) VALUES (?,?,?,%s)", transTable, ENTRY_T_OUT, ENTRY_T_ACT, ENTRY_T_PROB, String.join(",", rewardHeader), String.join(",",questionHeader));
+                    stateInsertCall = String.format("INSERT INTO %s (%s,%s,%s,%s) VALUES(?,?,?,%s)", stateTable, ENTRY_S_ID, ENTRY_S_NAME, ENTRY_S_INIT, String.join(",", rewardHeader), String.join(",", questionHeader));
+                    transitionInsertCall = String.format("INSERT INTO %s(%s,%s,%s,%s) VALUES (?,?,?,%s)", transTable, ENTRY_T_OUT, ENTRY_T_ACT, ENTRY_T_PROB, String.join(",", rewardHeader), String.join(",", questionHeader));
                 }
 
-                try(Batch toExecute = project.getDatabase().createBatch(stateInsertCall, 3 + numRewards)){
+                try (Batch toExecute = database.createBatch(stateInsertCall, 3 + numRewards)) {
                     for (int i = 0; i < stateList.size(); i++) {
-                        String stateName = project.normalizeStateName(stateList.get(i));
-                        parser.State s = project.parseState(stateName);
+                        String stateName = project.getModelParser().normalizeStateName(stateList.get(i));
+                        parser.State s = project.getModelParser().parseState(stateName);
 
                         //Determine whether this is an initial state or not
                         Expression initialExpression = modulesFile.getInitialStates();
                         boolean initial;
-                        if (initialExpression == null){
+                        if (initialExpression == null) {
                             initial = modulesFile.getDefaultInitialState().equals(s);
-                        }else{
+                        } else {
                             initial = initialExpression.evaluateBoolean(s);
                         }
 
                         //Create State in table
-                        if (numRewards > 0){
+                        if (numRewards > 0) {
                             double[] rewards = new double[numRewards];
                             updater.calculateStateRewards(s, rewards);
-                            String[] inputs = new String[numRewards+3];
+                            String[] inputs = new String[numRewards + 3];
                             inputs[0] = Integer.toString(i);
                             inputs[1] = stateName;
                             inputs[2] = initial ? "1" : "0";
-                            for (int j = 0; j < numRewards; j++){
-                                inputs[j+3] = String.valueOf(rewards[j]);
+                            for (int j = 0; j < numRewards; j++) {
+                                inputs[j + 3] = String.valueOf(rewards[j]);
                             }
                             toExecute.addToBatch(inputs);
-                        }else{
+                        } else {
                             toExecute.addToBatch(Integer.toString(i), stateName, initial ? "1" : "0");
                         }
 
@@ -272,7 +289,7 @@ public class ModelChecker implements Namespace{
                     throw new RuntimeException(e);
                 }
 
-                try(Batch toExecute = project.getDatabase().createBatch(transitionInsertCall, 3 + numRewards)) {
+                try (Batch toExecute = database.createBatch(transitionInsertCall, 3 + numRewards)) {
                     for (parser.State s : states.keySet()) {
                         TransitionList<Double> transitionList = new TransitionList<>(Evaluator.forDouble());
                         updater.calculateTransitions(s, transitionList);
@@ -287,21 +304,20 @@ public class ModelChecker implements Namespace{
                                 parser.State target = choice.computeTarget(j, s, modulesFile.createVarList());
                                 probabilities.put(states.get(target), probability);
                             }
-                            if (numRewards > 0){
+                            if (numRewards > 0) {
                                 double[] rewards = new double[numRewards];
                                 updater.calculateTransitionRewards(s, i, rewards);
-                                String[] inputs = new String[numRewards+3];
+                                String[] inputs = new String[numRewards + 3];
                                 inputs[0] = String.valueOf(states.get(s));
                                 inputs[1] = actionName;
                                 inputs[2] = probabilities.entrySet().stream().map(e -> String.format("%s:%s", e.getKey(), e.getValue())).collect(Collectors.joining(";"));
-                                for (int j = 0; j < numRewards; j++){
-                                    inputs[j+3] = String.valueOf(rewards[j]);
+                                for (int j = 0; j < numRewards; j++) {
+                                    inputs[j + 3] = String.valueOf(rewards[j]);
                                 }
                                 toExecute.addToBatch(inputs);
-                            }else{
+                            } else {
                                 toExecute.addToBatch(String.valueOf(states.get(s)), actionName, probabilities.entrySet().stream().map(e -> String.format("%s:%s", e.getKey(), e.getValue())).collect(Collectors.joining(";")));
                             }
-
                         }
                     }
                 } catch (SQLException e) {
@@ -310,6 +326,64 @@ public class ModelChecker implements Namespace{
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
+            project.setBuilt(true);
+        }
+
+        @Override
+        public String status() {
+            return "Building Model of Project " + project.getID();
+        }
+
+        @Override
+        public String name() {
+            return "Building_" + project.getID();
+        }
+
+        @Override
+        public Type type() {
+            return Type.Build;
+        }
+    }
+
+    private class modelCheckTask implements Task {
+
+        Property property;
+
+        public modelCheckTask(Property property) {
+            this.property = property;
+        }
+
+        public void run() {
+            try {
+                property.modelCheck();
+            } catch (PrismException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        @Override
+        public String status() {
+            return "Checking " + property.getName() + " in Project " + project.getID();
+        }
+
+        @Override
+        public String name() {
+            return "Check_" + property.getName() + "_" + project.getID();
+        }
+
+        @Override
+        public Type type() {
+            return Type.Check;
+        }
+    }
+
+    public void buildModel() throws PrismException {
+        //Check whether model has been build or is already queued to build
+        if (this.model != null && this.isBuilt()) {
+            return;
+        }
+        if (!project.getTaskManager().containsTask(Task.Type.Build)) {
+            project.getTaskManager().execute(new modelBuildTask());
         }
     }
 
@@ -328,8 +402,8 @@ public class ModelChecker implements Namespace{
         for (int i = 0; i < propertiesFile.getNumProperties(); i++) {
             String name = project.newProperty(propertiesFile, i);
             Optional<Property> p = project.getProperty(name);
-            if (p.isPresent()){
-                info.put(name, p.get().modelCheck());
+            if (p.isPresent()) {
+                project.getTaskManager().execute(new modelCheckTask(p.get()));
             }
         }
         return info;
@@ -339,196 +413,5 @@ public class ModelChecker implements Namespace{
         PropertiesFile propertiesFile = prism.parsePropertiesFile(new File(path));
         return checkModel(propertiesFile);
     }
-
-    public List<Result[]> modelCheckSimulator(File properties, List<State> initialStates, long maxPathLength, String simulationMethod, boolean parallel, Optional<Scheduler> scheduler) throws Exception {
-
-        PropertiesFile propertiesFile = prism.parsePropertiesFile(properties);
-        SimulatorEngine simulator = prism.getSimulator();
-        PrismLog mainLog = prism.getMainLog();
-        List<Expression> exprs = new ArrayList<>();
-
-        ModelGenerator<Double> modelGen = (ModelGenerator<Double>) prism.getModelGenerator();
-        RewardGenerator<Double> rewardGen;
-        if (modelGen instanceof RewardGenerator) {
-            rewardGen = (RewardGenerator<Double>) modelGen;
-        } else {
-            rewardGen = new RewardGenerator<>() {};
-        }
-
-        simulator.loadModel(modelGen, rewardGen);
-
-        for (int i=0; i< propertiesFile.getNumProperties(); i++){
-            exprs.add(propertiesFile.getProperty(i));
-        }
-        if (scheduler.isPresent()) {
-            StrategyGenerator<Double> strategy = new MDStrategyDB(model, project.getDatabase(), project.getTransitionTableName(), scheduler.get().getCollumnName(), true);
-            simulator.loadStrategy(strategy);
-        }
-
-        // Print info
-        mainLog.printSeparator();
-        mainLog.print("\nSimulating");
-        if (exprs.size() == 1) {
-            mainLog.println(": " + exprs.get(0));
-        } else {
-            mainLog.println(" " + exprs.size() + " properties:");
-            for (int i = 0; i < exprs.size(); i++) {
-                mainLog.println(" " + exprs.get(i));
-            }
-        }
-        //if (currentDefinedMFConstants != null && currentDefinedMFConstants.getNumValues() > 0)
-        //    mainLog.println("Model constants: " + currentDefinedMFConstants);
-        //if (definedPFConstants != null && definedPFConstants.getNumValues() > 0)
-        //    mainLog.println("Property constants: " + definedPFConstants);
-
-        if (prism.getModelType().nondeterministic() && prism.getModelType().removeNondeterminism() != prism.getModelType()) {
-            mainLog.printWarning("For simulation, nondeterminism in " + prism.getModelType() + " is resolved uniformly (resulting in " + prism.getModelType().removeNondeterminism() + ").");
-        }
-
-        // Check that properties are valid for this model type
-        for (Expression expr : exprs)
-            expr.checkValid(prism.getModelType().removeNondeterminism());
-
-        List<State> states = initialStates;
-        //Check if intitialStates is null or empty, get model initial states instead
-        if (initialStates == null || initialStates.isEmpty()){
-            states = project.getInitialStateObjects();
-        }
-
-        // Do simulation
-        List<Result[]> resArrays = new ArrayList<>();
-
-        for (State s : states){
-            Result[] resArray;
-
-            if (parallel){
-                //Match simulation Method
-                SimulationMethod simMethod = processSimulationOptions(exprs.get(0), simulationMethod);
-                resArray = simulator.modelCheckMultipleProperties(propertiesFile, exprs, s, maxPathLength, simMethod);
-            }else{
-                resArray = new Result[exprs.size()];
-                for (int i = 0; i < exprs.size(); i++){
-                    //Match simulation Method
-                    SimulationMethod simMethod = processSimulationOptions(exprs.get(i), simulationMethod);
-                    Result res = simulator.modelCheckSingleProperty(propertiesFile, exprs.get(i), s, maxPathLength, simMethod);
-                    resArray[i] = res;
-                }
-            }
-            resArrays.add(resArray);
-        }
-
-        return resArrays;
-    }
-
-    private SimulationMethod processSimulationOptions(Expression expr, String simMethodName) throws PrismException
-    {
-        SimulationMethod aSimMethod = null;
-
-        // See if property to be checked is a reward (R) operator
-        boolean isReward = (expr instanceof ExpressionReward);
-
-        // See if property to be checked is quantitative (=?)
-        boolean isQuant = Expression.isQuantitative(expr);
-
-        // Pick defaults for simulation settings
-        double simApprox = prism.getSettings().getDouble(PrismSettings.SIMULATOR_DEFAULT_APPROX);
-        double simConfidence = prism.getSettings().getDouble(PrismSettings.SIMULATOR_DEFAULT_CONFIDENCE);
-        int simNumSamples = prism.getSettings().getInteger(PrismSettings.SIMULATOR_DEFAULT_NUM_SAMPLES);
-        double simWidth = prism.getSettings().getDouble(PrismSettings.SIMULATOR_DEFAULT_WIDTH);
-
-        int reqIterToConclude = prism.getSettings().getInteger(PrismSettings.SIMULATOR_DECIDE);
-        double simMaxReward = prism.getSettings().getDouble(PrismSettings.SIMULATOR_MAX_REWARD);
-        double simMaxPath = prism.getSettings().getLong(PrismSettings.SIMULATOR_DEFAULT_MAX_PATH);
-
-        // Pick a default method, if not specified
-        // (CI for quantitative, SPRT for bounded)
-        if (simMethodName == null) {
-            simMethodName = isQuant ? "ci" : "sprt";
-        }
-
-        // CI
-        if (simMethodName.equals("ci")) {
-            /*if (simWidthGiven && simConfidenceGiven && simNumSamplesGiven) {
-                throw new PrismException("Cannot specify all three parameters (width/confidence/samples) for CI method");
-            }
-            if (!simWidthGiven) {
-                // Default (unless width specified) is to leave width unknown
-                aSimMethod = new CIwidth(simConfidence, simNumSamples);
-            } else if (!simNumSamplesGiven) {
-                // Next preferred option (unless specified) is unknown samples
-                if (simManual)
-                    aSimMethod = new CIiterations(simConfidence, simWidth, reqIterToConclude);
-                else
-                    aSimMethod = (isReward ? new CIiterations(simConfidence, simWidth, simMaxReward) : new CIiterations(simConfidence, simWidth));
-            } else {*/
-                // Otherwise confidence unknown
-                aSimMethod = new CIconfidence(simWidth, simNumSamples);
-            //}
-            //if (simApproxGiven) {
-            //    mainLog.printWarning("Option -simapprox is not used for the CI method and is being ignored");
-            //}
-        }
-        // ACI
-        else if (simMethodName.equals("aci")) {
-            /*if (simWidthGiven && simConfidenceGiven && simNumSamplesGiven) {
-                throw new PrismException("Cannot specify all three parameters (width/confidence/samples) for ACI method");
-            }
-            if (!simWidthGiven) {
-                // Default (unless width specified) is to leave width unknown
-                aSimMethod = new ACIwidth(simConfidence, simNumSamples);
-            } else if (!simNumSamplesGiven) {
-                // Next preferred option (unless specified) is unknown samples
-                if (simManual)
-                    aSimMethod = new ACIiterations(simConfidence, simWidth, reqIterToConclude);
-                else
-                    aSimMethod = (isReward ? new ACIiterations(simConfidence, simWidth, simMaxReward) : new CIiterations(simConfidence, simWidth));
-            } else {*/
-                // Otherwise confidence unknown
-                aSimMethod = new ACIconfidence(simWidth, simNumSamples);
-            /*}
-            if (simApproxGiven) {
-                mainLog.printWarning("Option -simapprox is not used for the ACI method and is being ignored");
-            }*/
-        }
-        // APMC
-        else if (simMethodName.equals("apmc")) {
-            /*if (isReward) {
-                throw new PrismException("Cannot use the APMC method on reward properties; try CI (switch -simci) instead");
-            }
-            if (simApproxGiven && simConfidenceGiven && simNumSamplesGiven) {
-                throw new PrismException("Cannot specify all three parameters (approximation/confidence/samples) for APMC method");
-            }
-            if (!simApproxGiven) {
-                // Default (unless width specified) is to leave approximation unknown
-                aSimMethod = new APMCapproximation(simConfidence, simNumSamples);
-            } else if (!simNumSamplesGiven) {
-                // Next preferred option (unless specified) is unknown samples
-                aSimMethod = new APMCiterations(simConfidence, simApprox);
-            } else {*/
-                // Otherwise confidence unknown
-                aSimMethod = new APMCconfidence(simApprox, simNumSamples);
-            /*}
-            if (simWidthGiven) {
-                mainLog.printWarning("Option -simwidth is not used for the APMC method and is being ignored");
-            }*/
-        }
-        // SPRT
-        else if (simMethodName.equals("sprt")) {
-            if (isQuant) {
-                throw new PrismException("Cannot use SPRT on a quantitative (=?) property");
-            }
-            aSimMethod = new SPRTMethod(simConfidence, simConfidence, simWidth);
-            /*if (simApproxGiven) {
-                mainLog.printWarning("Option -simapprox is not used for the SPRT method and is being ignored");
-            }
-            if (simNumSamplesGiven) {
-                mainLog.printWarning("Option -simsamples is not used for the SPRT method and is being ignored");
-            }*/
-        } else
-            throw new PrismException("Unknown simulation method \"" + simMethodName + "\"");
-
-        return aSimMethod;
-    }
-
 
 }

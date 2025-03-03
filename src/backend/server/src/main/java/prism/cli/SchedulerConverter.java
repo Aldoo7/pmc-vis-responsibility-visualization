@@ -12,6 +12,7 @@ import org.jdbi.v3.core.Jdbi;
 import prism.core.Project;
 import prism.db.Database;
 import prism.server.PRISMServerConfiguration;
+import prism.server.TaskManager;
 
 import java.io.*;
 import java.nio.file.FileAlreadyExistsException;
@@ -81,7 +82,9 @@ public class SchedulerConverter extends ConfiguredCommand<PRISMServerConfigurati
         final Jdbi jdbi = factory.build(new Environment("temp"), dbfactory, projectID);
         Database database = new Database(jdbi, configuration.getDebug());
 
-        Project project = new Project(projectID, configuration.getPathTemplate(),  database, configuration.getCUDDMaxMem(), configuration.getIterations(), configuration.getDebug());
+        TaskManager activeProjects = new TaskManager();
+
+        Project project = new Project(projectID, configuration.getPathTemplate(), activeProjects,  database, configuration.getCUDDMaxMem(), configuration.getIterations(), configuration.getDebug());
         project.printScheduler(namespace.get("out"), namespace.getBoolean("limit"));
         project.removeFiles();
     }

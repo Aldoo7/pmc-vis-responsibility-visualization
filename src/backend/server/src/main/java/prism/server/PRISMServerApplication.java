@@ -8,7 +8,8 @@ import org.eclipse.jetty.servlets.CrossOriginFilter;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import prism.cli.SchedulerConverter;
 import prism.cli.StatisticalChecker;
-import prism.resources.PRISMResource;
+import prism.resources.ModelResource;
+import prism.resources.TaskResource;
 
 import javax.servlet.DispatcherType;
 import javax.servlet.FilterRegistration;
@@ -39,6 +40,9 @@ public class PRISMServerApplication extends Application<PRISMServerConfiguration
 
 		System.out.println("Starting Backend Server");
 
+		TaskManager activeProjects = new TaskManager();
+		environment.lifecycle().manage(activeProjects);
+
 		// Enable CORS headers
 		final FilterRegistration.Dynamic cors =
 				environment.servlets().addFilter("CORS", CrossOriginFilter.class);
@@ -51,17 +55,22 @@ public class PRISMServerApplication extends Application<PRISMServerConfiguration
 		// Add URL mapping
 		cors.addMappingForUrlPatterns(EnumSet.allOf(DispatcherType.class), true, "/*");
 
-		final PRISMResource resource = new PRISMResource(
-				environment, configuration
+		final TaskResource taskResource = new TaskResource(
+				environment, configuration, activeProjects
 		);
+
+		final ModelResource modelResource = new ModelResource(
+				environment, configuration, activeProjects
+		);
+
 		environment.jersey().register(MultiPartFeature.class);
-		environment.jersey().register(resource);
+		environment.jersey().register(modelResource);
+		environment.jersey().register(taskResource);
 
 		environment.jersey().register(new OpenApiResource().configLocation("src/main/documentation/openapi.yaml"));
 
 		System.out.println("Backend Server started");
 		System.out.println("Server is listening on port http://localhost:8080");
-
 
 	}
 
