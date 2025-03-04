@@ -59,6 +59,11 @@
           <a id="export-strat"> Export marked nodes... </a>
         </div>
 
+        <div class="param">
+          <p class="label inline label-info"># of panes</p>
+          <input type="number" name="numberOfPanes" id="numberOfPanes" value="5" min="1">
+        </div>
+
       </div>
 
       <div class="ui divider"></div>

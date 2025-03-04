@@ -181,6 +181,11 @@ body.config-closed #container {
     margin: 0 !important;
 }
 
+#selected-pane {
+    text-decoration: underline;
+    text-decoration-color: var(--active-pane);
+}
+
 .states-selected {
     border: double 3px;
     border-color: var(--pcp-primary)

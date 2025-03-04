@@ -20,11 +20,11 @@
 }
 
 .dragbar:before {
-    margin-top: calc(15% - 9px);
+    margin-top: calc(15vh - 9px);
 }
 
 .dragbar:after {
-    margin-top: calc(85% - 9px);
+    margin-top: calc(80vh - 9px);
 }
 
 /* the logic for resizing the split inside panes is in panes.js */

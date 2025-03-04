@@ -8,6 +8,11 @@ window.onresize = () => {
   dispatchEvent(events.RESIZE_ALL);
 };
 
+const ww = window.innerWidth;
+if (ww) {
+  document.getElementById('numberOfPanes').value = Math.floor(ww / 200); 
+}
+
 Promise.all([
   fetch("http://localhost:8080/" + PROJECT + "/initial").then(r => r.json()),
   //fetch('http://localhost:8080/'+ PROJECT).then((res) => res.json()) // requests entire dataset

@@ -483,7 +483,7 @@ document.getElementById("export-strat")?.addEventListener("click", function () {
         Swal.fire({
             icon: "error",
             title: "Nothing to export",
-            html: "Nodes can be marked/unmarked using the context menu (right-click)",
+            html: "Nodes can be marked/unmarked using CTRL+M, the bookmark button atop the pane, or the context menu (right-click)",
             timer: 5000,
             timerProgressBar: true,
         });
