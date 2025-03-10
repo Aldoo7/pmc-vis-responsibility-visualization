@@ -4,10 +4,12 @@ import org.jdbi.v3.core.result.ResultIterator;
 import parser.ast.ExpressionProb;
 import parser.ast.PropertiesFile;
 import parser.ast.RelOp;
+import parser.type.TypeDouble;
 import prism.PrismException;
 import prism.Result;
 import prism.StateValues;
 import prism.api.Transition;
+import prism.api.VariableInfo;
 import prism.core.Project;
 import prism.core.Scheduler.Criteria;
 import prism.core.Scheduler.CriteriaSort;
@@ -32,12 +34,12 @@ public class Probability extends Property{
     }
 
     @Override
-    public String modelCheck() throws PrismException {
+    public VariableInfo modelCheck() throws PrismException {
         if (alreadyChecked) {
             this.scheduler = Scheduler.loadScheduler(this.getName(), this.id);
             project.addScheduler(scheduler);
-            Optional<String> out = project.getDatabase().executeLookupQuery(String.format("SELECT %s FROM %s WHERE %s = '%s'", ENTRY_R_INFO, project.getInfoTableName(), ENTRY_R_ID, id), String.class);
-            return out.orElse("Unavailable");
+
+            return new VariableInfo(this.name, TypeDouble.getInstance(), 0, 1);
         }
 
         if (project.debug) {
@@ -52,7 +54,7 @@ public class Probability extends Property{
         }
         try (Timer time = new Timer(String.format("Insert %s to db", this.getName()), project.getLog())) {
             StateValues vals = (StateValues) result.getVector();
-            StateAndValueMapper map = new StateAndValueMapper();
+            StateAndValueMapper map = new StateAndValueMapper(project.getModelParser());
 
             vals.iterate(map, false);
             Map<Long, Double> values = map.output();
@@ -180,7 +182,7 @@ public class Probability extends Property{
             alreadyChecked = true;
             String out = result.getResultAndAccuracy();
             project.getDatabase().execute(String.format("INSERT INTO %s (%s,%s,%s) VALUES('%s','%s','%s')", project.getInfoTableName(), ENTRY_R_ID, ENTRY_R_NAME, ENTRY_R_INFO, this.id, this.name, out));
-            return out;
+            return new VariableInfo(this.name, TypeDouble.getInstance(), 0, 1);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

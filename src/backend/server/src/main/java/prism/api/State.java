@@ -61,16 +61,16 @@ public class State implements Node{
     }
 
     @Override
-    public Map<String, Map<String, Value>> getDetails() {
-        Map<String, Map<String, Value>> details = new HashMap<>();
-        details.put(OUTPUT_VARIABLES, new TreeMap<>(parameters.entrySet().stream().collect(Collectors.toMap(e -> e.getKey(), e -> new Value(e.getValue(), "numbers")))));
-        details.put(OUTPUT_REWARDS, new TreeMap<>(rewards.entrySet().stream().collect(Collectors.toMap(e -> e.getKey(), e -> new Value(e.getValue(), "numbers")))));
-        details.put(OUTPUT_RESULTS, new TreeMap<>(properties.entrySet().stream().collect(Collectors.toMap(e -> e.getKey(), e -> new Value(e.getValue(), "numbers")))));
+    public Map<String, Map<String, Object>> getDetails() {
+        Map<String, Map<String, Object>> details = new HashMap<>();
+        details.put(OUTPUT_VARIABLES, new TreeMap<>(parameters));
+        details.put(OUTPUT_REWARDS, new TreeMap<>(rewards));
+        details.put(OUTPUT_RESULTS, new TreeMap<>(properties));
         if(atomicPropositions == null){
             details.put(OUTPUT_LABELS, new TreeMap<>());
             return details;
         }
-        details.put(OUTPUT_LABELS, new TreeMap<>(atomicPropositions.entrySet().stream().collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue() == null ? new Value() : new Value(e.getValue())))));
+        details.put(OUTPUT_LABELS, new TreeMap<>(atomicPropositions.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> !(e.getValue() == null)))));
         return details;
     }
 

@@ -34,13 +34,13 @@ public class Scheduler {
         }
 
         String partition = ENTRY_T_OUT;
-        String order;
+        StringBuilder order;
         if (criterias == null || criterias.isEmpty()){
-             order = ENTRY_T_ACT + " " + "ASC";
+             order = new StringBuilder(ENTRY_T_ACT + " " + "ASC");
         }else{
-            order = criterias.get(0).getOrder();
+            order = new StringBuilder(criterias.get(0).getOrder());
             for (int i = 1; i < criterias.size(); i++){
-                order += ", " + criterias.get(i).getOrder();
+                order.append(", ").append(criterias.get(i).getOrder());
             }
         }
         String scheduler_collumn = ENTRY_SCHED + id;

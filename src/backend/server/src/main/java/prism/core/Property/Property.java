@@ -6,6 +6,7 @@ import parser.ast.*;
 import prism.Pair;
 import prism.PrismException;
 import prism.api.Transition;
+import prism.api.VariableInfo;
 import prism.core.Namespace;
 import prism.core.Project;
 import prism.core.Scheduler.Scheduler;
@@ -48,6 +49,10 @@ public abstract class Property implements Namespace {
         if (project.getDatabase().question(String.format("SELECT name FROM pragma_table_info('%s') WHERE name = '%s'", project.getStateTableName(), this.getPropertyCollumn()))) {
             alreadyChecked = true;
         }
+
+        Map<String, VariableInfo> info = (Map<String, VariableInfo>) project.getInfo(OUTPUT_RESULTS);
+        info.put(this.name, VariableInfo.blank(this.name));
+        project.addInfo(OUTPUT_RESULTS, info);
 
     }
 
@@ -96,7 +101,7 @@ public abstract class Property implements Namespace {
         return this.scheduler;
     }
 
-    public abstract String modelCheck() throws PrismException;
+    public abstract VariableInfo modelCheck() throws PrismException;
 
     public void printScheduler(String filename, boolean limit) {
         File f = new File(filename);
@@ -235,10 +240,5 @@ public abstract class Property implements Namespace {
 
     private void removeReachableTable(String state_table) throws SQLException {
         project.getDatabase().execute(String.format("DROP TABLE IF EXISTS %s", state_table));
-    }
-
-    private List<String> getNextActions(String id) {
-        List<String> output = project.getDatabase().executeCollectionQuery(String.format("SELECT %s FROM %s WHERE %s = '%s' AND %s = 1", ENTRY_T_ACT, project.getTransitionTableName(), ENTRY_T_OUT, id, this.getSchedulerCollumn()), String.class);
-        return output;
     }
 }

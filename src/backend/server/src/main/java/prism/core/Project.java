@@ -5,10 +5,7 @@ import parser.ast.Expression;
 import parser.ast.ModulesFile;
 import parser.ast.PropertiesFile;
 import prism.*;
-import prism.api.AP;
-import prism.api.Graph;
-import prism.api.State;
-import prism.api.Transition;
+import prism.api.*;
 import prism.core.Property.Property;
 import prism.core.Scheduler.Criteria;
 import prism.core.Scheduler.CriteriaSort;
@@ -88,6 +85,8 @@ public class Project implements Namespace{
         this.taskManager = taskManager;
         this.debug = debug;
         this.rootDir = rootDir;
+        this.info = new TreeMap<>();
+
         File file = new File(String.format("%s/%s/", rootDir, id) + PROJECT_MODEL);
         if (!file.exists()) {
             File profeatFile = new File(String.format("%s/%s/", rootDir, id) + PROFEAT_MODEL);
@@ -109,7 +108,6 @@ public class Project implements Namespace{
         this.modelParser = new ModelParser(this, modulesFile, debug);
 
         this.database = database;
-        this.info = new TreeMap<>();
 
         this.properties = new ArrayList<>();
         this.views = new ArrayList<>();
@@ -158,8 +156,9 @@ public class Project implements Namespace{
         info.put("ID", id);
         info.put(OUTPUT_LABELS, APs);
 
-        info.put(OUTPUT_RESULTS, modelCheckAll());
+        info.put(OUTPUT_RESULTS, new TreeMap<>());
 
+        modelCheckAll();
 
         makeViewDbAndViewInternalConsistent();
 
@@ -188,6 +187,14 @@ public class Project implements Namespace{
 
     public void setBuilt(boolean built) {
         this.built = built;
+    }
+
+    public void addInfo(String category, Object newEntry) {
+        info.put(category, newEntry);
+    }
+
+    public Object getInfo(String category) {
+        return info.get(category);
     }
 
     public void addCustomScheduler(File description) throws Exception {
@@ -219,7 +226,6 @@ public class Project implements Namespace{
             }
 
         }
-
 
         Scheduler custom = Scheduler.createScheduler(this, description.getName(), schedulers.size(), criterias);
         this.schedulers.add(custom);
@@ -369,9 +375,8 @@ public class Project implements Namespace{
     // access to Project Checker
 
 
-    public TreeMap<String, String> modelCheckAll() throws Exception {
+    public void modelCheckAll() throws Exception {
         modelChecker.buildModel();
-        TreeMap<String, String> info = null;
         boolean fileForModelCheckingFound = false;
         for (File file : Objects.requireNonNull(new File(String.format("%s/%s", rootDir, id)).listFiles())) {
             if (!Namespace.FILES_RESERVED.contains(file.getName())) {
@@ -379,13 +384,7 @@ public class Project implements Namespace{
                 if (this.debug) {
                     System.out.println("Model Checking File: " + file);
                 }
-                if (info == null){
-                    info = modelChecker.modelCheckingFromFile(file.getPath());
-                }else{
-                    for (Map.Entry<String, String> e : modelChecker.modelCheckingFromFile(file.getPath()).entrySet()){
-                        info.putIfAbsent(e.getKey(), e.getValue());
-                    }
-                }
+                modelChecker.modelCheckingFromFile(file.getPath());
             }
         }
         if (this.debug && !fileForModelCheckingFound) {
@@ -394,7 +393,6 @@ public class Project implements Namespace{
         if (this.debug) {
             System.out.printf("Model Checking in Project %s finished%n", id);
         }
-        return info;
     }
 
 //    public TreeMap<String, String> modelCheckAllStatistical(long maxPathLength, String simulationMethod, boolean parallel, Optional<String> schedulerName) throws Exception {

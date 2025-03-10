@@ -69,9 +69,17 @@ public interface Namespace {
 
     String LABEL_DEAD = "deadlock";
 
+    String LABEL_END = "end";
+
     String DEFAULT_STYLE =  "init:fa-solid fa-arrow-right\n" +
                             "deadlock:fa-solid fa-rotate-right";
     String ENTRY_C_BLANK = "__BLANK__";
 
     String C_CONCAT_SYMBOL = "|";
+
+    String TYPE_BOOLEAN = "boolean";
+
+    String TYPE_NUMBER = "number";
+
+    String TYPE_BLANK = "missing";
 }

@@ -6,6 +6,7 @@ import parser.ast.ExpressionReward;
 import parser.ast.ModulesFile;
 import parser.ast.PropertiesFile;
 import prism.*;
+import prism.api.VariableInfo;
 import prism.core.Property.Property;
 import prism.core.Scheduler.Scheduler;
 import prism.core.Utility.Prism.MDStrategyDB;
@@ -214,11 +215,11 @@ public class ModelChecker implements Namespace {
                 return;
             }
 
-//            try {
-//                Debug.sleep(100000);
-//            } catch (InterruptedException e) {
-//                throw new RuntimeException(e);
-//            }
+            try {
+                Debug.sleep(100000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
 
             try (prism.core.Utility.Timer build = new Timer("Build Database", project.getLog())) {
                 int numRewards = modulesFile.getNumRewardStructs();
@@ -238,7 +239,6 @@ public class ModelChecker implements Namespace {
                 }
 
                 List<String> stateList = model.getReachableStates().exportToStringList();
-                Map<State, Integer> states = new HashMap<>();
 
                 String stateInsertCall = String.format("INSERT INTO %s (%s,%s,%s) VALUES(?,?,?)", stateTable, ENTRY_S_ID, ENTRY_S_NAME, ENTRY_S_INIT);
                 String transitionInsertCall = String.format("INSERT INTO %s(%s,%s,%s) VALUES (?,?,?)", transTable, ENTRY_T_OUT, ENTRY_T_ACT, ENTRY_T_PROB);
@@ -257,6 +257,7 @@ public class ModelChecker implements Namespace {
                     for (int i = 0; i < stateList.size(); i++) {
                         String stateName = project.getModelParser().normalizeStateName(stateList.get(i));
                         parser.State s = project.getModelParser().parseState(stateName);
+                        long s_id = project.getModelParser().stateIdentifier(s);
 
                         //Determine whether this is an initial state or not
                         Expression initialExpression = modulesFile.getInitialStates();
@@ -272,7 +273,7 @@ public class ModelChecker implements Namespace {
                             double[] rewards = new double[numRewards];
                             updater.calculateStateRewards(s, rewards);
                             String[] inputs = new String[numRewards + 3];
-                            inputs[0] = Integer.toString(i);
+                            inputs[0] = Long.toString(s_id);
                             inputs[1] = stateName;
                             inputs[2] = initial ? "1" : "0";
                             for (int j = 0; j < numRewards; j++) {
@@ -280,43 +281,45 @@ public class ModelChecker implements Namespace {
                             }
                             toExecute.addToBatch(inputs);
                         } else {
-                            toExecute.addToBatch(Integer.toString(i), stateName, initial ? "1" : "0");
+                            toExecute.addToBatch(Long.toString(s_id), stateName, initial ? "1" : "0");
                         }
-
-                        states.put(s, i);
                     }
                 } catch (SQLException e) {
                     throw new RuntimeException(e);
                 }
 
                 try (Batch toExecute = database.createBatch(transitionInsertCall, 3 + numRewards)) {
-                    for (parser.State s : states.keySet()) {
+                    for (int i = 0; i < stateList.size(); i++) {
+                        String stateName = project.getModelParser().normalizeStateName(stateList.get(i));
+                        parser.State s = project.getModelParser().parseState(stateName);
+                        long s_id = project.getModelParser().stateIdentifier(s);
+
                         TransitionList<Double> transitionList = new TransitionList<>(Evaluator.forDouble());
                         updater.calculateTransitions(s, transitionList);
-                        for (int i = 0; i < transitionList.getNumChoices(); i++) {
-                            Choice<Double> choice = transitionList.getChoice(i);
+                        for (int j = 0; j < transitionList.getNumChoices(); j++) {
+                            Choice<Double> choice = transitionList.getChoice(j);
                             String actionName = choice.getModuleOrAction();
 
-                            Map<Integer, Double> probabilities = new HashMap<>();
+                            Map<Long, Double> probabilities = new HashMap<>();
 
-                            for (int j = 0; j < choice.size(); j++) {
-                                double probability = choice.getProbability(j);
-                                parser.State target = choice.computeTarget(j, s, modulesFile.createVarList());
-                                probabilities.put(states.get(target), probability);
+                            for (int l = 0; l < choice.size(); l++) {
+                                double probability = choice.getProbability(l);
+                                parser.State target = choice.computeTarget(l, s, modulesFile.createVarList());
+                                probabilities.put(project.getModelParser().stateIdentifier(target), probability);
                             }
                             if (numRewards > 0) {
                                 double[] rewards = new double[numRewards];
-                                updater.calculateTransitionRewards(s, i, rewards);
+                                updater.calculateTransitionRewards(s, choice.getModuleOrActionIndex(), rewards);
                                 String[] inputs = new String[numRewards + 3];
-                                inputs[0] = String.valueOf(states.get(s));
+                                inputs[0] =  Long.toString(s_id);
                                 inputs[1] = actionName;
                                 inputs[2] = probabilities.entrySet().stream().map(e -> String.format("%s:%s", e.getKey(), e.getValue())).collect(Collectors.joining(";"));
-                                for (int j = 0; j < numRewards; j++) {
-                                    inputs[j + 3] = String.valueOf(rewards[j]);
+                                for (int l = 0; l < numRewards; l++) {
+                                    inputs[l + 3] = String.valueOf(rewards[l]);
                                 }
                                 toExecute.addToBatch(inputs);
                             } else {
-                                toExecute.addToBatch(String.valueOf(states.get(s)), actionName, probabilities.entrySet().stream().map(e -> String.format("%s:%s", e.getKey(), e.getValue())).collect(Collectors.joining(";")));
+                                toExecute.addToBatch( Long.toString(s_id), actionName, probabilities.entrySet().stream().map(e -> String.format("%s:%s", e.getKey(), e.getValue())).collect(Collectors.joining(";")));
                             }
                         }
                     }
@@ -355,7 +358,10 @@ public class ModelChecker implements Namespace {
 
         public void run() {
             try {
-                property.modelCheck();
+                VariableInfo newInfo = property.modelCheck();
+                Map<String, VariableInfo> info = (Map<String, VariableInfo>) project.getInfo(OUTPUT_RESULTS);
+                info.replace(property.getName(), newInfo);
+                project.addInfo(OUTPUT_RESULTS, info);
             } catch (PrismException e) {
                 throw new RuntimeException(e);
             }
@@ -387,9 +393,8 @@ public class ModelChecker implements Namespace {
         }
     }
 
-    public TreeMap<String, String> checkModel(PropertiesFile propertiesFile) throws PrismException {
+    public void checkModel(PropertiesFile propertiesFile) throws PrismException {
         buildModel();
-        TreeMap<String, String> info = new TreeMap<>();
 
         //if (((NondetModel) prism.getBuiltModel()).areAllChoiceActionsUnique()){
         //    prism.setGenStrat(true);
@@ -406,12 +411,11 @@ public class ModelChecker implements Namespace {
                 project.getTaskManager().execute(new modelCheckTask(p.get()));
             }
         }
-        return info;
     }
 
-    public TreeMap<String, String> modelCheckingFromFile(String path) throws Exception {
+    public void modelCheckingFromFile(String path) throws Exception {
         PropertiesFile propertiesFile = prism.parsePropertiesFile(new File(path));
-        return checkModel(propertiesFile);
+        checkModel(propertiesFile);
     }
 
 }

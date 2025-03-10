@@ -2,6 +2,7 @@ package prism.api;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
+import prism.core.Namespace;
 
 public class AP {
 
@@ -22,6 +23,11 @@ public class AP {
     @JsonProperty
     public String getIdentifier() {
         return identifier;
+    }
+
+    @JsonProperty
+    public String getType() {
+        return Namespace.TYPE_BOOLEAN;
     }
 
     @Schema(description = "Does this AP have an icon?")

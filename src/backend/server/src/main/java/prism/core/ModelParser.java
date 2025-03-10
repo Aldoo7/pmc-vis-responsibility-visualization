@@ -1,11 +1,11 @@
 package prism.core;
 
 import parser.State;
+import parser.Values;
 import parser.VarList;
 import parser.ast.Expression;
-import parser.ast.ExpressionReward;
 import parser.ast.ModulesFile;
-import parser.ast.PropertiesFile;
+import parser.ast.RewardStruct;
 import parser.type.Type;
 import parser.type.TypeBool;
 import parser.type.TypeDouble;
@@ -15,12 +15,7 @@ import prism.api.*;
 import prism.core.Utility.Prism.Updater;
 import simulator.Choice;
 import simulator.TransitionList;
-import simulator.method.*;
-import strat.StrategyGenerator;
-
-import java.io.File;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class ModelParser {
 
@@ -29,10 +24,10 @@ public class ModelParser {
     private final Project project;
     private final ModulesFile modulesFile;
     private final Prism prism;
-    private Updater updater;
+    private final Updater updater;
 
-    private List<parser.State> visitedStates;
-    private List<Pair<parser.State, String>> visitedTransitions;
+    private final VarList varList;
+    private final long maxStateIndex;
 
     public ModelParser(Project project, ModulesFile modulesFile, boolean debug) {
         this.project = project;
@@ -41,12 +36,31 @@ public class ModelParser {
         else this.prism = new Prism(new PrismDevNullLog());
         try {
             this.updater = new Updater(modulesFile, prism);
+            this.varList = modulesFile.createVarList();
+            long index = 1;
+            for (int i = 0; i < varList.getNumVars(); i++) {
+                int range = varList.getRange(i);
+                index *= range;
+            }
+            this.maxStateIndex = index;
         }catch (PrismException e){
             throw new RuntimeException(e);
         }
 
-        this.visitedStates = new ArrayList<>();
-        this.visitedTransitions = new ArrayList<>();
+        TreeMap<String, VariableInfo> info = new TreeMap<>();
+        for (int i = 0; i < varList.getNumVars() ; i++) {
+            String name = varList.getName(i);
+            info.put(name, new VariableInfo(name, varList.getType(i), varList.getLow(i), varList.getHigh(i) ));
+        }
+        project.addInfo(Namespace.OUTPUT_VARIABLES, info);
+        info = new TreeMap<>();
+        for (int i = 0; i < modulesFile.getNumRewardStructs() ; i++) {
+            RewardStruct rw = modulesFile.getRewardStruct(i);
+            String name = rw.getName();
+            info.put(name, new VariableInfo(name, TypeDouble.getInstance(), 0, -1));
+        }
+        project.addInfo(Namespace.OUTPUT_REWARDS, info);
+
     }
 
     public String normalizeStateName(String stateDescription) {
@@ -200,11 +214,109 @@ public class ModelParser {
         return initials;
     }
 
+    public long stateIdentifier(parser.State state) {
+        long index = 0;
+        long prevRange = 1;
+
+        for (int i = varList.getNumVars()-1; i >= 0; i--) {
+
+            int minValue = varList.getLow(i);
+            int maxValue = varList.getHigh(i);
+
+            int range = (maxValue - minValue) + 1;
+            int value;
+
+            switch(varList.getType(i).getTypeString()){
+                case "int":
+                    value = (int) state.varValues[i];
+                    break;
+                case "bool":
+                    boolean bool = (boolean) state.varValues[i];
+                    value = bool ? 1 : 0;
+                    break;
+                default:
+                    throw new RuntimeException("Unknown type: " + varList.getType(i).getTypeString());
+            }
+
+            index = index + ((long) (value - minValue) * prevRange);
+            prevRange = prevRange * range;
+        }
+
+        return index;
+    }
+
+    public long stateIdentifier(int[] values) {
+        long index = 0;
+        long prevRange = 1;
+
+        for (int i = varList.getNumVars()-1; i >= 0; i--) {
+
+            int minValue = varList.getLow(i);
+            int maxValue = varList.getHigh(i);
+
+            int range = (maxValue - minValue) + 1;
+            int value = values[i];
+
+            if (value < minValue || value > maxValue) {
+                System.out.println("Value " + value + " is out of range");
+                throw new RuntimeException("Value " + value + " is out of range");}
+
+            index = index + ((long) (value - minValue) * prevRange);
+            prevRange = prevRange * range;
+        }
+
+        return index;
+    }
+
+    public parser.State translateStateIdentifier(long stateIdentifier) {
+        Values values = new Values();
+
+        long prevRange = 1;
+
+        for (int i = varList.getNumVars()-1; i >= 0; i--) {
+            int minValue = varList.getLow(i);
+            int maxValue = varList.getHigh(i);
+
+            int range = (maxValue - minValue) + 1;
+            int value = (int) (Math.floorDiv(stateIdentifier, prevRange) % range);
+            value += minValue;
+
+            switch(varList.getType(i).getTypeString()){
+                case "int":
+                    values.addValue(varList.getName(i), value);
+                    break;
+                case "bool":
+                    boolean bool = value > 0;
+                    values.addValue(varList.getName(i), bool);
+                    break;
+                default:
+                    throw new RuntimeException("Unknown type: " + varList.getType(i).getTypeString());
+            }
+
+            prevRange = prevRange * range;
+        }
+
+        try{
+            return new State(values, modulesFile);
+        } catch (PrismLangException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public long transitionIdentifier(parser.State outState, Choice<Double> choice) {
+        long index = stateIdentifier(outState);
+
+        int minValue = -modulesFile.getNumModules();
+        int value = choice.getModuleOrActionIndex();
+        if (value > 0) {
+            value -= 1;
+        }
+
+        return index + ((long) (value - minValue) * this.maxStateIndex);
+    }
 
     private prism.api.State convertApiState(parser.State state) throws Exception {
-        if (!visitedStates.contains(state)){
-            visitedStates.add(state);
-        }
+        long stateidentifier = stateIdentifier(state);
 
         int numRewards = modulesFile.getNumRewardStructs();
         List<String> rewardNames = modulesFile.getRewardStructNames();
@@ -222,25 +334,22 @@ public class ModelParser {
             rewards.put(rewardNames.get(i), rewardValues[i]);
         }
 
-        return new prism.api.State(visitedStates.indexOf(state), state.toString(), variables, project.getLabelMap(state), rewards, new TreeMap<>());
+        return new prism.api.State(stateidentifier, state.toString(), variables, project.getLabelMap(state), rewards, new TreeMap<>());
     }
 
-    private Transition convertApiTransition(parser.State out, int choice, String action, Map<parser.State, Double> distribution) throws Exception {
-        Pair<parser.State, String> identifier = new Pair<>(out, action);
-        if (!visitedTransitions.contains(identifier)){
-            visitedTransitions.add(identifier);
-        }
+    private Transition convertApiTransition(parser.State out, Choice<Double> choice, Map<parser.State, Double> distribution) throws Exception {
+        long identifier = transitionIdentifier(out, choice);
 
         int numRewards = modulesFile.getNumRewardStructs();
         List<String> rewardNames = modulesFile.getRewardStructNames();
         double[] rewardValues = new double[numRewards];
 
-        updater.calculateTransitionRewards(out, choice, rewardValues);
+        updater.calculateTransitionRewards(out, choice.getModuleOrActionIndex(), rewardValues);
 
 
         Map<Long, Double> outDistribution = new HashMap<>();
         for (parser.State state : distribution.keySet()) {
-            outDistribution.put((long) visitedStates.indexOf(state), distribution.get(state));
+            outDistribution.put(stateIdentifier(state), distribution.get(state));
         }
 
         Map<String, Double> rewards = new TreeMap<>();
@@ -248,7 +357,7 @@ public class ModelParser {
             rewards.put(rewardNames.get(i), rewardValues[i]);
         }
 
-        return new Transition(visitedTransitions.indexOf(identifier), String.valueOf(visitedStates.indexOf(out)), action, outDistribution, rewards, null, null, null, null);
+        return new Transition(identifier, String.valueOf(identifier), choice.getModuleOrAction(), outDistribution, rewards, null, null, null, null);
     }
 
     // Output Functions
@@ -266,34 +375,34 @@ public class ModelParser {
 
     public Graph getGetGraph() throws Exception {
         List<parser.State> states = this.getInitialStateObjects();
+        List<parser.State> visited = new ArrayList<>();
+
         List<prism.api.State> outStates = new ArrayList<>();
         List<Transition> transitions = new ArrayList<>();
 
-        for (parser.State state : states) {
-            outStates.add(convertApiState(state));
-        }
-
         while (!states.isEmpty()) {
             parser.State state = states.remove(0);
+            outStates.add(convertApiState(state));
+            visited.add(state);
+
             TransitionList<Double> transitionList = new TransitionList<>(Evaluator.forDouble());
             updater.calculateTransitions(state, transitionList);
+
             for (int i = 0; i < transitionList.getNumChoices(); i++) {
                 Choice<Double> choice = transitionList.getChoice(i);
-                String actionName = choice.getModuleOrAction();
 
                 Map<parser.State, Double> probabilities = new HashMap<>();
 
                 for (int j = 0; j < choice.size(); j++) {
                     double probability = choice.getProbability(j);
                     parser.State target = choice.computeTarget(j, state, modulesFile.createVarList());
-                    if (!visitedStates.contains(target)) {
-                        outStates.add(convertApiState(target));
+                    if (!states.contains(target) | visited.contains(target)) {
                         states.add(target);
                     }
                     probabilities.put(target, probability);
                 }
 
-                transitions.add(convertApiTransition(state, i, actionName, probabilities));
+                transitions.add(convertApiTransition(state, choice, probabilities));
             }
         }
         return new Graph(project, outStates, transitions);
@@ -305,33 +414,29 @@ public class ModelParser {
         List<Transition> transitions = new ArrayList<>();
 
         for (Long stateID : stateIDs) {
-            states.add(visitedStates.get(Math.toIntExact(stateID)));
+            states.add(translateStateIdentifier(stateID));
         }
 
         for (parser.State state : states) {
             outStates.add(convertApiState(state));
-        }
 
-        for (parser.State state : states) {
             TransitionList<Double> transitionList = new TransitionList<>(Evaluator.forDouble());
             updater.calculateTransitions(state, transitionList);
             for (int i = 0; i < transitionList.getNumChoices(); i++) {
                 boolean contained = true;
                 Choice<Double> choice = transitionList.getChoice(i);
-                String actionName = choice.getModuleOrAction();
-
                 Map<parser.State, Double> probabilities = new HashMap<>();
 
                 for (int j = 0; j < choice.size(); j++) {
                     double probability = choice.getProbability(j);
                     parser.State target = choice.computeTarget(j, state, modulesFile.createVarList());
-                    if (!visitedStates.contains(target)) {
+                    if (!states.contains(target)) {
                         contained = false;
                     }
                     probabilities.put(target, probability);
                 }
                 if (contained) {
-                    transitions.add(convertApiTransition(state, i, actionName, probabilities));
+                    transitions.add(convertApiTransition(state, choice, probabilities));
                 }
             }
         }
@@ -344,19 +449,16 @@ public class ModelParser {
         List<Transition> transitions = new ArrayList<>();
 
         for (Long stateID : stateIDs) {
-            states.add(visitedStates.get(Math.toIntExact(stateID)));
+            states.add(translateStateIdentifier(stateID));
         }
 
         for (parser.State state : states) {
             outStates.add(convertApiState(state));
-        }
 
-        for (parser.State state : states) {
             TransitionList<Double> transitionList = new TransitionList<>(Evaluator.forDouble());
             updater.calculateTransitions(state, transitionList);
             for (int i = 0; i < transitionList.getNumChoices(); i++) {
                 Choice<Double> choice = transitionList.getChoice(i);
-                String actionName = choice.getModuleOrAction();
 
                 Map<parser.State, Double> probabilities = new HashMap<>();
 
@@ -367,7 +469,7 @@ public class ModelParser {
                     probabilities.put(target, probability);
                 }
 
-                transitions.add(convertApiTransition(state, i, actionName, probabilities));
+                transitions.add(convertApiTransition(state, choice, probabilities));
             }
         }
         return new Graph(project, outStates, transitions);

@@ -72,17 +72,17 @@ public class Transition implements Node{
     }
 
     @Override
-    public Map<String, Map<String, Value>> getDetails() {
-        Map<String, Map<String, Value>> details = new HashMap<>();
-        Map<String, Value> parameters = new TreeMap<>();
-        parameters.put("origin", new Value(source, "numbers"));
-        parameters.put("action", new Value(action, "numbers"));
-        parameters.put("outcome distribution", new Value(probabilityDistribution, "numbers"));
+    public Map<String, Map<String, Object>> getDetails() {
+        Map<String, Map<String, Object>> details = new HashMap<>();
+        Map<String, Object> parameters = new TreeMap<>();
+        parameters.put("origin", source);
+        parameters.put("action", action);
+        parameters.put("outcome distribution", probabilityDistribution);
 
         details.put(OUTPUT_VARIABLES, parameters);
-        details.put(OUTPUT_REWARDS, new TreeMap<>(rewards.entrySet().stream().collect(Collectors.toMap(e -> e.getKey(), e -> new Value(e.getValue(), "numbers")))));
-        details.put(OUTPUT_RESULTS, new TreeMap<>(results.entrySet().stream().collect(Collectors.toMap(e -> e.getKey(), e -> new Value(e.getValue(), "numbers")))));
-        details.put(OUTPUT_SCHEDULER, new TreeMap<>(scheduler.entrySet().stream().collect(Collectors.toMap(e -> e.getKey(), e -> new Value(e.getValue(), "numbers")))));
+        details.put(OUTPUT_REWARDS, new TreeMap<>(rewards));
+        details.put(OUTPUT_RESULTS, new TreeMap<>(results));
+        details.put(OUTPUT_SCHEDULER, new TreeMap<>(scheduler));
         return details;
     }
 
