@@ -319,6 +319,7 @@ async function fetchAndSpawn(cy, nodes) {
   if (cy.vars) {
     const varsValues = {};
     Object.keys(cy.vars).forEach((k) => {
+      
       if (cy.vars[k].avoidInClone) {
         return;
       }
@@ -676,7 +677,7 @@ function setSelectMode(cy, mode = 's') {
 
 function updateDetailsToShow(cy, { update, mode = NAMES.results }) {
   const props = {};
-  const details = cy.elements()[0].data().details;
+  const details = cy.elements()[0].data().details; // TODO: replace this with global info object. 
 
   let init = true;
   if (update) {
@@ -711,12 +712,11 @@ function updateScheduler(cy, prop) {
 }
 
 function updateNewPanePosition(cy, prop) {
-  cy.vars["panePosition"].value = prop;
+  cy.vars['panePosition'].value = prop;
 }
 
 function toggleFullSync(cy, prop) {
-  console.log(cy.vars)
-  cy.vars["fullSync"].value = prop;
+  cy.vars['fullSync'].value = prop;
 }
 
 function selectBasedOnAP(e, ap) {
@@ -733,7 +733,7 @@ function selectBasedOnAP(e, ap) {
     if (states.length > 0) {
       states.select();
       
-      if (cy.vars["fullSync"].value) {
+      if (cy.vars['fullSync'].value) {
         spawnPCP(cy);
       }
     }
@@ -949,6 +949,8 @@ function setPublicVars(cy, preset) {
     setSelectMode(cy, preset['mode'].value);
     updateDetailsToShow(cy, { update: preset['details'].value });
     updateScheduler(cy, preset['scheduler'].value);
+    updateNewPanePosition(cy, preset['panePosition'].value);
+    toggleFullSync(cy, preset['fullSync']);
   }
 }
 

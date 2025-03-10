@@ -19,8 +19,11 @@ const makeCtxMenu = function (divID, pane, fns, { condition, extras }) {
         },
     ];
 
-    return new PureContextMenu(document.querySelector('#' + divID), items, {
+    return new PureContextMenu(document.body, items, {
         show: (e, inst) => { 
+            if (!e.target.closest('#' + divID)) {
+                return false; 
+            }
             if (!e.axisName) {
                 inst.setItems(items);
             } else {

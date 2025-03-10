@@ -15,7 +15,7 @@
 
 .dragbar:before, .dragbar:after {
     position: absolute;
-    content: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='5' height='18'%3E%3Cpath d='M2 0h3v3H2zm0 5h3v3H2zm0 5h3v3H2zm0 5h3v3H2z' style='fill:%239da7b7'/%3E%3C/svg%3E");
+    content: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='5' height='20'%3E%3Cpath d='M2 0h3v3H2zm0 5h3v3H2zm0 5h3v3H2zm0 5h3v3H2z' style='fill:%239da7b7'/%3E%3C/svg%3E");
     box-sizing: border-box;
 }
 
@@ -39,20 +39,71 @@
     container-name: split-dragbar;
 }
 
-@container split-dragbar (min-width: 18px) { 
+.split-button {
+    display: none;
+}
+
+@container split-dragbar (min-width: 90px) { 
+    .split-button {
+        background-color: #696969;
+        color:white;
+        display: block;
+        position:absolute;
+        width: 35px;
+        height: 7px; 
+        border: none;
+    }
+
+    .split-button:hover {
+        background-color: #2185d0;
+        display: block;
+        position:absolute;
+        width: 35px;
+        height: 7px; 
+        border: none;
+    }
+
+    .split-button i {
+        position: absolute;
+        font-size: 7px;
+        margin-left: -3px;
+    }
+
+    .split-button i.fa-undo {
+        font-size: 5px;
+    }
+
+    .split-max {
+        margin-left: calc(50% + 15px);
+    }
+
+    .split-max i {
+        margin-top: -2.5px;
+    }
+
+    .split-min {
+        margin-left: calc(50% - 50px);
+    }
+
+    .split-min i {
+        margin-top: -3.5px;
+    }
+}
+
+@container split-dragbar (min-width: 20px) { 
     .split-dragbar:after {
         position: absolute;
-        content: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='5'%3E%3Cpath d='M0 1.5h3v3H0zm5 0h3v3H5zm5 0h3v3h-3zm5 0h3v3h-3z' style='fill:%239da7b7'/%3E%3C/svg%3E");
+        content: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='5'%3E%3Cpath d='M0 1.5h3v3H0zm5 0h3v3H5zm5 0h3v3h-3zm5 0h3v3h-3z' style='fill:%239da7b7'/%3E%3C/svg%3E");
         box-sizing: border-box;
         display: block;
         line-height: 0;
+        margin-top: 0.5px;
         margin-left: calc(50% - 9px);
     }
 }
 
 .split-dragbar:hover {
     background-color: var(--dragbar-hover);
-    height: 7px;
 }
 
 .pane {
@@ -64,7 +115,9 @@
     -moz-box-sizing: border-box;    /* Firefox, other Gecko */
     box-sizing: border-box; 
 
-    border-top: 5px var(--active-pane) solid;
+    border: var(--active-pane) solid;
+    border-width: 5px 2px 5px 2px;
+    
 
     .pane-controls {
         display:block;

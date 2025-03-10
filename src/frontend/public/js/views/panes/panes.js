@@ -2,6 +2,7 @@ import { setPane } from "../../utils/controls.js";
 import { colorList } from "../../utils/utils.js";
 import { INTERACTIONS } from "../../utils/names.js";
 import events from "../../utils/events.js";
+import makeCtxMenu from "./ctx-menu.js";
 
 const MIN_FLEX_GROW = 0.005;
 const MIN_SIZE = 10;
@@ -12,6 +13,7 @@ const info = {}; // global object
 const tracker = {}; // keeps track of already seen nodes, marks, etc. 
 let width;
 let height;
+const maxheight = () => height - (MIN_SIZE*2);
 
 socket.on("handle overview node clicked", (data) => {
     if (data) {
@@ -72,6 +74,13 @@ function spawnPane(
 
     pane.details = pane.container + "-details";
 
+    // pane div
+    const div = document.createElement("div");
+    div.className = "cy-s flex-item pane";
+    div.id = pane.id;
+    div.style.flex = panesLength+1; 
+    div.style.height = pane.height + "px";
+
     // add the node-link diagram view
     const cyContainer = document.createElement("div");
     cyContainer.id = pane.container;
@@ -84,7 +93,6 @@ function spawnPane(
 
     const buttons = createPaneControls(pane);
     
-
     // add the pane for the detail view (pcp)
     const details = document.createElement("div");
     details.className = "detail-inspector";
@@ -95,11 +103,45 @@ function spawnPane(
     split_dragbar.id = pane.dragbar + "-split";
     split_dragbar.className = "split-dragbar";
 
-    const div = document.createElement("div");
-    div.className = "cy-s flex-item pane";
-    div.id = pane.id;
-    div.style.flex = panesLength+1; 
-    div.style.height = pane.height + "px";
+    const sd_maximize = document.createElement("button");
+    sd_maximize.title = "Maximize PCP";
+    sd_maximize.innerHTML = `<i class="fa-solid fa-chevron-up"></i>` 
+    sd_maximize.className = "split-button split-max";
+    sd_maximize.addEventListener('click', () => {
+        if (cyContainer.clientHeight === MIN_SIZE) {
+            resizeSplit(cyContainer, panes[div.id]._split);
+            sd_maximize.innerHTML = `<i class="fa-solid fa-chevron-up"></i>` 
+            sd_maximize.title = "Maximize PCP";
+        } else {
+            resizeSplit(cyContainer, MIN_SIZE);
+            sd_maximize.innerHTML = `<i class="fa-solid fa-undo"></i>`
+            sd_maximize.title = "Undo maximize";
+        }
+        dispatchEvent(events.RESIZE_ONE(panes[div.id]));
+    });
+
+    const sd_minimize = document.createElement("button");
+    sd_minimize.title = "Minimize PCP";
+    sd_minimize.innerHTML = `<i class="fa-solid fa-chevron-down"></i>`
+    sd_minimize.className = "split-button split-min";
+    sd_minimize.addEventListener('click', () => { 
+        const max = Math.round(maxheight());
+        if (cyContainer.clientHeight === max) {
+            resizeSplit(cyContainer, panes[div.id]._split);
+            sd_minimize.innerHTML = `<i class="fa-solid fa-chevron-down"></i>`
+            sd_minimize.title = "Minimize PCP";
+        } else {
+            resizeSplit(cyContainer, max);
+            sd_minimize.innerHTML = `<i class="fa-solid fa-undo"></i>`
+            sd_minimize.title = "Undo minimize";
+        }
+        dispatchEvent(events.RESIZE_ONE(panes[div.id]));
+    });
+
+    
+    split_dragbar.appendChild(sd_minimize);
+    split_dragbar.appendChild(sd_maximize);
+
     div.appendChild(buttons);
     div.appendChild(cyContainer);
     div.appendChild(split_dragbar);
@@ -118,8 +160,6 @@ function spawnPane(
         document.getElementById("container")?.appendChild(div);
     }
 
-    enableDragBars();
-
     panes[div.id] = pane;
     if (spawner && panes[spawner]) {
         if (spawner.length > 0) {
@@ -128,6 +168,7 @@ function spawnPane(
         panes[spawner].spawned = div.id; // to remember which pane was created from this one
     }
 
+    enableDragBars();
     dispatchEvent(events.RESIZE_ALL);
     
     return pane;
@@ -169,12 +210,18 @@ function resizePane(div, flexGrow) {
     panes[div.id].height = _height;
 }
 
-function resizeSplit(div, pheight) {
+function resizeSplit(div, pheight, save=true) {
     const _height = Math.min(
-        height - height * 0.05,
+        maxheight(),
         Math.max(MIN_SIZE, pheight)
     );
+
+    if (save) {
+        panes[div.parentElement.id]._split = div.clientHeight;
+    }
+    
     div.style.height = _height + "px";
+    
     panes[div.parentElement.id].split =
         1 - _height / panes[div.parentElement.id].height;
 }
@@ -184,13 +231,13 @@ function togglePane(div) {
         const fg = Number(getComputedStyle(div).flexGrow)
 
         if (fg === MIN_FLEX_GROW) {
-            if (panes[div.id].oldFlexGrowth < MIN_FLEX_GROW*2) {
+            if (panes[div.id]._flexGrowth < MIN_FLEX_GROW*2) {
                 resizePane(div, 1);
             } else {
-                resizePane(div, panes[div.id].oldFlexGrowth);
+                resizePane(div, panes[div.id]._flexGrowth);
             }
         } else {
-            panes[div.id].oldFlexGrowth = fg;
+            panes[div.id]._flexGrowth = fg;
             resizePane(div, MIN_FLEX_GROW);
             const keys = Object.keys(panes); 
             resizePane(document.getElementById(panes[keys[keys.length-1]].id), 1);
@@ -212,7 +259,7 @@ function expandPane(div) {
 function collapsePane(div) {
     if (div) {
         if (panes[div.id]) {
-            panes[div.id].oldFlexGrowth = Number(getComputedStyle(div).flexGrow);
+            panes[div.id]._flexGrowth = Number(getComputedStyle(div).flexGrow);
         } 
         resizePane(div, MIN_FLEX_GROW);
         dispatchEvent(events.RESIZE_ONE(panes[div.id]));
@@ -251,7 +298,8 @@ function enablePaneDragBars() {
     for (const d of dragbars) {
         d.onmousedown = function (e) {
             const resizer = e.target;
-            if (!resizer.classList.contains("dragbar")) {
+            // e.button === 0 means left click
+            if (e.button > 0 || !resizer.classList.contains("dragbar")) {
                 return;
             }
         
@@ -340,13 +388,20 @@ function enableSplitDragBars() {
     for (const d of dragbars) {
         d.onmousedown = function (e) {
             const elementId = e.target ? e.target.id : e.srcElement.id;
-            const div = document.getElementById(elementId).previousElementSibling;
+            const bar = document.getElementById(elementId);
+
+            // e.button === 0 means left click
+            if (e.button > 0 || !bar) {
+                return;
+            }
+            
+            const div = bar.previousElementSibling;
             dragging = panes[div.parentElement.id];
             document.onmousemove = function (ex) {
-                resizeSplit(div, ex.y - div.getBoundingClientRect().top + 2);
+                resizeSplit(div, ex.y - div.getBoundingClientRect().top + 2, false);
             };
 
-            document.onmouseup = function (e) {
+            document.onmouseup = function (ex) {
                 document.onmousemove = null;
                 if (dragging) {
                     // resize vis inside pane
@@ -357,6 +412,9 @@ function enableSplitDragBars() {
             };
         };
         d.ondblclick = null;
+        if (d && d.previousElementSibling && d.parentElement) {
+            makeCtxMenu(d, d.previousElementSibling, panes[d.parentElement.id]);
+        }
     }
 }
 
@@ -681,6 +739,7 @@ export {
     togglePane,
     expandPane,
     collapsePane,
+    resizeSplit,
     highlightPaneById,
     uid,
     info,
