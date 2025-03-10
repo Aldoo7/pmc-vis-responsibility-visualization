@@ -33,7 +33,7 @@ const parallelCoords = function (pane, data, metadata) {
         getSelection: function () {
             return Object.values(selected).map(d => {
                 const returnable = {};
-                metadata.cols.forEach(c => {
+                Object.keys(metadata.psd).forEach(c => {
                     returnable[c] = d[c];
                 });
                 returnable.id = d.id;
@@ -70,7 +70,7 @@ const parallelCoords = function (pane, data, metadata) {
 
         d3.selectAll('#' + pcpHtml.div).remove();
 
-        const cols = metadata.cols;
+        const cols = Object.keys(metadata.psd);
         let longestLabel = cols[0].length;
         cols.forEach(c => {
             longestLabel = c.length > longestLabel ? c.length : longestLabel;
@@ -162,7 +162,7 @@ const parallelCoords = function (pane, data, metadata) {
         // get list of dimensions and create a scale for each, considering the data types.
         resp.scale.domain(dimensions = cols.filter(function (d) {
             if (metadata.nominals.includes(d)) {
-                const domain = data.map(function (p) { return p[d].value; });
+                const domain = data.map(function (p) { return p[d]; });
                 const axis = resp.axes[d] = d3.scalePoint()
                     .domain(domain)
                     .range([0, resp.svg_dims[orient]])
@@ -201,7 +201,8 @@ const parallelCoords = function (pane, data, metadata) {
                 });
                 return axis;
             } else if (metadata.data_id != d) { // numbers
-                const extent = d3.extent(data, function (p) { return +p[d].value; });
+                //const extent = d3.extent(data, p => +p[d]);
+                const extent = [metadata.psd[d].min, metadata.psd[d].max];
                 if (extent[0] === extent[1]) {
                     extent[1] = extent[0] + 1;
                 }
@@ -254,9 +255,9 @@ const parallelCoords = function (pane, data, metadata) {
         function checkIfActive(point) {
             return Array.from(selections).every(
                 ([key, [min, max]]) => {
-                    const val = point[key].type === 'numbers' ?
-                        point[key].value :
-                        resp.axes[key].mapping[point[key].value];
+                    const val = metadata.psd[key].type === 'number' ?
+                        point[key] :
+                        resp.axes[key].mapping[point[key]];
                     return val >= Math.min(min, max) && val <= Math.max(min, max);
                 }
             );
@@ -360,7 +361,7 @@ const parallelCoords = function (pane, data, metadata) {
             data.map(function (point) {
                 const active = checkIfActive(point);
 
-                const val = point[dim].type === 'numbers' ? point[dim].value : resp.axes[dim].mapping[point[dim].value];
+                const val = metadata.psd[dim].type === 'number' ? point[dim] : resp.axes[dim].mapping[point[dim]];
                 if (active && val >= Math.min(mouse_lower_limit, mouse_upper_limit) && val <= Math.max(mouse_lower_limit, mouse_upper_limit)) {
                     highlighted.add(point.id);
                     path(point, highlight);
@@ -452,17 +453,17 @@ const parallelCoords = function (pane, data, metadata) {
             if (orient) {
                 dimensions.map(function (p, i) {
                     if (i === 0) {
-                        ctx.moveTo(resp.scale(p), resp.axes[p](d[p].value));
+                        ctx.moveTo(resp.scale(p), resp.axes[p](d[p]));
                     } else {
-                        ctx.lineTo(resp.scale(p), resp.axes[p](d[p].value));
+                        ctx.lineTo(resp.scale(p), resp.axes[p](d[p]));
                     }
                 })
             } else {
                 dimensions.map(function (p, i) {
                     if (i === 0) {
-                        ctx.moveTo(resp.axes[p](d[p].value), resp.scale(p));
+                        ctx.moveTo(resp.axes[p](d[p]), resp.scale(p));
                     } else {
-                        ctx.lineTo(resp.axes[p](d[p].value), resp.scale(p));
+                        ctx.lineTo(resp.axes[p](d[p]), resp.scale(p));
                     }
                 });
             }
@@ -511,15 +512,10 @@ const parallelCoords = function (pane, data, metadata) {
 
         function drawBrushMinMax(data, name, pane, min=true) {
             d3.select(brushes["brush-"+getAxisId(name)]).call(d3.brush().clear);
-            
-            const extent = d3.extent(data, function (p) { 
-                return +p[name].value; 
-            });
-
+            const extent = d3.extent(data, p => +p[name]);
             selections.set(name, [extent[min? 0 : 1], extent[min? 0 : 1]]);
             drawBrushed();
-            updateCountStrings()
-            
+            updateCountStrings();
             dispatchEvent(events.LINKED_SELECTION(pane.id, publicFunctions.getSelection()));
         }
 

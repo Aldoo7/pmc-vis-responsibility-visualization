@@ -18,11 +18,7 @@ Promise.all([
   //fetch('http://localhost:8080/'+ PROJECT).then((res) => res.json()) // requests entire dataset
 ]).then((promises) => {
   const data = promises[0];
-  console.log(data.nodes[0].details)
-
-  console.log(structuredClone(data.info))
-  Object.keys(data.nodes[0].details).forEach((k) => {   
-
+  Object.keys(data.nodes[0].details).forEach((k) => {
     if (data.info[k]) {
       info[k] = data.info[k];
       delete data.info[k];

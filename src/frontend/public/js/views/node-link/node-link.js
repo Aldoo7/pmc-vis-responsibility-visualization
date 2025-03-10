@@ -458,38 +458,31 @@ function getPreviousInPath(cy, sourceNodeId) {
 
 function spawnPCP(cy, _nodes) {
   const nodes = _nodes || cy.$('node:selected').map(n => n.data());
-  let pcp_data = ndl_to_pcp(
+  const s = nodes.filter(d => cy.vars['mode'].value.includes(d.type));
+  const { ps, psd } = ndl_to_pcp(
     {
-      nodes: nodes.filter(d => cy.vars['mode'].value.includes(d.type))
+      nodes: s.length > 0 ? s : 
+        console.warn('tried to spawn PCP without any selection, using full nodeset') ||
+        cy.$('node')
+          .map(n => n.data())
+          .filter(d => cy.vars['mode'].value.includes(d.type)),
+
     }, 
     cy.vars['details'].value
   );
 
-  if (!pcp_data.length > 0) {
-    console.warn('tried to spawn PCP without any selection, using full nodeset');
-    pcp_data = ndl_to_pcp(
-      {
-        nodes: cy
-          .$('node')
-          .map(n => n.data())
-          .filter(d => cy.vars['mode'].value.includes(d.type)),
-      }, 
-      cy.vars['details'].value
-    );
-  }
-
   const hidden = new Set(['color']);
-  const props = Object.keys(pcp_data[0]).filter(k => !hidden.has(k));
+  const props = Object.keys(psd).filter(k => !hidden.has(k));
 
   cy.pcp = parallelCoords(
     getPanes()[cy.paneId],
-    pcp_data,
+    ps,
     {
       data_id: 'id',
-      nominals: props.filter(k => pcp_data[0][k].type === 'nominal'),
-      booleans: props.filter(k => pcp_data[0][k].type === 'boolean'),
-      numbers: props.filter(k => pcp_data[0][k].type === 'numbers'),
-      cols: props
+      nominals: props.filter(k => psd[k].type === 'nominal'),
+      booleans: props.filter(k => psd[k].type === 'boolean'),
+      numbers: props.filter(k => psd[k].type === 'number'),
+      psd
     }
   );
 
@@ -586,10 +579,8 @@ function bindListeners(cy) {
     }
 
     if (e.originalEvent.shiftKey) {
-      let g = n.data();
-
+      const g = n.data();
       const $links = [];
-
       const details = cy.vars['details'].value;
       Object.keys(details).forEach(d => {
         const show = details[d].all || 
@@ -603,11 +594,10 @@ function bindListeners(cy) {
             ...Object.keys(details[d].props)
               .filter(p => details[d].props[p])
               .map(k => {
-                const detail = g.details[d][k];
-                if (detail.type === 'numbers') {
-                  return h('p', {}, [t(k + ': ' + fixed(detail.value) + '\n ')]);
+                if (details[d].metadata[k].type === 'number') {
+                  return h('p', {}, [t(k + ': ' + fixed(g.details[d][k]) + '\n ')]);
                 } else {
-                  return h('p', {}, [t(k + ': ' + (detail.value) + '\n ')]);
+                  return h('p', {}, [t(k + ': ' + (g.details[d][k]) + '\n ')]);
                 }
               })
           );
@@ -677,7 +667,7 @@ function setSelectMode(cy, mode = 's') {
 
 function updateDetailsToShow(cy, { update, mode = NAMES.results }) {
   const props = {};
-  const details = cy.elements()[0].data().details; // TODO: replace this with global info object. 
+  const details = cy.elements()[0].data().details;
 
   let init = true;
   if (update) {
