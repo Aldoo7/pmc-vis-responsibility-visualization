@@ -39,7 +39,7 @@ public class Probability extends Property{
             this.scheduler = Scheduler.loadScheduler(this.getName(), this.id);
             project.addScheduler(scheduler);
 
-            return new VariableInfo(this.name, TypeDouble.getInstance(), 0, 1);
+            return this.getPropertyInfo();
         }
 
         if (project.debug) {
@@ -180,9 +180,8 @@ public class Probability extends Property{
             this.scheduler = Scheduler.createScheduler(this.project, this.getName(), this.id, Collections.singletonList(criteria));
             project.addScheduler(scheduler);
             alreadyChecked = true;
-            String out = result.getResultAndAccuracy();
-            project.getDatabase().execute(String.format("INSERT INTO %s (%s,%s,%s) VALUES('%s','%s','%s')", project.getInfoTableName(), ENTRY_R_ID, ENTRY_R_NAME, ENTRY_R_INFO, this.id, this.name, out));
-            return new VariableInfo(this.name, TypeDouble.getInstance(), 0, 1);
+
+            return this.getPropertyInfo();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

@@ -9,9 +9,11 @@ import io.swagger.v3.oas.annotations.Parameter;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 import org.jdbi.v3.core.Jdbi;
+import prism.PrismException;
 import prism.api.Message;
 import prism.core.Namespace;
 import prism.core.Project;
+import prism.core.Property.Property;
 import prism.db.Database;
 import prism.server.PRISMServerConfiguration;
 import prism.server.TaskManager;
@@ -27,6 +29,7 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Path("/{project_id}")
 @Produces(MediaType.APPLICATION_JSON)
@@ -76,9 +79,7 @@ public class TaskResource extends Resource {
     @GET
     @Timed(name="status")
     @Operation(summary = "Returns status of current computation", description = "Reads the internal Task Manager for the status of current computations on the server")
-    public Response getStatus(
-
-    ) {
+    public Response getStatus() {
         return ok(tasks.status());
     }
 
@@ -128,12 +129,6 @@ public class TaskResource extends Resource {
         }
 
         try {
-            final JdbiFactory factory = new JdbiFactory();
-            DataSourceFactory dbfactory = configuration.getDataSourceFactory();
-            dbfactory.setUrl(String.format("jdbc:sqlite:%s/%s/%s", rootDir, projectID, Namespace.DATABASE_FILE));
-
-            final Jdbi jdbi = factory.build(environment, dbfactory, projectID);
-            Database database = new Database(jdbi, debug);
             tasks.createProject(projectID, environment, configuration);
         } catch (Exception e) {
             return error(e);
@@ -196,5 +191,61 @@ public class TaskResource extends Resource {
             return error(e);
         }
         return ok(new Message(String.format("Project %s has been removed", projectID)));
+    }
+
+    @Path("/check")
+    @GET
+    @Timed
+    @Operation(summary = "checks a property on the model", description = "Starts the Model Checking process for an already loaded property")
+    public Response computeProperty(
+            @Parameter(description = "identifier of project")
+            @PathParam("project_id") String projectID,
+            @Parameter(description = "properties that should be checked")
+            @QueryParam("property") List<String> properties
+    ){
+        if (!tasks.containsProject(projectID)) {
+            return error(String.format("Project %s does not exist", projectID));
+        }
+
+        Project p = tasks.getProject(projectID);
+
+        for (String propertyName : properties) {
+            try {
+            p.getProperty(propertyName).ifPresent(property -> {
+                try {
+                    p.checkProperty(propertyName);
+                    if (debug){
+                        System.out.println("Checking property " + propertyName);
+                    }
+                } catch (PrismException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            } catch (Exception e) {
+                return error(e);
+            }
+
+        }
+
+        return ok(new Message(String.format("Started checking %s in project %s", String.join(", ", properties), projectID)));
+    }
+
+    @Path("/clear")
+    @GET
+    @Timed
+    @Operation(summary = "clears the database of the project", description = "Uncoppels the database from the project, deletes it, and creates a new database for the project. Stops all other tasks.")
+    public Response computeProperty(
+            @Parameter(description = "identifier of project")
+            @PathParam("project_id") String projectID
+    ){
+
+        try {
+            tasks.clearDatabase(projectID);
+        } catch (Exception e) {
+            System.out.print(e.getMessage());
+            return error(e);
+        }
+
+        return ok(new Message(String.format("Cleared database for project %s", projectID)));
     }
 }

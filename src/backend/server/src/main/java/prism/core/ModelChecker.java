@@ -1,26 +1,18 @@
 package prism.core;
 
-import parser.State;
 import parser.ast.Expression;
-import parser.ast.ExpressionReward;
 import parser.ast.ModulesFile;
 import parser.ast.PropertiesFile;
 import prism.*;
 import prism.api.VariableInfo;
 import prism.core.Property.Property;
-import prism.core.Scheduler.Scheduler;
-import prism.core.Utility.Prism.MDStrategyDB;
 import prism.core.Utility.Prism.Updater;
 import prism.core.Utility.Timer;
 import prism.db.Batch;
 import prism.db.Database;
-import prism.misc.Debug;
 import prism.server.Task;
 import simulator.Choice;
-import simulator.SimulatorEngine;
 import simulator.TransitionList;
-import simulator.method.*;
-import strat.StrategyGenerator;
 
 import java.io.*;
 import java.sql.SQLException;
@@ -42,14 +34,12 @@ public class ModelChecker implements Namespace {
     private final String transTable;
 
     private final String schedTable;
-    private final String resTable;
 
-    public ModelChecker(Project project, File modelFile, String stateTable, String transTable, String schedTable, String resTable, String cuddMaxMem, int numIterations, boolean debug) throws Exception {
+    public ModelChecker(Project project, File modelFile, String stateTable, String transTable, String schedTable, String cuddMaxMem, int numIterations, boolean debug) throws Exception {
         this.project = project;
         this.stateTable = stateTable;
         this.transTable = transTable;
         this.schedTable = schedTable;
-        this.resTable = resTable;
         if (debug) this.prism = new Prism(new PrismPrintStreamLog(System.out));
         else this.prism = new Prism(new PrismDevNullLog());
         prism.setCUDDMaxMem(cuddMaxMem);
@@ -66,7 +56,6 @@ public class ModelChecker implements Namespace {
         } catch (FileNotFoundException e) {
             throw new Exception(e.getMessage());
         }
-
         this.updater = new Updater(modulesFile, prism);
     }
 
@@ -115,8 +104,7 @@ public class ModelChecker implements Namespace {
             String stateTable = String.format("%s_%s", project.getStateTableName(), i);
             String transTable = String.format("%s_%s", project.getTransitionTableName(), i);
             String schedTable = String.format("%s_%s", project.getSchedulerTableName(), i);
-            String resTable = String.format("%s_%s", project.getInfoTableName(), i);
-            ModelChecker instance = new ModelChecker(project, file, stateTable, transTable, schedTable, resTable, cuddMem, numIterations, debug);
+            ModelChecker instance = new ModelChecker(project, file, stateTable, transTable, schedTable, cuddMem, numIterations, debug);
             instances.add(instance);
             i++;
         }
@@ -128,7 +116,8 @@ public class ModelChecker implements Namespace {
             CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
                 try {
                     instance.buildModel();
-                    instance.modelCheckingFromFile(propertyFile.getPath());
+                    instance.parsePropertyFile(propertyFile.getPath());
+                    instance.modelCheckAll();
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
@@ -194,6 +183,17 @@ public class ModelChecker implements Namespace {
         return (project.getDatabase().question(String.format("SELECT name FROM sqlite_schema WHERE type='table' AND name='%s'", stateTable)) & project.getDatabase().question(String.format("SELECT name FROM sqlite_schema WHERE type='table' AND name='%s'", transTable)));
     }
 
+    public void reset() throws Exception {
+        this.model = null;
+        Database database = project.getDatabase();
+
+        database.execute(String.format("DROP TABLE IF EXISTS %s", stateTable));
+        database.execute(String.format("DROP TABLE IF EXISTS %s", transTable));
+        database.execute(String.format("DROP TABLE IF EXISTS %s", schedTable));
+
+        project.setBuilt(false);
+    }
+
     private class modelBuildTask implements Task {
         Database database;
 
@@ -227,7 +227,6 @@ public class ModelChecker implements Namespace {
                     database.execute(String.format("CREATE TABLE %s (%s INTEGER PRIMARY KEY NOT NULL, %s TEXT, %s BOOLEAN)", stateTable, ENTRY_S_ID, ENTRY_S_NAME, ENTRY_S_INIT));
                     database.execute(String.format("CREATE TABLE %s (%s INTEGER PRIMARY KEY, %s INTEGER NOT NULL, %s TEXT, %s INTEGER);", transTable, ENTRY_T_ID, ENTRY_T_OUT, ENTRY_T_ACT, ENTRY_T_PROB));
                     database.execute(String.format("CREATE TABLE %s (%s TEXT, %s TEXT)", schedTable, ENTRY_SCH_ID, ENTRY_SCH_NAME));
-                    database.execute(String.format("CREATE TABLE %s (%s TEXT, %s TEXT, %s TEXT)", resTable, ENTRY_R_ID, ENTRY_R_NAME, ENTRY_R_INFO));
 
                     for (int i = 0; i < numRewards; i++) {
                         database.execute(String.format("ALTER TABLE %s ADD COLUMN %s TEXT", stateTable, ENTRY_REW + i));
@@ -346,6 +345,11 @@ public class ModelChecker implements Namespace {
         public Type type() {
             return Type.Build;
         }
+
+        @Override
+        public String projectID() {
+            return project.getID();
+        }
     }
 
     private class modelCheckTask implements Task {
@@ -358,10 +362,11 @@ public class ModelChecker implements Namespace {
 
         public void run() {
             try {
+                prism.buildModelIfRequired();
                 VariableInfo newInfo = property.modelCheck();
                 Map<String, VariableInfo> info = (Map<String, VariableInfo>) project.getInfo(OUTPUT_RESULTS);
                 info.replace(property.getName(), newInfo);
-                project.addInfo(OUTPUT_RESULTS, info);
+                project.putInfo(OUTPUT_RESULTS, info);
             } catch (PrismException e) {
                 throw new RuntimeException(e);
             }
@@ -381,6 +386,11 @@ public class ModelChecker implements Namespace {
         public Type type() {
             return Type.Check;
         }
+
+        @Override
+        public String projectID() {
+            return project.getID();
+        }
     }
 
     public void buildModel() throws PrismException {
@@ -388,34 +398,43 @@ public class ModelChecker implements Namespace {
         if (this.model != null && this.isBuilt()) {
             return;
         }
-        if (!project.getTaskManager().containsTask(Task.Type.Build)) {
+        if (!project.getTaskManager().containsTask(Task.Type.Build, project.getID())) {
             project.getTaskManager().execute(new modelBuildTask());
         }
     }
 
-    public void checkModel(PropertiesFile propertiesFile) throws PrismException {
+    public void checkModel(String propertyName) throws PrismException {
         buildModel();
 
-        //if (((NondetModel) prism.getBuiltModel()).areAllChoiceActionsUnique()){
-        //    prism.setGenStrat(true);
-        //}
+        Optional<Property> p = project.getProperty(propertyName);
+        p.ifPresent(property -> project.getTaskManager().execute(new modelCheckTask(property)));
+    }
+
+    public void checkModelDirectly(String propertyName) throws PrismException {
+        if (this.model == null || !this.isBuilt()) {
+            new modelBuildTask().run();
+        }
+
+        Optional<Property> p = project.getProperty(propertyName);
+        p.ifPresent(property -> new modelCheckTask(property).run());
+    }
+
+    public void parsePropertyFile(String path) throws Exception {
+        PropertiesFile propertiesFile = prism.parsePropertiesFile(new File(path));
 
         if (propertiesFile == null) {
             propertiesFile = prism.parsePropertiesString("");
         }
 
         for (int i = 0; i < propertiesFile.getNumProperties(); i++) {
-            String name = project.newProperty(propertiesFile, i);
-            Optional<Property> p = project.getProperty(name);
-            if (p.isPresent()) {
-                project.getTaskManager().execute(new modelCheckTask(p.get()));
-            }
+            project.newProperty(propertiesFile, i);
         }
     }
 
-    public void modelCheckingFromFile(String path) throws Exception {
-        PropertiesFile propertiesFile = prism.parsePropertiesFile(new File(path));
-        checkModel(propertiesFile);
+    public void modelCheckAll() throws PrismException {
+        for (Property p : project.getProperties()) {
+            checkModelDirectly(p.getName());
+        }
     }
 
 }

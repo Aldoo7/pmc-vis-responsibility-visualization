@@ -51,7 +51,6 @@ public class Project implements Namespace{
     private final String TABLE_STATES;
     //Name of the associated table for transitions in the database
     private final String TABLE_TRANS;
-    private final String TABLE_RES;
 
     private final String TABLE_SCHED;
 
@@ -101,9 +100,8 @@ public class Project implements Namespace{
         TABLE_STATES = String.format(TABLE_STATES_GEN, 0);
         TABLE_TRANS = String.format(TABLE_TRANS_GEN, 0);
         TABLE_SCHED = String.format(TABLE_SCHED_GEN, 0);
-        TABLE_RES = String.format(TABLE_RES_GEN, 0);
 
-        this.modelChecker = new ModelChecker(this, file, TABLE_STATES, TABLE_TRANS, TABLE_SCHED, TABLE_RES, String.format("%dm", cuddMaxMem), numIterations, debug);
+        this.modelChecker = new ModelChecker(this, file, TABLE_STATES, TABLE_TRANS, TABLE_SCHED, String.format("%dm", cuddMaxMem), numIterations, debug);
         this.modulesFile = modelChecker.getModulesFile();
         this.modelParser = new ModelParser(this, modulesFile, debug);
 
@@ -158,7 +156,8 @@ public class Project implements Namespace{
 
         info.put(OUTPUT_RESULTS, new TreeMap<>());
 
-        modelCheckAll();
+        this.loadPropertyFiles();
+        this.loadDBInfo();
 
         makeViewDbAndViewInternalConsistent();
 
@@ -189,7 +188,7 @@ public class Project implements Namespace{
         this.built = built;
     }
 
-    public void addInfo(String category, Object newEntry) {
+    public void putInfo(String category, Object newEntry) {
         info.put(category, newEntry);
     }
 
@@ -236,7 +235,7 @@ public class Project implements Namespace{
     }
 
     public void printScheduler(String pathName, boolean limit) throws Exception {
-        modelCheckAll();
+        modelChecker.modelCheckAll();
         int i = 0;
         for (Property p : properties){
             p.printScheduler(String.format("%s/sched_%s.csv", pathName, i), limit);
@@ -276,10 +275,6 @@ public class Project implements Namespace{
 
     public String getTransitionTableName() {
         return TABLE_TRANS;
-    }
-
-    public String getInfoTableName() {
-        return TABLE_RES;
     }
 
     public MdpGraph getMdpGraph() {
@@ -372,11 +367,17 @@ public class Project implements Namespace{
         return members;
     }
 
-    // access to Project Checker
+    // access to Model Checker
 
-
-    public void modelCheckAll() throws Exception {
+    public void buildModel() throws PrismException {
         modelChecker.buildModel();
+    }
+
+    public void checkProperty(String propertyName) throws PrismException {
+        modelChecker.checkModel(propertyName);
+    }
+
+    public void loadPropertyFiles() throws Exception {
         boolean fileForModelCheckingFound = false;
         for (File file : Objects.requireNonNull(new File(String.format("%s/%s", rootDir, id)).listFiles())) {
             if (!Namespace.FILES_RESERVED.contains(file.getName())) {
@@ -384,14 +385,20 @@ public class Project implements Namespace{
                 if (this.debug) {
                     System.out.println("Model Checking File: " + file);
                 }
-                modelChecker.modelCheckingFromFile(file.getPath());
+                modelChecker.parsePropertyFile(file.getPath());
             }
         }
         if (this.debug && !fileForModelCheckingFound) {
             System.out.println("ERROR: No File for Model Checking found!");
         }
         if (this.debug) {
-            System.out.printf("Model Checking in Project %s finished%n", id);
+            System.out.printf("Loading Properties in Project %s finished%n", id);
+        }
+    }
+
+    public void loadDBInfo(){
+        if (modelChecker.isBuilt()) {
+            this.setBuilt(true);
         }
     }
 
@@ -867,6 +874,14 @@ public class Project implements Namespace{
             }
             directory.delete();
         }
+    }
+
+    public void clearTables() throws Exception {
+        schedulers.clear();
+        for (Property p : properties) {
+            p.clear();
+        }
+        modelChecker.reset();
     }
 
     // adds DummyView internally for each View in DB for displaying and modifying views

@@ -3,6 +3,7 @@ package prism.core.Property;
 import org.jdbi.v3.core.result.ResultIterator;
 import parser.VarList;
 import parser.ast.*;
+import parser.type.TypeDouble;
 import prism.Pair;
 import prism.PrismException;
 import prism.api.Transition;
@@ -45,15 +46,20 @@ public abstract class Property implements Namespace {
         this.expression = prismProperty.getExpression();
         this.propertiesFile = propertiesFile;
 
+        Map<String, VariableInfo> info = (Map<String, VariableInfo>) project.getInfo(OUTPUT_RESULTS);
 
         if (project.getDatabase().question(String.format("SELECT name FROM pragma_table_info('%s') WHERE name = '%s'", project.getStateTableName(), this.getPropertyCollumn()))) {
             alreadyChecked = true;
+            info.put(this.name, this.getPropertyInfo());
+        }else{
+            info.put(this.name, VariableInfo.blank(this.name));
         }
+        project.putInfo(OUTPUT_RESULTS, info);
+    }
 
-        Map<String, VariableInfo> info = (Map<String, VariableInfo>) project.getInfo(OUTPUT_RESULTS);
-        info.put(this.name, VariableInfo.blank(this.name));
-        project.addInfo(OUTPUT_RESULTS, info);
-
+    protected VariableInfo getPropertyInfo(){
+        Optional<Double> out = project.getDatabase().executeLookupQuery(String.format("SELECT MAX(%s) FROM %s", this.getPropertyCollumn(), project.getStateTableName()), Double.class);
+        return new VariableInfo(this.name, TypeDouble.getInstance(), 0, Math.ceil(out.orElse(0.0)));
     }
 
     public static Property createProperty(Project project, int id, PropertiesFile propertiesFile, parser.ast.Property prismProperty){
@@ -99,6 +105,13 @@ public abstract class Property implements Namespace {
 
     public Scheduler getScheduler(){
         return this.scheduler;
+    }
+
+    public void clear(){
+        this.alreadyChecked = false;
+        Map<String, VariableInfo> info = (Map<String, VariableInfo>) project.getInfo(OUTPUT_RESULTS);
+        info.replace(this.name, VariableInfo.blank(this.name));
+        project.putInfo(OUTPUT_RESULTS, info);
     }
 
     public abstract VariableInfo modelCheck() throws PrismException;

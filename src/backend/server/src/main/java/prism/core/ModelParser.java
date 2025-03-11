@@ -52,14 +52,14 @@ public class ModelParser {
             String name = varList.getName(i);
             info.put(name, new VariableInfo(name, varList.getType(i), varList.getLow(i), varList.getHigh(i) ));
         }
-        project.addInfo(Namespace.OUTPUT_VARIABLES, info);
+        project.putInfo(Namespace.OUTPUT_VARIABLES, info);
         info = new TreeMap<>();
         for (int i = 0; i < modulesFile.getNumRewardStructs() ; i++) {
             RewardStruct rw = modulesFile.getRewardStruct(i);
             String name = rw.getName();
             info.put(name, new VariableInfo(name, TypeDouble.getInstance(), 0, -1));
         }
-        project.addInfo(Namespace.OUTPUT_REWARDS, info);
+        project.putInfo(Namespace.OUTPUT_REWARDS, info);
 
     }
 

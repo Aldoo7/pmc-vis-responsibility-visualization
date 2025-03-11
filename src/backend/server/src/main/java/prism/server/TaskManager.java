@@ -13,6 +13,7 @@ import prism.db.Database;
 
 import java.util.*;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class TaskManager implements Executor, Managed {
@@ -20,7 +21,7 @@ public class TaskManager implements Executor, Managed {
     private static final Logger logger = LoggerFactory.getLogger(TaskManager.class);
 
     final Queue<Task> tasks = new ArrayDeque<>();
-    final Executor executor;
+    ExecutorService executor;
     Task active;
 
     private Map<String, Project> activeProjects;
@@ -32,12 +33,21 @@ public class TaskManager implements Executor, Managed {
 
     @Override
     public void start() throws Exception {
-
+        this.executor = Executors.newSingleThreadExecutor();
+        if (active != null) {
+            logger.info("Executing task {}\n", active.name());
+            executor.execute(active);
+        }
     }
 
     @Override
     public void stop() throws Exception {
-
+        try {
+            this.executor.shutdownNow();
+        } catch (Exception e) {
+            System.err.println("Error shutting down executor: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     public void addProject(Project project){
@@ -46,9 +56,12 @@ public class TaskManager implements Executor, Managed {
 
     public void createProject(String id, Environment environment, PRISMServerConfiguration config) throws Exception {
         logger.info("Creating project {}\n", id);
+
+        String databaseURL = String.format("jdbc:sqlite:%s/%s/%s", config.getPathTemplate(), id, Namespace.DATABASE_FILE);
+
         final JdbiFactory factory = new JdbiFactory();
         DataSourceFactory dbfactory = config.getDataSourceFactory();
-        dbfactory.setUrl(String.format("jdbc:sqlite:%s/%s/%s", config.getPathTemplate(), id, Namespace.DATABASE_FILE));
+        dbfactory.setUrl(databaseURL);
 
         final Jdbi jdbi = factory.build(environment, dbfactory, id);
         Database database = new Database(jdbi, config.getDebug());
@@ -65,17 +78,38 @@ public class TaskManager implements Executor, Managed {
         return activeProjects.containsKey(projectID);
     }
 
+    private void interruptTasks(String projectID) throws Exception {
+        this.stop();
+        List<Task> toRemove = new ArrayList<>();
+        for(Task task : tasks){
+            if (task.projectID().equals(projectID)){
+                toRemove.add(task);
+            }
+        }
+        tasks.removeAll(toRemove);
+        if (active != null && active.projectID().equals(projectID)){
+            active = tasks.poll();
+        }
+        this.start();
+    }
+
     public void removeProject(String projectID) throws Exception {
+        this.interruptTasks(projectID);
         activeProjects.get(projectID).removeFiles();
         activeProjects.remove(projectID);
     }
 
-    public boolean containsTask(Task.Type type){
-        if (active != null && active.type().equals(type)){
+    public void clearDatabase(String projectID) throws Exception {
+        this.interruptTasks(projectID);
+        activeProjects.get(projectID).clearTables();
+    }
+
+    public boolean containsTask(Task.Type type, String projectID){
+        if (active != null && active.type().equals(type) && active.projectID().equals(projectID)){
             return true;
         }
         for(Task task : tasks){
-            if (task.type().equals(type)){
+            if (task.type().equals(type) && task.projectID().equals(projectID)){
                 return true;
             }
         }
@@ -89,13 +123,18 @@ public class TaskManager implements Executor, Managed {
                 return "status missing";
             }
 
+            @Override
             public String name() {
                 return "runnable";
             }
 
+            @Override
             public Type type(){
                 return Type.Misc;
             }
+
+            @Override
+            public String projectID() { return ""; }
 
             @Override
             public void run() {
@@ -106,6 +145,7 @@ public class TaskManager implements Executor, Managed {
 
     public synchronized void execute(final Task t) {
         tasks.offer(new Task() {
+            @Override
             public void run() {
                 try {
                     t.run();
@@ -115,11 +155,17 @@ public class TaskManager implements Executor, Managed {
                 }
             }
 
+            @Override
             public String status() { return t.status();}
 
+            @Override
             public String name() { return t.name();}
 
+            @Override
             public Type type(){ return t.type();}
+
+            @Override
+            public String projectID() { return t.projectID();}
         });
         if (active == null) {
             scheduleNext();

@@ -45,8 +45,7 @@ public class Expectation extends Property{
             this.scheduler = Scheduler.loadScheduler(this.getName(), this.id);
             project.addScheduler(scheduler);
 
-            Optional<Integer> out = project.getDatabase().executeLookupQuery(String.format("SELECT MAX(%s) FROM %s", this.getPropertyCollumn(), project.getStateTableName()), Integer.class);
-            return new VariableInfo(this.name, TypeDouble.getInstance(), 0, out.orElse(-1));
+            return this.getPropertyInfo();
         }
 
         if (project.debug) {
@@ -199,11 +198,8 @@ public class Expectation extends Property{
             this.scheduler = Scheduler.createScheduler(this.project, this.getName(), this.id, Collections.singletonList(criteria));
             project.addScheduler(scheduler);
             alreadyChecked = true;
-            String resultString = result.getResultAndAccuracy();
-            project.getDatabase().execute(String.format("INSERT INTO %s (%s,%s,%s) VALUES('%s','%s','%s')", project.getInfoTableName(), ENTRY_R_ID, ENTRY_R_NAME, ENTRY_R_INFO, this.id, this.name, resultString));
 
-            Optional<Integer> out = project.getDatabase().executeLookupQuery(String.format("SELECT MAX(%s) FROM %s", this.getPropertyCollumn(), project.getStateTableName()), Integer.class);
-            return new VariableInfo(this.name, TypeDouble.getInstance(), 0, out.orElse(-1));
+            return this.getPropertyInfo();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
