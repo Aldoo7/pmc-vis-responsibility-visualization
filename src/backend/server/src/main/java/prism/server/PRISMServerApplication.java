@@ -25,7 +25,7 @@ public class PRISMServerApplication extends Application<PRISMServerConfiguration
 
 	@Override
 	public String getName() {
-		return "pmc-vis-server";
+		return "pmc-vis-backend";
 	}
 
 	@Override
@@ -40,7 +40,9 @@ public class PRISMServerApplication extends Application<PRISMServerConfiguration
 
 		System.out.println("Starting Backend Server");
 
-		TaskManager activeProjects = new TaskManager();
+		HttpClient httpClient = new HttpClient(environment, configuration);
+
+		TaskManager activeProjects = new TaskManager(httpClient);
 		environment.lifecycle().manage(activeProjects);
 
 		// Enable CORS headers

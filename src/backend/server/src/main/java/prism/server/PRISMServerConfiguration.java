@@ -2,6 +2,7 @@ package prism.server;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.dropwizard.Configuration;
+import io.dropwizard.client.JerseyClientConfiguration;
 import io.dropwizard.db.DataSourceFactory;
 
 import javax.validation.Valid;
@@ -20,6 +21,12 @@ public class PRISMServerConfiguration extends Configuration {
     private int iterations = 50000;
 
     private String initModel = "0";
+
+    private String frontendUrl = "http://localhost:3000";
+
+    @Valid
+    @NotNull
+    private JerseyClientConfiguration jerseyClient = new JerseyClientConfiguration();
 
     @Valid
     @NotNull
@@ -83,6 +90,26 @@ public class PRISMServerConfiguration extends Configuration {
     @JsonProperty("database")
     public DataSourceFactory getDataSourceFactory() {
         return database;
+    }
+
+    @JsonProperty("jerseyClient")
+    public JerseyClientConfiguration getJerseyClientConfiguration() {
+        return jerseyClient;
+    }
+
+    @JsonProperty("jerseyClient")
+    public void setJerseyClientConfiguration(JerseyClientConfiguration jerseyClient) {
+        this.jerseyClient = jerseyClient;
+    }
+
+    @JsonProperty
+    public String getFrontendUrl() {
+        return frontendUrl;
+    }
+
+    @JsonProperty
+    public void setFrontendUrl(String frontendUrl) {
+        this.frontendUrl = frontendUrl;
     }
 
 }

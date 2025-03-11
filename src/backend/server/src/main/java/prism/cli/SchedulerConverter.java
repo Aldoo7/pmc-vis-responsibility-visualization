@@ -1,6 +1,7 @@
 package prism.cli;
 
 import io.dropwizard.cli.ConfiguredCommand;
+import io.dropwizard.client.JerseyClientBuilder;
 import io.dropwizard.db.DataSourceFactory;
 import io.dropwizard.jdbi3.JdbiFactory;
 import io.dropwizard.setup.Bootstrap;
@@ -14,6 +15,7 @@ import prism.db.Database;
 import prism.server.PRISMServerConfiguration;
 import prism.server.TaskManager;
 
+import javax.ws.rs.client.Client;
 import java.io.*;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;

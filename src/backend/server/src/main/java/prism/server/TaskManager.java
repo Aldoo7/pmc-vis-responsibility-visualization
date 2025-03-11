@@ -11,6 +11,7 @@ import prism.core.Namespace;
 import prism.core.Project;
 import prism.db.Database;
 
+import javax.ws.rs.client.Client;
 import java.util.*;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -20,14 +21,23 @@ public class TaskManager implements Executor, Managed {
 
     private static final Logger logger = LoggerFactory.getLogger(TaskManager.class);
 
-    final Queue<Task> tasks = new ArrayDeque<>();
-    ExecutorService executor;
-    Task active;
+    private final Queue<Task> tasks = new ArrayDeque<>();
+    private ExecutorService executor;
+    private Task active;
+
+    private final HttpClient httpClient;
 
     private Map<String, Project> activeProjects;
 
+    public TaskManager(HttpClient httpClient) {
+        this.executor = Executors.newSingleThreadExecutor();
+        this.httpClient = httpClient;
+        this.activeProjects = new HashMap<>();
+    }
+
     public TaskManager() {
         this.executor = Executors.newSingleThreadExecutor();
+        this.httpClient = null;
         this.activeProjects = new HashMap<>();
     }
 
@@ -47,6 +57,16 @@ public class TaskManager implements Executor, Managed {
         } catch (Exception e) {
             System.err.println("Error shutting down executor: " + e.getMessage());
             e.printStackTrace();
+        }
+    }
+
+    private void sendStatus(){
+        if (httpClient != null) {
+            try {
+                httpClient.send(status());
+            }catch (Exception e){
+                System.err.println("Error sending status to server: " + e.getMessage());
+            }
         }
     }
 
@@ -177,6 +197,7 @@ public class TaskManager implements Executor, Managed {
             logger.info("Executing task {}\n", active.name());
             executor.execute(active);
         }
+        this.sendStatus();
     }
 
     public List<String> status(){

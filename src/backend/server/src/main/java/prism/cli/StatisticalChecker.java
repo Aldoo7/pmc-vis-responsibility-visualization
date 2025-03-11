@@ -1,6 +1,7 @@
 package prism.cli;
 
 import io.dropwizard.cli.ConfiguredCommand;
+import io.dropwizard.client.JerseyClientBuilder;
 import io.dropwizard.db.DataSourceFactory;
 import io.dropwizard.jdbi3.JdbiFactory;
 import io.dropwizard.setup.Bootstrap;
@@ -13,6 +14,7 @@ import prism.db.Database;
 import prism.server.PRISMServerConfiguration;
 import prism.server.TaskManager;
 
+import javax.ws.rs.client.Client;
 import java.io.*;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
@@ -103,6 +105,7 @@ public class StatisticalChecker extends ConfiguredCommand<PRISMServerConfigurati
 
         final Jdbi jdbi = factory.build(new Environment("temp"), dbfactory, projectID);
         Database database = new Database(jdbi, configuration.getDebug());
+
         TaskManager taskManager = new TaskManager();
 
         Project project = new Project(projectID, configuration.getPathTemplate(), taskManager,  database, configuration.getCUDDMaxMem(), configuration.getIterations(), configuration.getDebug());
