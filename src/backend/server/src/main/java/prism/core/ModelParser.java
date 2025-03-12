@@ -57,7 +57,7 @@ public class ModelParser {
         for (int i = 0; i < modulesFile.getNumRewardStructs() ; i++) {
             RewardStruct rw = modulesFile.getRewardStruct(i);
             String name = rw.getName();
-            info.put(name, new VariableInfo(name, TypeDouble.getInstance(), 0, -1));
+            info.put(name, new VariableInfo(name, TypeDouble.getInstance(), 0, Double.POSITIVE_INFINITY));
         }
         project.putInfo(Namespace.OUTPUT_REWARDS, info);
 
