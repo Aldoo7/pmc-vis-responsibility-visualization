@@ -357,7 +357,7 @@ public class ModelParser {
             rewards.put(rewardNames.get(i), rewardValues[i]);
         }
 
-        return new Transition(identifier, String.valueOf(identifier), choice.getModuleOrAction(), outDistribution, rewards, null, null, null, null);
+        return new Transition(identifier, String.valueOf(stateIdentifier(out)), choice.getModuleOrAction(), outDistribution, rewards, null, null, null, null);
     }
 
     // Output Functions
