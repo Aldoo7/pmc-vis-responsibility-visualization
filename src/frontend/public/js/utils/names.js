@@ -1,6 +1,7 @@
 const NAMES = {
     results: 'Model Checking Results',
     atomicPropositions: 'Atomic Propositions',
+    variables: 'Variable Values',
 
     ap_init: 'init',
     ap_deadlock: 'deadlock',

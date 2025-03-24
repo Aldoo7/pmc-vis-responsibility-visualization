@@ -376,14 +376,14 @@ function updatePropsValues() {
   const update = {};
 
   Object.keys(original).forEach((d) => {
+    const cb = document.getElementById(`checkbox-${d}`);
     update[d] = {
-      all: document.getElementById(`checkbox-${d}`).checked,
+      all: cb?.checked,
       props: {},
     };
     Object.keys(original[d].props).forEach((p) => {
-      update[d].props[p] = document.getElementById(
-        `checkbox-${d}-${p}`
-      ).checked;
+      const cbp = document.getElementById(`checkbox-${d}-${p}`)
+      update[d].props[p] = cbp?.checked;
     });
   });
 
@@ -492,7 +492,9 @@ function makeDetailCheckboxes() {
     $toggle.checked = options[k].all;
 
     $toggle.addEventListener("change", (e) => {
+      console.log(options[k])
       Object.keys(options[k].props).forEach((p) => {
+
         document.getElementById(`checkbox-${k}-${p}`).checked =
           e.target.checked;
       });

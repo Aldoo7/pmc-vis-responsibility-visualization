@@ -665,7 +665,7 @@ function setSelectMode(cy, mode = 's') {
   cy.endBatch();
 }
 
-function updateDetailsToShow(cy, { update, mode = NAMES.results }) {
+function updateDetailsToShow(cy, { update }) {
   const props = {};
   const details = structuredClone(info);
 
@@ -674,6 +674,16 @@ function updateDetailsToShow(cy, { update, mode = NAMES.results }) {
     init = false;
   }
 
+  let mode = NAMES.results;
+  const ready = details[NAMES.results] && 
+    Object.values(details[NAMES.results])
+      .map(a => a.ready)
+      .reduce((a, b) => a && b, true);
+
+  if (!ready) {
+    mode = NAMES.variables;
+  }
+  console.log(details)
   Object.keys(details).forEach(d => {
     if (d === "metadata") {
       return;
@@ -691,7 +701,8 @@ function updateDetailsToShow(cy, { update, mode = NAMES.results }) {
     };
 
     Object.keys(details[d]).forEach(p => {
-      props[d].props[p] = init ? truthVal : update[d].props[p];
+      const iv = truthVal || (d === NAMES.results && info[d][p].ready)
+      props[d].props[p] = init ? iv : update[d].props[p];
       props[d].metadata[p] = info[d] ? info[d][p] : undefined;
     });
   });

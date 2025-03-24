@@ -360,7 +360,9 @@ const parallelCoords = function (pane, data, metadata) {
                     if (active && val >= Math.min(mouse_lower_limit, mouse_upper_limit) && val <= Math.max(mouse_lower_limit, mouse_upper_limit)) {
                         highlighted.add(point.id);
                         path(point, highlight);
-                    } 
+                    } else {
+                        highlighted.delete(point.id);    
+                    }
                 } else {
                     highlighted.delete(point.id);
                 }
