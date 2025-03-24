@@ -2,6 +2,7 @@ package prism.server;
 
 import io.dropwizard.client.JerseyClientBuilder;
 import io.dropwizard.setup.Environment;
+import prism.api.Status;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.Entity;
@@ -23,6 +24,11 @@ public class HttpClient {
     public void send(List<String> messages) {
         WebTarget target = client.target(url);
         target.request(MediaType.APPLICATION_JSON_TYPE).post(Entity.entity(messages, MediaType.APPLICATION_JSON_TYPE));
+    }
+
+    public void send(Status status) {
+        WebTarget target = client.target(url);
+        target.request(MediaType.APPLICATION_JSON_TYPE).post(Entity.entity(status, MediaType.APPLICATION_JSON_TYPE));
     }
 
 

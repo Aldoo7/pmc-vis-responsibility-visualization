@@ -7,11 +7,11 @@ import io.dropwizard.setup.Environment;
 import org.jdbi.v3.core.Jdbi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import prism.api.Status;
 import prism.core.Namespace;
 import prism.core.Project;
 import prism.db.Database;
 
-import javax.ws.rs.client.Client;
 import java.util.*;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -24,10 +24,11 @@ public class TaskManager implements Executor, Managed {
     private final Queue<Task> tasks = new ArrayDeque<>();
     private ExecutorService executor;
     private Task active;
+    private String lastTaskId;
 
     private final HttpClient httpClient;
 
-    private Map<String, Project> activeProjects;
+    private final Map<String, Project> activeProjects;
 
     public TaskManager(HttpClient httpClient) {
         this.executor = Executors.newSingleThreadExecutor();
@@ -60,10 +61,11 @@ public class TaskManager implements Executor, Managed {
         }
     }
 
-    private void sendStatus(){
+    private void sendStatus(String id){
         if (httpClient != null) {
             try {
-                httpClient.send(status());
+                Status status = new Status(this.activeProjects.get(id), this.status());
+                httpClient.send(status);
             }catch (Exception e){
                 System.err.println("Error sending status to server: " + e.getMessage());
             }
@@ -171,6 +173,7 @@ public class TaskManager implements Executor, Managed {
                     t.run();
                 } finally {
                     logger.info("Task {} executed", t.name());
+                    sendStatus(t.projectID());
                     scheduleNext();
                 }
             }
@@ -197,13 +200,12 @@ public class TaskManager implements Executor, Managed {
             logger.info("Executing task {}\n", active.name());
             executor.execute(active);
         }
-        this.sendStatus();
     }
 
     public List<String> status(){
-        List currentTasks = new ArrayList();
+        List<String> currentTasks = new ArrayList<>();
         if (active != null) {
-            currentTasks.add(active.status()); //TODO: Add explanation function to each Task
+            currentTasks.add(active.status());
             for (Task task : tasks) {
                 currentTasks.add(task.status());
             }

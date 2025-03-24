@@ -407,7 +407,13 @@ public class ModelChecker implements Namespace {
         buildModel();
 
         Optional<Property> p = project.getProperty(propertyName);
-        p.ifPresent(property -> project.getTaskManager().execute(new modelCheckTask(property)));
+        if(p.isPresent()) {
+            Property property = p.get();
+            Map<String, VariableInfo> info = (Map<String, VariableInfo>) project.getInfo(OUTPUT_RESULTS);
+            info.get(propertyName).setStatus(VariableInfo.Status.computing);
+            project.putInfo(OUTPUT_RESULTS, info);
+            project.getTaskManager().execute(new modelCheckTask(property));
+        }
     }
 
     public void checkModelDirectly(String propertyName) throws PrismException {

@@ -23,7 +23,6 @@ public class ModelParser {
 
     private final Project project;
     private final ModulesFile modulesFile;
-    private final Prism prism;
     private final Updater updater;
 
     private final VarList varList;
@@ -32,8 +31,9 @@ public class ModelParser {
     public ModelParser(Project project, ModulesFile modulesFile, boolean debug) {
         this.project = project;
         this.modulesFile = modulesFile;
-        if (debug) this.prism = new Prism(new PrismPrintStreamLog(System.out));
-        else this.prism = new Prism(new PrismDevNullLog());
+        Prism prism;
+        if (debug) prism = new Prism(new PrismPrintStreamLog(System.out));
+        else prism = new Prism(new PrismDevNullLog());
         try {
             this.updater = new Updater(modulesFile, prism);
             this.varList = modulesFile.createVarList();
@@ -50,17 +50,16 @@ public class ModelParser {
         TreeMap<String, VariableInfo> info = new TreeMap<>();
         for (int i = 0; i < varList.getNumVars() ; i++) {
             String name = varList.getName(i);
-            info.put(name, new VariableInfo(name, varList.getType(i), varList.getLow(i), varList.getHigh(i) ));
+            info.put(name, new VariableInfo(name, VariableInfo.parseType(varList.getType(i).getTypeString()), varList.getLow(i), varList.getHigh(i) ));
         }
         project.putInfo(Namespace.OUTPUT_VARIABLES, info);
         info = new TreeMap<>();
         for (int i = 0; i < modulesFile.getNumRewardStructs() ; i++) {
             RewardStruct rw = modulesFile.getRewardStruct(i);
             String name = rw.getName();
-            info.put(name, new VariableInfo(name, TypeDouble.getInstance(), 0, Double.POSITIVE_INFINITY));
+            info.put(name, new VariableInfo(name, VariableInfo.Type.TYPE_NUMBER, 0, Double.POSITIVE_INFINITY));
         }
         project.putInfo(Namespace.OUTPUT_REWARDS, info);
-
     }
 
     public String normalizeStateName(String stateDescription) {
@@ -134,9 +133,7 @@ public class ModelParser {
                     try {
                         value = castStringToType(assignment, t);
                         break;
-                    } catch (PrismLangException e) {
-                        value = null;
-                    } catch (java.lang.NumberFormatException e){
+                    } catch (PrismLangException | NumberFormatException e) {
                         value = null;
                     }
                 }

@@ -59,7 +59,7 @@ public abstract class Property implements Namespace {
 
     protected VariableInfo getPropertyInfo(){
         Optional<Double> out = project.getDatabase().executeLookupQuery(String.format("SELECT MAX(%s) FROM %s", this.getPropertyCollumn(), project.getStateTableName()), Double.class);
-        return new VariableInfo(this.name, TypeDouble.getInstance(), 0, Math.ceil(out.orElse(0.0)));
+        return new VariableInfo(this.name, VariableInfo.Type.TYPE_NUMBER, 0, Math.ceil(out.orElse(0.0)));
     }
 
     public static Property createProperty(Project project, int id, PropertiesFile propertiesFile, parser.ast.Property prismProperty){

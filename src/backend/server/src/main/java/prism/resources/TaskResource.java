@@ -11,6 +11,7 @@ import org.glassfish.jersey.media.multipart.FormDataParam;
 import org.jdbi.v3.core.Jdbi;
 import prism.PrismException;
 import prism.api.Message;
+import prism.api.Status;
 import prism.core.Namespace;
 import prism.core.Project;
 import prism.core.Property.Property;
@@ -79,8 +80,11 @@ public class TaskResource extends Resource {
     @GET
     @Timed(name="status")
     @Operation(summary = "Returns status of current computation", description = "Reads the internal Task Manager for the status of current computations on the server")
-    public Response getStatus() {
-        return ok(tasks.status());
+    public Response getStatus(
+            @Parameter(description = "identifier of project")
+            @PathParam("project_id") String projectID
+    ) {
+        return ok(new Status(tasks.getProject(projectID), tasks.status()));
     }
 
     @Path("/create-project")

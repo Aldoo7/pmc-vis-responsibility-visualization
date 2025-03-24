@@ -82,4 +82,6 @@ public interface Namespace {
     String TYPE_NUMBER = "number";
 
     String TYPE_BLANK = "missing";
+
+    String TYPE_COMP = "computing";
 }

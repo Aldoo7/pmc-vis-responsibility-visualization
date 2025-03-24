@@ -13,8 +13,6 @@ import prism.server.TaskManager;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import java.io.*;
-import java.nio.file.Files;
 import java.util.*;
 
 
@@ -61,7 +59,7 @@ public class ModelResource extends Resource {
     @Path("/subgraph")
     @GET
     @Timed(name="subgraph")
-    @Operation(summary = "Returns single node", description = "Returns single Node Object with identifier 'id'")
+    @Operation(summary = "Returns interconnected subgraph of all given nodes", description = "Returns single Node Object with identifier 'id'")
     public Response getSubGraph(
             @Parameter(description = "identifier of project") @PathParam("project_id") String projectID,
             @Parameter(description = "Identifier of target node", required = true) @QueryParam("id") List<Long> nodeIDs,
