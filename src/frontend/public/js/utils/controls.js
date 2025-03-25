@@ -494,7 +494,6 @@ function makeDetailCheckboxes() {
     $toggle.checked = options[k].all;
 
     $toggle.addEventListener("change", (e) => {
-      console.log(options[k])
       Object.keys(options[k].props).forEach((p) => {
 
         document.getElementById(`checkbox-${k}-${p}`).checked =

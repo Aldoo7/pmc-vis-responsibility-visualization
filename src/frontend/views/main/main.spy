@@ -38,8 +38,8 @@
     <!-- panes are appended here -->
   </div>
 
-  <div id="config" class="config ui">
-    <div class="ui segment">
+  <div id="config" class="config ui padded grid">
+    <div class="ui column">
 
       <h3 class="label label-info">Project </h3>
       <div class="content">

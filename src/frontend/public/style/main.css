@@ -60,12 +60,16 @@ body.config-closed #container {
     z-index: 1;
     width: var(--config-width);
     transition: width .5s;
+    background: var(--pane-background);
     
-}
+    select, .button {
+        font-size: 12px;
+        width: 100%;
+    }
 
-.config.ui > .ui.segment {
-    margin: 1px !important;
-    background: var(--pane-background)
+    .ui.checkbox {
+        display: block;
+    }
 }
 
 .config-closed .config {
@@ -147,13 +151,6 @@ summary>.trigger-check-prop {
 
 .trigger-check-prop:hover {
     color: rgb(94, 94, 94);
-}
-
-
-.config select,
-.config .button {
-    font-size: 12px;
-    width: 100%;
 }
 
 .cy-html p {
@@ -251,10 +248,6 @@ summary>.trigger-check-prop {
     height: 5px;
     margin-bottom: 5px;
     margin-top: 7px;
-}
-
-.config.ui.checkbox {
-    display: block;
 }
 
 .cy-html i,

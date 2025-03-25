@@ -726,7 +726,7 @@ function toggleFullSync(cy, prop) {
   cy.vars['fullSync'].value = prop;
 }
 
-function selectBasedOnAP(e, ap) {
+function selectBasedOnAP(cy, e, ap) {
   e.preventDefault(); 
   
   if (info.metadata.initial !== "#") {
@@ -1265,12 +1265,14 @@ function handleExportPane() {
   }
 }
 
-function handleMarkNodes(e) {
+function handleMarkNodes(cy, e) {
   const targets = cy.$('node:selected');
-  if (!targets.classes().includes("marked")) {
-    dispatchEvent(events.GLOBAL_MARK(targets.map(t => t.data().id)));
-  } else {
-    dispatchEvent(events.GLOBAL_UNMARK(targets.map(t => t.data().id)));
+  if (targets.length > 0) {
+    if (!targets.classes().includes("marked")) {
+      dispatchEvent(events.GLOBAL_MARK(targets.map(t => t.data().id)));
+    } else {
+      dispatchEvent(events.GLOBAL_UNMARK(targets.map(t => t.data().id)));
+    }
   }
   document.activeElement.blur()
 }
@@ -1292,7 +1294,7 @@ function initControls(cy) {
     document.activeElement.blur()
   });
 
-  document.getElementById(`${cy.paneId}-mark`).addEventListener('click', handleMarkNodes);
+  document.getElementById(`${cy.paneId}-mark`).addEventListener('click', (e) => handleMarkNodes(cy, e));
 }
 
 function ctxmenu(cy) {
@@ -1338,7 +1340,9 @@ function ctxmenu(cy) {
         content: INTERACTIONS.mark.name,
         tooltipText: `${INTERACTIONS.mark.description} \t (${INTERACTIONS.mark.keyboard})`,
         selector: "node.s",
-        onClickFunction: handleMarkNodes,
+        onClickFunction: e => {
+          handleMarkNodes(cy, e);
+        },
         hasTrailingDivider: true,
       },
       {
@@ -1370,7 +1374,7 @@ function ctxmenu(cy) {
         content: "Inspect selection details",
         tooltipText: "inspect selection details",
         selector: "node:selected",
-        onClickFunction: function (event) {
+        onClickFunction: _ => {
           spawnPCP(cy);
         },
         hasTrailingDivider: true,
@@ -1510,22 +1514,22 @@ function keyboardShortcuts(cy, e) {
 
   // ctrl+i: select initial states 
   if (e.keyCode === 73 && modifier) {
-    selectBasedOnAP(e, NAMES.ap_init);
+    selectBasedOnAP(cy, e, NAMES.ap_init);
   }
 
   // ctrl+d: select deadlock states 
   if (e.keyCode === 68 && modifier) {
-    selectBasedOnAP(e, NAMES.ap_deadlock);
+    selectBasedOnAP(cy, e, NAMES.ap_deadlock);
   }
 
   // ctrl+e: select end states 
   if (e.keyCode === 69 && modifier) {
-    selectBasedOnAP(e, NAMES.ap_end);
+    selectBasedOnAP(cy, e, NAMES.ap_end);
   }
 
   // ctrl+m: mark/unmark selected nodes 
   if (e.keyCode === 77 && modifier) {
-    handleMarkNodes(e);
+    handleMarkNodes(cy, e);
   }
 
   // left arrow
