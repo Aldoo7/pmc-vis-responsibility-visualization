@@ -68,6 +68,19 @@ public class ModelResource extends Resource {
         return ok(tasks.getProject(projectID).getSubGraph(nodeIDs, viewID));
     }
 
+    @Path("/reset")
+    @GET
+    @Timed(name="subgraph")
+    @Operation(summary = "Returns interconnected subgraph of all given nodes", description = "Returns single Node Object with identifier 'id'")
+    public Response resetGraph(
+            @Parameter(description = "identifier of project") @PathParam("project_id") String projectID,
+            @Parameter(description = "Identifier of target node", required = true) @QueryParam("id") List<Long> nodeIDs,
+            @Parameter(description = "Identifier of target node that is not explored", required = true) @QueryParam("idu") List<Long> unexploredNodeIDs,
+            @QueryParam("view") List<Integer> viewID
+    ) {
+        return ok(tasks.getProject(projectID).resetGraph(nodeIDs, unexploredNodeIDs));
+    }
+
     @Path("/outgoing")
     @GET
     @Timed(name="outgoing")

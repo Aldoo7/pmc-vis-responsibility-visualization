@@ -475,6 +475,46 @@ public class ModelParser {
 
     }
 
+    public Graph resetGraph(List<Long> stateIDs, List<Long> unexploredStateIDs) throws Exception {
+        List<parser.State> states = new ArrayList<>();
+        List<prism.api.State> outStates = new ArrayList<>();
+        List<Transition> transitions = new ArrayList<>();
+
+        for (Long stateID : stateIDs) {
+            states.add(translateStateIdentifier(stateID));
+        }
+
+        for (parser.State state : states) {
+            outStates.add(convertApiState(state));
+
+            TransitionList<Double> transitionList = new TransitionList<>(Evaluator.forDouble());
+            updater.calculateTransitions(state, transitionList);
+            for (int i = 0; i < transitionList.getNumChoices(); i++) {
+                Choice<Double> choice = transitionList.getChoice(i);
+
+                Map<parser.State, Double> probabilities = new HashMap<>();
+
+                for (int j = 0; j < choice.size(); j++) {
+                    double probability = choice.getProbability(j);
+                    parser.State target = choice.computeTarget(j, state, modulesFile.createVarList());
+                    outStates.add(convertApiState(target));
+                    probabilities.put(target, probability);
+                }
+
+                transitions.add(convertApiTransition(state, choice, probabilities));
+            }
+        }
+
+        for (Long stateID : unexploredStateIDs) {
+            if (!outStates.stream().anyMatch(s -> s.getNumId() == stateID)){
+                parser.State state = translateStateIdentifier(stateID);
+                outStates.add(convertApiState(state));
+            }
+        }
+
+        return new Graph(project, outStates, transitions);
+    }
+
 
 //    public List<Result[]> modelCheckSimulator(File properties, List<State> initialStates, long maxPathLength, String simulationMethod, boolean parallel, Optional<Scheduler> scheduler) throws Exception {
 //

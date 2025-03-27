@@ -41,7 +41,7 @@ public class Database{
     }
     public void execute(String qry, boolean debug) throws SQLException {
         if (debug){
-//            System.out.println("EXECUTE: " + qry);
+            System.out.println("EXECUTE: " + qry);
         }
         try(Handle handle = jdbi.open()){
             handle.execute(qry);
@@ -56,7 +56,7 @@ public class Database{
         try(Handle handle = jdbi.open()){
             long time = System.currentTimeMillis();
             if (debug){
-//                System.out.println("EXECUTE " + qrys.size() + " of " + qrys.get(0));
+                System.out.println("EXECUTE " + qrys.size() + " of " + qrys.get(0));
             }
             Batch batch = handle.createBatch();
             for (String qry : qrys){
@@ -64,7 +64,7 @@ public class Database{
             }
             batch.execute();
             if (debug){
-//                System.out.printf("Done in %s ms. %s inserts per ms%n", System.currentTimeMillis()-time, qrys.size()/(System.currentTimeMillis()-time));
+                System.out.printf("Done in %s ms. %s inserts per ms%n", System.currentTimeMillis()-time, qrys.size()/(System.currentTimeMillis()-time));
 
             }
         }
@@ -78,7 +78,7 @@ public class Database{
         try(Handle handle = jdbi.open()){
             long time = System.currentTimeMillis();
             if (debug){
-//                System.out.println("EXECUTE " + head+ "WITH" + collumns[0].size() + "ENTRIES");
+                System.out.println("EXECUTE " + head+ "WITH" + collumns[0].size() + "ENTRIES");
             }
             PreparedBatch batch = handle.prepareBatch(head);
             for (int i = 0; i < collumns[0].size(); i++){
@@ -89,7 +89,7 @@ public class Database{
             }
             batch.execute();
             if (debug){
-//                System.out.printf("Done in %s ms. %s inserts per ms%n", System.currentTimeMillis()-time, collumns[0].size()/(System.currentTimeMillis()-time));
+                System.out.printf("Done in %s ms. %s inserts per ms%n", System.currentTimeMillis()-time, collumns[0].size()/(System.currentTimeMillis()-time));
             }
         }
     }
@@ -114,7 +114,7 @@ public class Database{
 
     public <T> Optional<T> executeLookupQuery(String qry, Class<T> returnType, boolean debug){
         if (debug){
-//            System.out.println("EXECUTE: " + qry);
+            System.out.println("EXECUTE: " + qry);
         }
         try(Handle handle = jdbi.open()) {
             return handle.createQuery(qry).mapTo(returnType).findOne();
@@ -127,7 +127,7 @@ public class Database{
 
     public Optional<Map<String, Object>> executeLookupQuery(String qry, boolean debug){
         if (debug){
-//            System.out.println("EXECUTE: " + qry);
+            System.out.println("EXECUTE: " + qry);
         }
         try(Handle handle = jdbi.open()) {
             return handle.createQuery(qry).mapToMap().findOne();
@@ -140,7 +140,7 @@ public class Database{
 
     public <T> Optional<T> executeLookupQuery(String qry, RowMapper<T> mapper, boolean debug){
         if (debug){
-//            System.out.println("EXECUTE: " + qry);
+            System.out.println("EXECUTE: " + qry);
         }
         try(Handle handle = jdbi.open()) {
             return handle.createQuery(qry).map(mapper).findOne();
@@ -153,7 +153,7 @@ public class Database{
 
     public List<Map<String, Object>> executeCollectionQuery(String qry, boolean debug){
         if (debug){
-//            System.out.println("EXECUTE: " + qry);
+            System.out.println("EXECUTE: " + qry);
         }
         try(Handle handle = jdbi.open()) {
             return handle.createQuery(qry).mapToMap().list();
@@ -166,7 +166,7 @@ public class Database{
 
     public <T> List<T> executeCollectionQuery(String qry, Class<T> returnType, boolean debug){
         if (debug){
-//            System.out.println("EXECUTE: " + qry);
+            System.out.println("EXECUTE: " + qry);
         }
         try(Handle handle = jdbi.open()) {
             return handle.createQuery(qry).mapTo(returnType).list();
@@ -179,7 +179,7 @@ public class Database{
 
     public <T> List<T> executeCollectionQuery(String qry, RowMapper<T> mapper, boolean debug){
         if (debug){
-//            System.out.println("EXECUTE: " + qry);
+            System.out.println("EXECUTE: " + qry);
         }
         try(Handle handle = jdbi.open()) {
             return handle.createQuery(qry).map(mapper).list();
@@ -201,12 +201,12 @@ public class Database{
 
     public boolean question(String qry, boolean debug){
         if (debug){
-//            System.out.println("EXISTS: " + qry);
+            System.out.println("EXISTS: " + qry);
         }
         try(Handle handle = jdbi.open()) {
             Optional<Boolean> result = handle.createQuery(qry).mapTo(Boolean.TYPE).findOne();
             if (debug){
-//                System.out.println(result.isPresent());
+                System.out.println(result.isPresent());
             }
             return result.isPresent();
         }

@@ -745,6 +745,29 @@ public class Project implements Namespace{
         }
     }
 
+    public Graph resetGraph(List<Long> stateIDs, List<Long> unexploredStateIDs){
+        if (!built) {
+            try {
+                return modelParser.resetGraph(stateIDs, unexploredStateIDs);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+        String stateID = stateIDs.stream().map(l -> Long.toString(l)).collect(Collectors.joining(","));
+        List<Transition> transitions = database.executeCollectionQuery(String.format("SELECT * FROM %s WHERE %s IN (%s)", TABLE_TRANS, ENTRY_T_OUT, stateID), new TransitionMapper(this));
+        Set<String> statesOfInterest = new HashSet<>();
+        for (Long unStateID : unexploredStateIDs){
+            statesOfInterest.add(Long.toString(unStateID));
+        }
+        for (Transition t : transitions) {
+            statesOfInterest.add(t.getSource());
+            statesOfInterest.addAll(new ArrayList<>(t.getProbabilityDistribution().keySet()));
+        }
+        String stateString = String.join(",", statesOfInterest);
+        List<State> states = database.executeCollectionQuery(String.format("SELECT * FROM %s WHERE %s in (%s)", TABLE_STATES, ENTRY_S_ID, stateString), new StateMapper(this, null));
+        return new Graph(this, states, transitions);
+    }
+
     /*
     public Graph getIncoming(long stateID) {
         List<State> states = database.executeCollectionQuery(String.format("SELECT %s.* FROM %s LEFT JOIN %s ON %s.%s = %s.%s WHERE %s.%s = %s OR %s.%s = %s", TABLE_STATES, TABLE_STATES, TABLE_TRANS, TABLE_STATES, ENTRY_S_ID, TABLE_TRANS, ENTRY_T_OUT, TABLE_TRANS, ENTRY_T_IN, stateID, TABLE_STATES, ENTRY_S_ID, stateID), new StateMapper(parent,0));
