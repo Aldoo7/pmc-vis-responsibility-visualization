@@ -84,10 +84,10 @@ function setPane(paneId, {
     document.onkeydown = (e) => pane.cy.vars["ur"].fn(pane.cy, e);
     document.getElementById("selected-pane").innerHTML = paneId;
     document.getElementById(pane.id).classList.add("active-pane");
-    createControllers(pane.cy.params);
     if (info.metadata.updating && pane.cy.vars['update'].value === STATUS.missing) {
       pane.cy.vars['update'].fn();
     }
+    createControllers(pane.cy.params);
 
     socket.emit("active pane", paneId);
     return pane.cy;
@@ -425,7 +425,6 @@ async function triggerModelCheckProperty(e, propType, props) {
     
     if (state.messages[0] === 'All tasks finished') {
       setInfo(state.info);
-      pane.cy.vars['update'].fn();
       info.metadata.updating = true;
       setPane(pane.id, { force: true });
       clearInterval(interval);
