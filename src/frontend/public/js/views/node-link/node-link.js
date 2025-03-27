@@ -992,6 +992,7 @@ function setPublicVars(cy, preset) {
       fn: () => {
         renewInfo(cy);
         updateDetailsToShow(cy, { update: cy.vars['details'].value });
+        setUpdateState(cy);
       }
     }
   };
@@ -1016,8 +1017,6 @@ function setPublicVars(cy, preset) {
     toggleFullSync(cy, preset['fullSync']);
   }
   setUpdateState(cy);
-
-  console.log(cy.vars)
 }
 
 function duplicatePane(cy, initSpawner) {
