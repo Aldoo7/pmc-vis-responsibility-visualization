@@ -110,17 +110,27 @@ function setStyles(cy) {
 // queries and updates info on present graph
 async function renewInfo(cy) {
   async function getSameGraph(nodes) {
-    const ids = nodes.join("&id=");
-    return await (await fetch(`${BACKEND}${PROJECT}/outgoing?id=${ids}`)).json();
+    const ids = nodes.open.join("&id=");
+    const idus = nodes.closed.join("&idu=");
+    
+    const call = `${BACKEND}${PROJECT}/reset?${
+      ids.length > 0 ? "&id=" + ids : ""}${
+      idus.length > 0 ? "&idu=" + idus : ""}`;
+
+    return await (await fetch(call)).json();
   }
 
-  const data = await getSameGraph(cy.$('node.s').map(n => n.data().id));
+  const graph = { 
+    open: cy.$('node.s[[outdegree > 0]]').map(n => n.data().id), 
+    closed: cy.$('node.s[[outdegree = 0]]').map(n => n.data().id)
+  }
+  const data = await getSameGraph(graph);
   const mapper = {};
 
   data.nodes.forEach(n => {
     mapper[n.id] = n;
   });
-
+  
   cy.nodes().forEach(n => { 
     const id = n.data().id;
     cy.elementMapper.nodes.set(id, n);
@@ -129,7 +139,7 @@ async function renewInfo(cy) {
 }
 
 // requests outgoing edges from a selection of nodes and adds them to the graph
-async function graphExtend(cy, nodes, onLayoutStopFn) {
+async function graphExpand(cy, nodes, onLayoutStopFn) {
   const res = await fetch(
       BACKEND +
       PROJECT +
@@ -137,7 +147,6 @@ async function graphExtend(cy, nodes, onLayoutStopFn) {
       nodes.map(n => n.data().id).join("&id=")
   );
   const data = await res.json();
-
   const elements = {
     nodes: data.nodes
       .map(d => ({
@@ -363,7 +372,7 @@ async function expandBestPath(cy, allSources) {
 
   // open everything, as there is no decider / DOI / scheduler
   if (cy.vars["scheduler"].value === "_none_") { 
-    await graphExtend(cy, sources, function() {
+    await graphExpand(cy, sources, function() {
       const ids = sources.map(src => getNextInPath(cy, src.data().id).next).flat();
       const nexts = cy.nodes("#" + ids.join(", #"));
       iteration++;
@@ -373,7 +382,7 @@ async function expandBestPath(cy, allSources) {
       }
     });
   } else { // follow only the "best" path according to DOI/scheduler
-    await graphExtend(cy, sources, function() {
+    await graphExpand(cy, sources, function() {
       const ids = sources.map(src => getNextBestInPath(cy, src.data().id).bestNext);
       const nextBests = cy.nodes("#" + ids.join(", #"));
       iteration++;
@@ -640,7 +649,7 @@ function bindListeners(cy) {
     ) {
       spawnGraphOnNewPane(cy, [n.data()]);
     } else {
-      graphExtend(cy, [n]);
+      graphExpand(cy, [n]);
     }
   });
 
@@ -685,6 +694,25 @@ function setSelectMode(cy, mode = 's') {
 
   cy.style().update();
   cy.endBatch();
+}
+
+// if there are properties 'missing', an update is 'missing'. 
+function setUpdateState(cy) {
+  const props = cy.vars['details'].value[NAMES.results].metadata;
+  let decided = false;
+
+  Object.keys(props).forEach(k => {
+    if (decided) return; 
+    
+    if (info[NAMES.results][k].status !== STATUS.ready) {
+      cy.vars['update'].value = STATUS.missing;
+      decided = true;
+    }
+  });
+
+  if (!decided) {
+    cy.vars['update'].value = STATUS.ready;
+  }
 }
 
 function updateDetailsToShow(cy, { update }) {
@@ -958,6 +986,13 @@ function setPublicVars(cy, preset) {
     fullSync: {
       value: true,
       fn: toggleFullSync,
+    },
+    update: {
+      value: STATUS.ready,
+      fn: () => {
+        renewInfo(cy);
+        updateDetailsToShow(cy, { update: cy.vars['details'].value });
+      }
     }
   };
 
@@ -966,10 +1001,6 @@ function setPublicVars(cy, preset) {
     'export': exportCy,
     'mark': mark,
     'undo-mark': unmark,
-    'update': () => {
-      renewInfo(cy);
-      updateDetailsToShow(cy, { update: cy.vars['details'].value });
-    }
   };
 
   // call functions that need to be init
@@ -984,6 +1015,9 @@ function setPublicVars(cy, preset) {
     updateNewPanePosition(cy, preset['panePosition'].value);
     toggleFullSync(cy, preset['fullSync']);
   }
+  setUpdateState(cy);
+
+  console.log(cy.vars)
 }
 
 function duplicatePane(cy, initSpawner) {
@@ -1308,7 +1342,7 @@ function initControls(cy) {
     if (modifier) {
       spawnGraphOnNewPane(cy, cy.$('node:selected').map(n => n.data()));
     } else {
-      graphExtend(cy, cy.$('node:selected'));
+      graphExpand(cy, cy.$('node:selected'));
     }
     document.activeElement.blur()
   });
@@ -1334,7 +1368,7 @@ function ctxmenu(cy) {
         onClickFunction: () => {
           setPane(cy.paneId);
           hideAllTippies();
-          graphExtend(cy, cy.$('node:selected'));
+          graphExpand(cy, cy.$('node:selected'));
         },
         hasTrailingDivider: false,
       },
@@ -1618,7 +1652,7 @@ function keyboardShortcuts(cy, e) {
     if (modifier) {
       spawnGraphOnNewPane(cy, cy.$('node:selected').map(n => n.data()));
     } else {
-      graphExtend(cy, cy.$('node:selected'));
+      graphExpand(cy, cy.$('node:selected'));
     }
   }
 }
