@@ -107,6 +107,27 @@ function setStyles(cy) {
   cy.endBatch();
 }
 
+// queries and updates info on present graph
+async function renewInfo(cy) {
+  async function getSameGraph(nodes) {
+    const ids = nodes.join("&id=");
+    return await (await fetch(`${BACKEND}${PROJECT}/outgoing?id=${ids}`)).json();
+  }
+
+  const data = await getSameGraph(cy.$('node.s').map(n => n.data().id));
+  const mapper = {};
+
+  data.nodes.forEach(n => {
+    mapper[n.id] = n;
+  });
+
+  cy.nodes().forEach(n => { 
+    const id = n.data().id;
+    cy.elementMapper.nodes.set(id, n);
+    n.data('details', mapper[id].details);
+  });
+}
+
 // requests outgoing edges from a selection of nodes and adds them to the graph
 async function graphExtend(cy, nodes, onLayoutStopFn) {
   const res = await fetch(
@@ -937,12 +958,6 @@ function setPublicVars(cy, preset) {
     fullSync: {
       value: true,
       fn: toggleFullSync,
-    },
-    update: {
-      fn: () => {
-        updateDetailsToShow(cy, { update: cy.vars['details'].value });
-        updateScheduler(cy, '_none_');
-      }
     }
   };
 
@@ -951,6 +966,10 @@ function setPublicVars(cy, preset) {
     'export': exportCy,
     'mark': mark,
     'undo-mark': unmark,
+    'update': () => {
+      renewInfo(cy);
+      updateDetailsToShow(cy, { update: cy.vars['details'].value });
+    }
   };
 
   // call functions that need to be init

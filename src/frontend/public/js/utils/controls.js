@@ -342,7 +342,6 @@ function makeSelectionModesDropdown() {
 }
 
 function makeSchedulerPropDropdown() {
-  console.log(info.metadata)
   const options = Object.keys(
     info.metadata['Scheduler'] // only scheduler from the 'details'
   ).map(k => { return { value: k, name: k } });
@@ -403,8 +402,7 @@ function updatePropsValues() {
 async function status() {
   const status = await fetch(`http://localhost:8080/${PROJECT}/status`, { method: "GET" });
   const data = await status.json();
-  console.log(data);
-  
+  console.log(data)
   return data;
 }
 
@@ -425,12 +423,11 @@ async function triggerModelCheckProperty(e, propType, props) {
     
     if (state.messages[0] === 'All tasks finished') {
       setInfo(state.info);
-      pane.cy.vars['update'].fn();
+      pane.cy.fns.update()
       setPane(pane.id, { force: true });
       clearInterval(interval);
     }
   }, 50);
-
 }
 
 async function clear() {
@@ -438,7 +435,6 @@ async function clear() {
   const response = await request.json(); 
 
   if (response.content.startsWith('Cleared database for')) {
-    console.log('ehre')
     const state = await status(); 
     setInfo(state.info);
     setPane(pane.id, { force: true });
