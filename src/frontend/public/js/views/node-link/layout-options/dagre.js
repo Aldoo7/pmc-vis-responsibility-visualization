@@ -1,20 +1,20 @@
-import { controls } from "./general.js";
+import { controls } from './general.js';
 
 // see all @ https://github.com/cytoscape/cytoscape.js-dagre
 
 const params = {
-  name: "dagre",
+  name: 'dagre',
 
   animate: true,
   animationDuration: 500,
   fit: false,
 
-  rankDir: "LR",
-  ranker: "longest-path",
+  rankDir: 'LR',
+  ranker: 'longest-path',
   rankSep: 20,
   nodeSep: 10, // the separation between adjacent nodes in the same rank
   edgeSep: 50,
-  align: "UL",
+  align: 'UL',
 
   // not in controls
   padding: 30,
@@ -23,56 +23,53 @@ const params = {
   controls: [
     ...controls,
     {
-      label: "Ranker Algorithm",
-      param: "ranker",
+      label: 'Ranker Algorithm',
+      param: 'ranker',
       options: [
-        { value: "network-simplex", name: "Network Simplex" },
-        { value: "tight-tree", name: "Tight Tree" },
-        { value: "longest-path", name: "Longest Path" },
+        { value: 'network-simplex', name: 'Network Simplex' },
+        { value: 'tight-tree', name: 'Tight Tree' },
+        { value: 'longest-path', name: 'Longest Path' },
       ],
-      type: "dropdown",
+      type: 'dropdown',
     },
     {
-      label: "Alignment",
-      param: "align",
+      label: 'Alignment',
+      param: 'align',
       options: [
-        { value: "UL", name: "Up-Left" },
-        { value: "UR", name: "Up-Right" },
-        { value: "DL", name: "Down-Left" },
-        { value: "DR", name: "Down-Right" },
+        { value: 'UL', name: 'Up-Left' },
+        { value: 'UR', name: 'Up-Right' },
+        { value: 'DL', name: 'Down-Left' },
+        { value: 'DR', name: 'Down-Right' },
       ],
-      type: "dropdown",
+      type: 'dropdown',
     },
     {
-      label: "Node Separation (within rank)",
-      param: "nodeSep",
+      label: 'Node Separation (within rank)',
+      param: 'nodeSep',
       min: 1,
       max: 500,
-      type: "slider",
+      type: 'slider',
     },
 
     {
-      label: "Edge Separation (within rank)",
-      param: "edgeSep",
+      label: 'Edge Separation (within rank)',
+      param: 'edgeSep',
       min: 1,
       max: 500,
-      type: "slider",
+      type: 'slider',
     },
     {
-      label: "Rank Separation",
-      param: "rankSep",
+      label: 'Rank Separation',
+      param: 'rankSep',
       min: 10,
       max: 500,
-      type: "slider",
+      type: 'slider',
     },
     {
-      label: "Rank Direction",
-      param: "rankDir",
-      options: [
-        { value: "TB", name: "Top to Bottom" },
-        { value: "LR", name: "Left to Right" },
-      ],
-      type: "dropdown",
+      label: 'Rank Direction',
+      param: 'rankDir',
+      options: [{ value: 'TB', name: 'Top to Bottom' }, { value: 'LR', name: 'Left to Right' }],
+      type: 'dropdown',
     },
   ],
 };

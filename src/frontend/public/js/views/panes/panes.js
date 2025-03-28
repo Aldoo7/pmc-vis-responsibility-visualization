@@ -1,8 +1,8 @@
-import { setPane } from "../../utils/controls.js";
-import { colorList } from "../../utils/utils.js";
-import { CONSTANTS } from "../../utils/names.js";
-import events from "../../utils/events.js";
-import makeCtxMenu from "./ctx-menu.js";
+import { setPane } from '../../utils/controls.js';
+import { colorList } from '../../utils/utils.js';
+import { CONSTANTS } from '../../utils/names.js';
+import events from '../../utils/events.js';
+import makeCtxMenu from './ctx-menu.js';
 
 const MIN_FLEX_GROW = 0.005;
 const MIN_SIZE = 10;
@@ -10,28 +10,28 @@ const socket = io();
 
 const panes = {}; // governs the pane-based exploration
 const tracker = {}; // keeps track of already seen nodes, marks, etc.
-//let width;
+// let width;
 let height;
 const maxheight = () => height - MIN_SIZE * 2;
 
-socket.on("handle overview node clicked", (data) => {
+socket.on('handle overview node clicked', (data) => {
   if (data) {
     highlightPaneById(data);
   }
 });
 
-socket.on("disconnect", () => {
+socket.on('disconnect', () => {
   location.reload();
 });
 
 function uid() {
-  return "id" + uuidv4().replace(/-/g, "");
+  return 'id' + uuidv4().replace(/-/g, '');
 }
 
 function updateHeights() {
   Object.values(panes).forEach((p) => {
     p.height = height;
-    document.getElementById(p.id).style.height = p.height + "px";
+    document.getElementById(p.id).style.height = p.height + 'px';
   });
 }
 
@@ -65,70 +65,70 @@ function spawnPane({ spawner, id, newPanePosition }, nodesIds, spawnerNodes) {
     spawnerNodes,
   };
 
-  socket.emit("pane added", newPane);
+  socket.emit('pane added', newPane);
 
-  pane.details = pane.container + "-details";
+  pane.details = pane.container + '-details';
 
   // pane div
-  const div = document.createElement("div");
-  div.className = "cy-s flex-item pane";
+  const div = document.createElement('div');
+  div.className = 'cy-s flex-item pane';
   div.id = pane.id;
   div.style.flex = panesLength + 1;
-  div.style.height = pane.height + "px";
+  div.style.height = pane.height + 'px';
 
   // add the node-link diagram view
-  const cyContainer = document.createElement("div");
+  const cyContainer = document.createElement('div');
   cyContainer.id = pane.container;
-  cyContainer.className = "cy";
-  cyContainer.style.height = pane.height * (1 - pane.split) + "px";
+  cyContainer.className = 'cy';
+  cyContainer.style.height = pane.height * (1 - pane.split) + 'px';
 
-  const dragbar = document.createElement("div");
+  const dragbar = document.createElement('div');
   dragbar.id = pane.dragbar;
-  dragbar.className = "dragbar";
+  dragbar.className = 'dragbar';
 
   const buttons = createPaneControls(pane);
 
   // add the pane for the detail view (pcp)
-  const details = document.createElement("div");
-  details.className = "detail-inspector";
+  const details = document.createElement('div');
+  details.className = 'detail-inspector';
   details.id = pane.details;
-  details.style.height = pane.height * pane.split + "px";
+  details.style.height = pane.height * pane.split + 'px';
 
-  const split_dragbar = document.createElement("div");
-  split_dragbar.id = pane.dragbar + "-split";
-  split_dragbar.className = "split-dragbar";
+  const split_dragbar = document.createElement('div');
+  split_dragbar.id = pane.dragbar + '-split';
+  split_dragbar.className = 'split-dragbar';
 
-  const sd_maximize = document.createElement("button");
-  sd_maximize.title = "Maximize PCP";
-  sd_maximize.innerHTML = `<i class="fa-solid fa-chevron-up"></i>`;
-  sd_maximize.className = "split-button split-max";
-  sd_maximize.addEventListener("click", () => {
+  const sd_maximize = document.createElement('button');
+  sd_maximize.title = 'Maximize PCP';
+  sd_maximize.innerHTML = '<i class="fa-solid fa-chevron-up"></i>';
+  sd_maximize.className = 'split-button split-max';
+  sd_maximize.addEventListener('click', () => {
     if (cyContainer.clientHeight === MIN_SIZE) {
       resizeSplit(cyContainer, panes[div.id]._split);
-      sd_maximize.innerHTML = `<i class="fa-solid fa-chevron-up"></i>`;
-      sd_maximize.title = "Maximize PCP";
+      sd_maximize.innerHTML = '<i class="fa-solid fa-chevron-up"></i>';
+      sd_maximize.title = 'Maximize PCP';
     } else {
       resizeSplit(cyContainer, MIN_SIZE);
-      sd_maximize.innerHTML = `<i class="fa-solid fa-undo"></i>`;
-      sd_maximize.title = "Undo maximize";
+      sd_maximize.innerHTML = '<i class="fa-solid fa-undo"></i>';
+      sd_maximize.title = 'Undo maximize';
     }
     dispatchEvent(events.RESIZE_ONE(panes[div.id]));
   });
 
-  const sd_minimize = document.createElement("button");
-  sd_minimize.title = "Minimize PCP";
-  sd_minimize.innerHTML = `<i class="fa-solid fa-chevron-down"></i>`;
-  sd_minimize.className = "split-button split-min";
-  sd_minimize.addEventListener("click", () => {
+  const sd_minimize = document.createElement('button');
+  sd_minimize.title = 'Minimize PCP';
+  sd_minimize.innerHTML = '<i class="fa-solid fa-chevron-down"></i>';
+  sd_minimize.className = 'split-button split-min';
+  sd_minimize.addEventListener('click', () => {
     const max = Math.round(maxheight());
     if (cyContainer.clientHeight === max) {
       resizeSplit(cyContainer, panes[div.id]._split);
-      sd_minimize.innerHTML = `<i class="fa-solid fa-chevron-down"></i>`;
-      sd_minimize.title = "Minimize PCP";
+      sd_minimize.innerHTML = '<i class="fa-solid fa-chevron-down"></i>';
+      sd_minimize.title = 'Minimize PCP';
     } else {
       resizeSplit(cyContainer, max);
-      sd_minimize.innerHTML = `<i class="fa-solid fa-undo"></i>`;
-      sd_minimize.title = "Undo minimize";
+      sd_minimize.innerHTML = '<i class="fa-solid fa-undo"></i>';
+      sd_minimize.title = 'Undo minimize';
     }
     dispatchEvent(events.RESIZE_ONE(panes[div.id]));
   });
@@ -144,19 +144,19 @@ function spawnPane({ spawner, id, newPanePosition }, nodesIds, spawnerNodes) {
   const paneIds = Object.keys(panes);
   if (paneIds.length > 0) {
     if (
-      document.getElementById(spawner) &&
-      newPanePosition?.value === "insert"
+      document.getElementById(spawner)
+      && newPanePosition?.value === 'insert'
     ) {
-      document.getElementById(spawner).insertAdjacentElement("afterend", div);
+      document.getElementById(spawner).insertAdjacentElement('afterend', div);
       document
         .getElementById(spawner)
-        .insertAdjacentElement("afterend", dragbar);
+        .insertAdjacentElement('afterend', dragbar);
     } else {
-      document.getElementById("container")?.appendChild(dragbar);
-      document.getElementById("container")?.appendChild(div);
+      document.getElementById('container')?.appendChild(dragbar);
+      document.getElementById('container')?.appendChild(div);
     }
   } else {
-    document.getElementById("container")?.appendChild(div);
+    document.getElementById('container')?.appendChild(div);
   }
 
   panes[div.id] = pane;
@@ -174,12 +174,12 @@ function spawnPane({ spawner, id, newPanePosition }, nodesIds, spawnerNodes) {
 }
 
 function createPaneControls(pane) {
-  const buttons = document.createElement("div");
-  buttons.className = "pane-controls";
+  const buttons = document.createElement('div');
+  buttons.className = 'pane-controls';
   buttons.id = `${pane.container}-controls`;
   buttons.style.width = 0;
   buttons.style.width = 0;
-  buttons.style.backgroundColor = pane.backgroundColor + "50";
+  buttons.style.backgroundColor = pane.backgroundColor + '50';
 
   buttons.innerHTML = `<div class="ui blue bottom attached icon buttons">
         <button class="ui button" id="${pane.id}-expand1"
@@ -215,10 +215,9 @@ function resizeSplit(div, pheight, save = true) {
     panes[div.parentElement.id]._split = div.clientHeight;
   }
 
-  div.style.height = _height + "px";
+  div.style.height = _height + 'px';
 
-  panes[div.parentElement.id].split =
-    1 - _height / panes[div.parentElement.id].height;
+  panes[div.parentElement.id].split =    1 - _height / panes[div.parentElement.id].height;
 }
 
 function togglePane(div) {
@@ -282,33 +281,38 @@ function enableDragBars() {
 
 // https://stackoverflow.com/questions/28767221/flexbox-resizing
 function enablePaneDragBars() {
-  const dragbars = document.getElementsByClassName("dragbar");
+  const dragbars = Array.from(document.getElementsByClassName('dragbar'));
   let dragging = false;
 
-  for (const d of dragbars) {
+  dragbars.forEach(d => {
     d.onmousedown = null;
     d.ondblclick = null;
-  }
+  });
 
-  for (const d of dragbars) {
-    d.onmousedown = function (e) {
+  dragbars.forEach(d => {
+    d.onmousedown = (e) => {
       const resizer = e.target;
       // e.button === 0 means left click
-      if (e.button > 0 || !resizer.classList.contains("dragbar")) {
+      if (e.button > 0 || !resizer.classList.contains('dragbar')) {
         return;
       }
 
       const parent = resizer.parentNode;
       const parentStyle = getComputedStyle(parent);
-      if (parentStyle.display !== "flex") {
+      if (parentStyle.display !== 'flex') {
         return;
       }
 
-      const [prev, next, sizeProp, posProp] = [
+      const [
+        prev,
+        next,
+        sizeProp,
+        posProp,
+      ] = [
         resizer.previousElementSibling,
         resizer.nextElementSibling,
-        "offsetWidth",
-        "pageX",
+        'offsetWidth',
+        'pageX',
       ];
 
       e.preventDefault();
@@ -325,7 +329,7 @@ function enablePaneDragBars() {
       let lastPos = e[posProp];
       dragging = true;
 
-      document.onmousemove = function (ex) {
+      document.onmousemove = (ex) => {
         let pos = ex[posProp];
         const d = pos - lastPos;
         prevSize += d;
@@ -350,9 +354,9 @@ function enablePaneDragBars() {
         lastPos = pos;
       };
 
-      document.onmouseup = function () {
+      document.onmouseup = () => {
         document.onmousemove = null;
-        document.body.style.removeProperty("cursor");
+        document.body.style.removeProperty('cursor');
 
         if (dragging) {
           dragging = false;
@@ -363,25 +367,25 @@ function enablePaneDragBars() {
       };
     };
 
-    d.ondblclick = function (e) {
+    d.ondblclick = (e) => {
       const elementId = e.target ? e.target.id : e.srcElement.id;
       const div = document.getElementById(elementId).previousElementSibling;
       togglePane(div);
     };
-  }
+  });
 }
 
 function enableSplitDragBars() {
-  const dragbars = document.getElementsByClassName("split-dragbar");
+  const dragbars = Array.from(document.getElementsByClassName('split-dragbar'));
 
-  for (const d of dragbars) {
+  dragbars.forEach(d => {
     d.onmousedown = null;
     d.ondblclick = null;
-  }
+  });
 
   let dragging = false;
-  for (const d of dragbars) {
-    d.onmousedown = function (e) {
+  dragbars.forEach(d => {
+    d.onmousedown = (e) => {
       const elementId = e.target ? e.target.id : e.srcElement.id;
       const bar = document.getElementById(elementId);
 
@@ -392,11 +396,11 @@ function enableSplitDragBars() {
 
       const div = bar.previousElementSibling;
       dragging = panes[div.parentElement.id];
-      document.onmousemove = function (ex) {
+      document.onmousemove = (ex) => {
         resizeSplit(div, ex.y - div.getBoundingClientRect().top + 2, false);
       };
 
-      document.onmouseup = function () {
+      document.onmouseup = () => {
         document.onmousemove = null;
         if (dragging) {
           // resize vis inside pane
@@ -410,7 +414,7 @@ function enableSplitDragBars() {
     if (d && d.previousElementSibling && d.parentElement) {
       makeCtxMenu(d, d.previousElementSibling, panes[d.parentElement.id]);
     }
-  }
+  });
 }
 
 function getPanes() {
@@ -433,7 +437,7 @@ function destroyPanes(firstId, firstOnly = false) {
     }
 
     const dragbar = pane.previousElementSibling;
-    if (dragbar && dragbar.classList.contains("dragbar")) {
+    if (dragbar && dragbar.classList.contains('dragbar')) {
       dragbar.remove();
     }
 
@@ -448,7 +452,7 @@ function destroyPanes(firstId, firstOnly = false) {
     });
     setPane(panes[newKeys[newKeys.length - 1]].id);
     dispatchEvent(events.RESIZE_ALL);
-    socket.emit("pane removed", firstId);
+    socket.emit('pane removed', firstId);
   }
 }
 
@@ -470,18 +474,17 @@ function highlightPaneById(paneId) {
 }
 
 function updateDocDims() {
-  //width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+  // width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
 
   const navHeight = parseInt(
     // turns NNpx into NN
-    window.getComputedStyle(document.body).getPropertyValue("--nav-height"),
+    window.getComputedStyle(document.body).getPropertyValue('--nav-height'),
   );
 
-  height =
-    -navHeight +
-    (window.innerHeight ||
-      document.documentElement.clientHeight ||
-      document.body.clientHeight);
+  height =    -navHeight
+    + (window.innerHeight
+      || document.documentElement.clientHeight
+      || document.body.clientHeight);
 
   // width -= document.getElementById("config")?.clientWidth;
   updateHeights();
@@ -489,21 +492,19 @@ function updateDocDims() {
 
 updateDocDims();
 
-addEventListener("resize", () => {
+addEventListener('resize', () => {
   updateDocDims();
   Object.keys(panes).forEach((pane) => {
     panes[pane].height = height;
     const container = document.getElementById(panes[pane].id);
-    container.style.height = height + "px";
-    document.getElementById(panes[pane].container).style.height =
-      height * (1 - panes[pane].split) + "px";
-    document.getElementById(panes[pane].details).style.height =
-      height * panes[pane].split + "px";
+    container.style.height = height + 'px';
+    document.getElementById(panes[pane].container).style.height =      height * (1 - panes[pane].split) + 'px';
+    document.getElementById(panes[pane].details).style.height =      height * panes[pane].split + 'px';
   });
 });
 
-addEventListener("global-action", function (e) {
-  if (e.detail.action === "propagate") {
+addEventListener('global-action', (e) => {
+  if (e.detail.action === 'propagate') {
     Object.keys(tracker).forEach((k) => {
       Object.values(getPanes()).forEach((pane) => {
         pane.cy.fns[k](pane.cy, Array.from(tracker[k]));
@@ -511,11 +512,9 @@ addEventListener("global-action", function (e) {
     });
   } else {
     const action = e.detail.type + e.detail.action;
-    if (!tracker[e.detail.action]) {
-      tracker[e.detail.action] = new Set();
-    }
+    tracker[e.detail.action] ||= new Set();
 
-    if (e.detail.type === "") {
+    if (e.detail.type === '') {
       e.detail.elements.forEach(
         tracker[e.detail.action].add,
         tracker[e.detail.action],
@@ -534,12 +533,12 @@ addEventListener("global-action", function (e) {
   }
 });
 
-document.getElementById("export-strat")?.addEventListener("click", function () {
-  if (!tracker["mark"]) {
+document.getElementById('export-strat')?.addEventListener('click', () => {
+  if (!tracker['mark']) {
     Swal.fire({
-      icon: "error",
-      title: "Nothing to export",
-      html: "Nodes can be marked/unmarked using CTRL+M, the bookmark button atop the pane, or the context menu (right-click)",
+      icon: 'error',
+      title: 'Nothing to export',
+      html: 'Nodes can be marked/unmarked using CTRL+M, the bookmark button atop the pane, or the context menu (right-click)',
       timer: 5000,
       timerProgressBar: true,
     });
@@ -547,7 +546,7 @@ document.getElementById("export-strat")?.addEventListener("click", function () {
   }
 
   const checker = {
-    nodes: structuredClone(tracker["mark"]),
+    nodes: structuredClone(tracker['mark']),
     edges: new Set(),
     sources: new Set(),
     targets: new Set(),
@@ -565,16 +564,16 @@ document.getElementById("export-strat")?.addEventListener("click", function () {
     if (paneData.elements.edges) {
       paneData.elements.edges.forEach((edge) => {
         if (
-          tracker["mark"].has(edge.data.source) ||
-          tracker["mark"].has(edge.data.target)
+          tracker['mark'].has(edge.data.source)
+          || tracker['mark'].has(edge.data.target)
         ) {
           checker.edges.add(edge.data.id);
 
-          if (edge.data.source.startsWith("t_")) {
+          if (edge.data.source.startsWith('t_')) {
             checker.sources.add(edge.data.source);
           }
 
-          if (edge.data.target.startsWith("t_")) {
+          if (edge.data.target.startsWith('t_')) {
             checker.targets.add(edge.data.target);
           }
         }
@@ -582,7 +581,7 @@ document.getElementById("export-strat")?.addEventListener("click", function () {
 
       paneData.elements.edges.forEach((edge) => {
         if (checker.edges.has(edge.data.id)) {
-          if (edge.data.source.startsWith("t_")) {
+          if (edge.data.source.startsWith('t_')) {
             if (checker.targets.has(edge.data.target)) {
               returnable.edges.set(edge.data.id, edge);
             } else {
@@ -590,7 +589,7 @@ document.getElementById("export-strat")?.addEventListener("click", function () {
             }
           }
 
-          if (edge.data.target.startsWith("t_")) {
+          if (edge.data.target.startsWith('t_')) {
             if (checker.sources.has(edge.data.target)) {
               returnable.edges.set(edge.data.id, edge);
             } else {
@@ -603,10 +602,10 @@ document.getElementById("export-strat")?.addEventListener("click", function () {
 
     paneData.elements.nodes.forEach((node) => {
       if (
-        checker.nodes.has(node.data.id) ||
-        (node.data.type === "t" &&
-          checker.sources.has(node.data.id) &&
-          checker.targets.has(node.data.id))
+        checker.nodes.has(node.data.id)
+        || (node.data.type === 't'
+          && checker.sources.has(node.data.id)
+          && checker.targets.has(node.data.id))
       ) {
         checker.nodes.add(node);
         returnable.nodes.set(node.data.id, node);
@@ -617,21 +616,20 @@ document.getElementById("export-strat")?.addEventListener("click", function () {
   paneData.elements.nodes = Array.from(returnable.nodes.values());
   paneData.elements.edges = Array.from(returnable.edges.values());
 
-  const dataStr =
-    "data:text/json;charset=utf-8," +
-    encodeURIComponent(JSON.stringify(paneData));
-  const dl = document.getElementById("download");
-  dl.setAttribute("href", dataStr);
-  dl.setAttribute("download", `strategy-export.json`);
+  const dataStr =    'data:text/json;charset=utf-8,'
+    + encodeURIComponent(JSON.stringify(paneData));
+  const dl = document.getElementById('download');
+  dl.setAttribute('href', dataStr);
+  dl.setAttribute('download', 'strategy-export.json');
   dl.click();
 });
 
 document
-  .getElementById("new-project")
-  ?.addEventListener("click", async function () {
+  .getElementById('new-project')
+  ?.addEventListener('click', async () => {
     let redirectName;
     await Swal.fire({
-      title: "Create new project",
+      title: 'Create new project',
       html: `
         
         <div>
@@ -660,14 +658,14 @@ document
             </div>
         </div>`,
       focusConfirm: false,
-      confirmButtonText: "Create",
-      confirmButtonColor: "green",
+      confirmButtonText: 'Create',
+      confirmButtonColor: 'green',
 
       preConfirm: () => {
         Swal.showLoading();
-        const modelInput = document.getElementById("prism-model");
-        const propsInput = document.getElementById("prism-props");
-        const nameInput = document.getElementById("project-name");
+        const modelInput = document.getElementById('prism-model');
+        const propsInput = document.getElementById('prism-props');
+        const nameInput = document.getElementById('project-name');
         if (modelInput.value && propsInput.value) {
           const formValues = {
             model: [modelInput.value, modelInput.files[0]],
@@ -678,24 +676,22 @@ document
           const formData = new FormData();
 
           formData.append(
-            "model_file",
+            'model_file',
             formValues.model[1],
             formValues.model[0],
           );
           formData.append(
-            "property_file",
+            'property_file',
             formValues.props[1],
             formValues.props[0],
           );
 
-          if (!formValues.name) {
-            formValues.name = uuidv4();
-          }
+          formValues.name ||= uuidv4();
           redirectName = formValues.name;
           return fetch(
             `http://localhost:8080/${formValues.name}/create-project`,
             {
-              method: "POST",
+              method: 'POST',
               body: formData,
             },
           );
@@ -705,22 +701,22 @@ document
       if (response.value) {
         if (response.value.status === 200) {
           Swal.fire({
-            title: "Success!",
-            html: "Redirecting to the created project on a new tab. ",
+            title: 'Success!',
+            html: 'Redirecting to the created project on a new tab. ',
             timer: 2000,
             timerProgressBar: true,
           }).then(() => {
             window
               .open(
-                window.location.href.split("?")[0] + "?id=" + redirectName,
-                "_blank",
+                window.location.href.split('?')[0] + '?id=' + redirectName,
+                '_blank',
               )
               .focus();
           });
         } else {
           Swal.fire({
-            icon: "error",
-            title: "Error Creating New Project",
+            icon: 'error',
+            title: 'Error Creating New Project',
             text: `Something went wrong! Received status ${response.status}. Please see the logs for more details`,
           });
         }

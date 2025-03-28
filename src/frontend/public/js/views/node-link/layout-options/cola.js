@@ -1,9 +1,9 @@
-import { controls } from "./general.js";
+import { controls } from './general.js';
 
 // see all @ https://github.com/cytoscape/cytoscape.js-cola
 
 const params = {
-  name: "cola",
+  name: 'cola',
 
   animate: true,
   animationDuration: 500,
@@ -12,12 +12,12 @@ const params = {
   randomize: false,
   nodeSpacing: 5,
   edgeLength: 75,
-  //edgeSymDiffLength: 2,
-  //edgeJaccardLength: 2,
+  // edgeSymDiffLength: 2,
+  // edgeJaccardLength: 2,
   centerGraph: true,
   maxSimulationTime: 1500,
   flow: {
-    axis: "x",
+    axis: 'x',
     minSeparation: 30,
   },
 
@@ -28,58 +28,58 @@ const params = {
   controls: [
     ...controls,
     {
-      label: "Center Graph",
-      param: "centerGraph",
+      label: 'Center Graph',
+      param: 'centerGraph',
       affects: {},
-      type: "toggle",
+      type: 'toggle',
     },
     {
-      label: "Randomize",
-      param: "randomize",
+      label: 'Randomize',
+      param: 'randomize',
       affects: {
         flow: null,
       },
-      type: "toggle",
+      type: 'toggle',
     },
     {
-      label: "Max Simulation Time (ms)",
-      param: "maxSimulationTime",
+      label: 'Max Simulation Time (ms)',
+      param: 'maxSimulationTime',
       min: 1000,
       max: 10000,
-      type: "slider",
+      type: 'slider',
     },
     {
-      label: "Edge length",
-      param: "edgeLength",
+      label: 'Edge length',
+      param: 'edgeLength',
       min: 1,
       max: 200,
-      type: "slider",
+      type: 'slider',
     },
     {
-      label: "Node spacing",
-      param: "nodeSpacing",
+      label: 'Node spacing',
+      param: 'nodeSpacing',
       min: 1,
       max: 50,
-      type: "slider",
+      type: 'slider',
     },
     {
-      label: "Flow axis",
-      param: "flow",
-      subParam: "axis",
+      label: 'Flow axis',
+      param: 'flow',
+      subParam: 'axis',
       options: [
-        { value: "x", name: "X" },
-        { value: "y", name: "Y" },
-        { value: null, name: "None" },
+        { value: 'x', name: 'X' },
+        { value: 'y', name: 'Y' },
+        { value: null, name: 'None' },
       ],
-      type: "dropdown",
+      type: 'dropdown',
     },
     {
-      label: "Flow Separation",
-      param: "flow",
-      subParam: "minSeparation",
+      label: 'Flow Separation',
+      param: 'flow',
+      subParam: 'minSeparation',
       min: 1,
       max: 200,
-      type: "slider",
+      type: 'slider',
     },
   ],
 };

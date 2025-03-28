@@ -1,93 +1,93 @@
-import { overviewStylesheet } from "../../style/views/cy-style.js";
-import { h, t } from "../utils/utils.js";
-import { params } from "./node-link/layout-options/elk.js";
+import { overviewStylesheet } from '../../style/views/cy-style.js';
+import { h, t } from '../utils/utils.js';
+import { params } from './node-link/layout-options/elk.js';
 
 var isInitialized = false;
 
 const $ = document.querySelector.bind(document);
-const $overview_graph_config = $("#overview-graph-config");
-window.addEventListener("load", () => {
+const $overview_graph_config = $('#overview-graph-config');
+window.addEventListener('load', () => {
   makeOverviewSettings();
 });
 const socket = io();
 var cy2 = cytoscape({
-  container: document.getElementById("cy-overview"),
+  container: document.getElementById('cy-overview'),
   style: overviewStylesheet,
   layout: params,
   wheelSensitivity: 0.3,
 });
 
-cy2.ready(function () {
+cy2.ready(() => {
   // Add listeners
   bindListeners(cy2);
 });
 
-socket.on("pane data updated", (data) => {
+socket.on('pane data updated', (data) => {
   if (data) {
     // drawGraph(data);
   }
 });
 
-socket.on("handle pane added", (data) => {
+socket.on('handle pane added', (data) => {
   if (isInitialized && data) {
     onPaneAdded(data);
   }
-  if (data.id === "pane-0" && !isInitialized) {
+  if (data.id === 'pane-0' && !isInitialized) {
     isInitialized = true;
   }
 });
 
-socket.on("handle pane removed", (data) => {
+socket.on('handle pane removed', (data) => {
   removeNode(data);
 });
 
-socket.on("handle active pane", (data) => {
+socket.on('handle active pane', (data) => {
   var nodes = cy2.nodes();
 
-  nodes.forEach(function (node) {
+  nodes.forEach((node) => {
     if (node.id() !== data) {
-      node.removeClass("active-pane");
+      node.removeClass('active-pane');
     } else {
-      node.addClass("active-pane");
+      node.addClass('active-pane');
     }
   });
 });
 
 // TODO: replay selections of the overview workflow with a different model (if blueprint remains)
-socket.on("disconnect", () => {
+socket.on('disconnect', () => {
   location.reload();
 });
 
-socket.on("handle duplicate pane ids", (data) => {
+socket.on('handle duplicate pane ids', (data) => {
   if (data && data.length > 0) {
     data.forEach((nodeId) => {
       cy2
         .style()
-        .selector("#" + nodeId)
+        .selector('#' + nodeId)
         .style({
-          label: "*",
-          "text-halign": "center",
-          "text-valign": "center",
+          label: '*',
+          'text-halign': 'center',
+          'text-valign': 'center',
         })
         .update();
     });
   } else {
     cy2
       .style()
-      .selector("node")
+      .selector('node')
       .style({
-        label: "",
+        label: '',
       })
       .update();
   }
 });
 
-socket.on("handle reset pane-node markings", () => {
+socket.on('handle reset pane-node markings', () => {
   cy2
     .style()
-    .selector("node")
+    .selector('node')
     .style({
-      label: "",
+      label: '',
     })
     .update();
 });
@@ -96,7 +96,32 @@ function onPaneAdded(newPaneData) {
   const paneId = newPaneData.id;
   const spawnerNodes = newPaneData.spawnerNodes;
 
-  const isDuplicate = paneId.includes("DUPLICATE");
+  const isDuplicate = paneId.includes('DUPLICATE');
+  const spawner = [];
+
+  if (newPaneData.spawner && Array.isArray(newPaneData.spawner)) {
+    newPaneData.spawner.forEach((s, i) => {
+      spawner.push({
+        data: {
+          id: newPaneData.spawner[i] + paneId,
+          source: newPaneData.spawner[i],
+          target: paneId,
+          label: 'merged',
+        },
+      });
+    });
+  } else {
+    spawner.push({
+      data: {
+        id: spawnerNodes?.join(', ') + paneId,
+        source: newPaneData.spawner,
+        target: paneId,
+        label: isDuplicate
+          ? 'DUPL-' + spawnerNodes?.join(', ')
+          : spawnerNodes?.join(', '),
+      },
+    });
+  }
 
   const elements = {
     nodes: [
@@ -106,46 +131,23 @@ function onPaneAdded(newPaneData) {
           label: paneId,
         },
         style: {
-          "background-color": newPaneData.backgroundColor,
+          'background-color': newPaneData.backgroundColor,
           opacity: 0.3,
-          shape: "rectangle",
+          shape: 'rectangle',
           width: 20,
           height: 20,
         },
       },
     ],
-    edges: newPaneData.spawner
-      ? Array.isArray(newPaneData.spawner)
-        ? newPaneData.spawner.map((spawner, i) => {
-          return {
-            data: {
-              id: newPaneData.spawner[i] + paneId,
-              source: newPaneData.spawner[i],
-              target: paneId,
-              label: "merged",
-            },
-          };
-        })
-        : [
-          {
-            data: {
-              id: spawnerNodes?.join(", ") + paneId,
-              source: newPaneData.spawner,
-              target: paneId,
-              label: isDuplicate
-                ? "DUPL-" + spawnerNodes?.join(", ")
-                : spawnerNodes?.join(", "),
-            },
-          },
-        ]
-      : [],
+    edges: spawner,
   };
 
   cy2.add(elements);
   cy2.nodes().forEach((node) => {
-    const backgroundColor = node.style("background-color");
-    // set node color one more time, because of a bug (node color won't set after several expansions)
-    node.style("background-color", backgroundColor);
+    const backgroundColor = node.style('background-color');
+    // set node color one more time, because of a bug
+    // (node color won't set after several expansions)
+    node.style('background-color', backgroundColor);
   });
   cy2.layout(params).run();
 }
@@ -213,74 +215,72 @@ function removeNode(id) {
   //   .remove();
 
   // remove node
-  cy2.remove("#" + nodeIdToRemove);
+  cy2.remove('#' + nodeIdToRemove);
 }
 
 function bindListeners(cy2) {
-  cy2.on("click", "node", function (event) {
-    var node = event.target;
+  cy2.on('click', 'node', e => {
+    var node = e.target;
 
-    socket.emit("overview node clicked", node.id());
+    socket.emit('overview node clicked', node.id());
   });
 
-  cy2.on("select", function () {
-    var selectedNodes = cy2.$("node:selected");
+  cy2.on('select', () => {
+    var selectedNodes = cy2.$('node:selected');
 
     var selectedNodeIDs = selectedNodes.map((node) => node.id());
-    socket.emit("overview nodes selected", selectedNodeIDs);
+    socket.emit('overview nodes selected', selectedNodeIDs);
   });
 }
 
 function makeOverviewSettings() {
-  const $buttons = h("div", { class: "buttons param" }, []);
-  const $buttons2 = h("div", { class: "buttons param" }, []);
-  const $buttons3 = h("div", { class: "buttons param" }, []);
-  const $buttonMerge = h("button", { class: "ui button", id: "child-button" }, [
-    h("span", {}, [t("Merge")]),
-  ]);
+  const $buttons = h('div', { class: 'buttons param' }, []);
+  const $buttons2 = h('div', { class: 'buttons param' }, []);
+  const $buttons3 = h('div', { class: 'buttons param' }, []);
+  const $buttonMerge = h('button', { class: 'ui button', id: 'child-button' }, [h('span', {}, [t('Merge')])]);
   const $buttonRemove = h(
-    "button",
-    { class: "ui button", id: "child-button" },
-    [h("span", {}, [t("Remove")])],
+    'button',
+    { class: 'ui button', id: 'child-button' },
+    [h('span', {}, [t('Remove')])],
   );
   const $buttonDuplicate = h(
-    "button",
-    { class: "ui button", id: "child-button" },
-    [h("span", {}, [t("Duplicate")])],
+    'button',
+    { class: 'ui button', id: 'child-button' },
+    [h('span', {}, [t('Duplicate')])],
   );
   const $buttonExport = h(
-    "button",
-    { class: "ui button", id: "child-button" },
-    [h("span", {}, [t("Export")])],
+    'button',
+    { class: 'ui button', id: 'child-button' },
+    [h('span', {}, [t('Export')])],
   );
   const $buttonExpand = h(
-    "button",
-    { class: "ui button", id: "child-button" },
-    [h("span", {}, [t("Expand")])],
+    'button',
+    { class: 'ui button', id: 'child-button' },
+    [h('span', {}, [t('Expand')])],
   );
   const $buttonCollapse = h(
-    "button",
-    { class: "ui button", id: "child-button" },
-    [h("span", {}, [t("Collapse")])],
+    'button',
+    { class: 'ui button', id: 'child-button' },
+    [h('span', {}, [t('Collapse')])],
   );
 
-  $buttonMerge.addEventListener("click", async function () {
-    socket.emit("handle selection", "merge");
+  $buttonMerge.addEventListener('click', async () => {
+    socket.emit('handle selection', 'merge');
   });
-  $buttonRemove.addEventListener("click", async function () {
-    socket.emit("handle selection", "delete");
+  $buttonRemove.addEventListener('click', async () => {
+    socket.emit('handle selection', 'delete');
   });
-  $buttonDuplicate.addEventListener("click", async function () {
-    socket.emit("handle selection", "duplicate");
+  $buttonDuplicate.addEventListener('click', async () => {
+    socket.emit('handle selection', 'duplicate');
   });
-  $buttonExport.addEventListener("click", async function () {
-    socket.emit("handle selection", "export");
+  $buttonExport.addEventListener('click', async () => {
+    socket.emit('handle selection', 'export');
   });
-  $buttonExpand.addEventListener("click", async function () {
-    socket.emit("handle selection", "expand");
+  $buttonExpand.addEventListener('click', async () => {
+    socket.emit('handle selection', 'expand');
   });
-  $buttonCollapse.addEventListener("click", async function () {
-    socket.emit("handle selection", "collapse");
+  $buttonCollapse.addEventListener('click', async () => {
+    socket.emit('handle selection', 'collapse');
   });
   $buttons.appendChild($buttonMerge);
   $buttons.appendChild($buttonRemove);

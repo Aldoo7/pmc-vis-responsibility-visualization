@@ -29,7 +29,7 @@ const titleOverview = 'overview';
 
 // pages
 app.get('/', (req, res) => {
-  //const id = req.query.id;
+  // const id = req.query.id;
   renderMain(req, res);
 });
 
@@ -52,12 +52,12 @@ function renderMain(req, res) {
 }
 
 // 141.76.67.176
-server.listen(PORT, function () {
+server.listen(PORT, () => {
   console.log(`Server is listening on port http://localhost:${PORT}`);
 });
 
 // listening on the connection event for incoming sockets
-io.on('connection', function (socket) {
+io.on('connection', (socket) => {
   // Handle data received from clients
   // socket.on('pane data updated', (data) => {
   //   io.emit('pane data updated', data);
@@ -95,7 +95,7 @@ io.on('connection', function (socket) {
     io.emit('handle reset pane-node markings', data);
   });
 
-  socket.on('disconnect', function () {
+  socket.on('disconnect', () => {
     console.log('client disconnected');
     socket.disconnect();
   });

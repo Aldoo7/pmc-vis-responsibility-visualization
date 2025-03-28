@@ -5,13 +5,13 @@ function handleEditorSelection(event, cy) {
   clearTimeout(editorSelectionTimeout);
   if (connectionTest) {
     editorSelectionTimeout = setTimeout(async () => {
-      const name = document.getElementById("project-id").innerHTML;
-      const content = cy.$("node.s:selected").map((n) => n.data());
+      const name = document.getElementById('project-id').innerHTML;
+      const content = cy.$('node.s:selected').map((n) => n.data());
 
       fetch(`http://localhost:3001/${name}/update`, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify(content),
       }).catch(() => {
