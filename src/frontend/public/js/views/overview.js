@@ -6,7 +6,7 @@ var isInitialized = false;
 
 const $ = document.querySelector.bind(document);
 const $overview_graph_config = $("#overview-graph-config");
-window.addEventListener("load", (event) => {
+window.addEventListener("load", () => {
   makeOverviewSettings();
 });
 const socket = io();
@@ -82,7 +82,7 @@ socket.on("handle duplicate pane ids", (data) => {
   }
 });
 
-socket.on("handle reset pane-node markings", (data) => {
+socket.on("handle reset pane-node markings", () => {
   cy2
     .style()
     .selector("node")
@@ -117,27 +117,27 @@ function onPaneAdded(newPaneData) {
     edges: newPaneData.spawner
       ? Array.isArray(newPaneData.spawner)
         ? newPaneData.spawner.map((spawner, i) => {
-            return {
-              data: {
-                id: newPaneData.spawner[i] + paneId,
-                source: newPaneData.spawner[i],
-                target: paneId,
-                label: "merged",
-              },
-            };
-          })
-        : [
-            {
-              data: {
-                id: spawnerNodes?.join(", ") + paneId,
-                source: newPaneData.spawner,
-                target: paneId,
-                label: isDuplicate
-                  ? "DUPL-" + spawnerNodes?.join(", ")
-                  : spawnerNodes?.join(", "),
-              },
+          return {
+            data: {
+              id: newPaneData.spawner[i] + paneId,
+              source: newPaneData.spawner[i],
+              target: paneId,
+              label: "merged",
             },
-          ]
+          };
+        })
+        : [
+          {
+            data: {
+              id: spawnerNodes?.join(", ") + paneId,
+              source: newPaneData.spawner,
+              target: paneId,
+              label: isDuplicate
+                ? "DUPL-" + spawnerNodes?.join(", ")
+                : spawnerNodes?.join(", "),
+            },
+          },
+        ]
       : [],
   };
 
@@ -223,7 +223,7 @@ function bindListeners(cy2) {
     socket.emit("overview node clicked", node.id());
   });
 
-  cy2.on("select", function (event) {
+  cy2.on("select", function () {
     var selectedNodes = cy2.$("node:selected");
 
     var selectedNodeIDs = selectedNodes.map((node) => node.id());
@@ -241,27 +241,27 @@ function makeOverviewSettings() {
   const $buttonRemove = h(
     "button",
     { class: "ui button", id: "child-button" },
-    [h("span", {}, [t("Remove")])]
+    [h("span", {}, [t("Remove")])],
   );
   const $buttonDuplicate = h(
     "button",
     { class: "ui button", id: "child-button" },
-    [h("span", {}, [t("Duplicate")])]
+    [h("span", {}, [t("Duplicate")])],
   );
   const $buttonExport = h(
     "button",
     { class: "ui button", id: "child-button" },
-    [h("span", {}, [t("Export")])]
+    [h("span", {}, [t("Export")])],
   );
   const $buttonExpand = h(
     "button",
     { class: "ui button", id: "child-button" },
-    [h("span", {}, [t("Expand")])]
+    [h("span", {}, [t("Expand")])],
   );
   const $buttonCollapse = h(
     "button",
     { class: "ui button", id: "child-button" },
-    [h("span", {}, [t("Collapse")])]
+    [h("span", {}, [t("Collapse")])],
   );
 
   $buttonMerge.addEventListener("click", async function () {

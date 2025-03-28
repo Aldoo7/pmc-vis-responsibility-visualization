@@ -1,41 +1,41 @@
 :root {
-    --tool-color: #bfbfbf;
-    --body-bg-color: #ffffff;
+  --tool-color: #bfbfbf;
+  --body-bg-color: #ffffff;
 
-    --state-color: #555;
-    --action-color: #afafaf;
-    --dark-text-color: #000;
-    --dark-text-color-hover: #555;
-    --light-text-color: #dadada;
-    --light-text-color-hover: #bbbbbb;
+  --state-color: #555;
+  --action-color: #afafaf;
+  --dark-text-color: #000;
+  --dark-text-color-hover: #555;
+  --light-text-color: #dadada;
+  --light-text-color-hover: #bbbbbb;
 
-    --ap-text-color: #ffffff;
-    
-    /* Panes */
-    --dragbar: #dbdbdb;
-    --dragbar-hover: #d1d1d1;
-    --active-pane: #2185d0;
-    --pane-background: #fdfdfd;
+  --ap-text-color: #ffffff;
 
-    /* PCP */ 
-    --pcp-primary: #4887b9;
-    --pcp-secondary: #ee8c31;
-    --pcp-hover-stroke: #77c277;
-    --pcp-hover-width: 3px;
-    --pcp-bubble-cursor-color: #a3a3a3;
-    --pcp-bg-stroke: #c4c4c4ea;
-    --pcp-text-fill: #333333;
-    --pcp-axes-lines: #6b6b6b;
+  /* Panes */
+  --dragbar: #dbdbdb;
+  --dragbar-hover: #d1d1d1;
+  --active-pane: #2185d0;
+  --pane-background: #fdfdfd;
 
-    /* Context menu */
-    --ctx-menu-text-color: #000000;
-    --ctx-menu-bg-color: #fafafa;
-    --ctx-menu-hover-color: #c8c8c8;
+  /* PCP */
+  --pcp-primary: #4887b9;
+  --pcp-secondary: #ee8c31;
+  --pcp-hover-stroke: #77c277;
+  --pcp-hover-width: 3px;
+  --pcp-bubble-cursor-color: #a3a3a3;
+  --pcp-bg-stroke: #c4c4c4ea;
+  --pcp-text-fill: #333333;
+  --pcp-axes-lines: #6b6b6b;
 
-    /* Config menu */
-    --config-bg-color: #f3f3f3;
-    --config-icon-color-active: #818181;
-    --config-icon-color-inactive: #000;
+  /* Context menu */
+  --ctx-menu-text-color: #000000;
+  --ctx-menu-bg-color: #fafafa;
+  --ctx-menu-hover-color: #c8c8c8;
 
-    --wildcard: #b8b8b8;
+  /* Config menu */
+  --config-bg-color: #f3f3f3;
+  --config-icon-color-active: #818181;
+  --config-icon-color-inactive: #000;
+
+  --wildcard: #b8b8b8;
 }

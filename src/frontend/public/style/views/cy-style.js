@@ -1,5 +1,3 @@
-const LIGHT = true;
-
 const colors = {
   NODE_COLOR: "#555",
   DARK_TEXT: "#555",
@@ -59,9 +57,9 @@ const stylesheet = [
   {
     selector: "node.s",
     style: {
-      "label": "data(id)",
+      label: "data(id)",
       "font-size": 10,
-      "font-family": "monospace", 
+      "font-family": "monospace",
       "text-valign": "center",
       "text-halign": "center",
       "background-color": colors.NODE_COLOR,

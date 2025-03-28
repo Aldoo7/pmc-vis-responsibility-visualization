@@ -2,174 +2,180 @@
 
 /* the logic for resizing panes is in panes.js */
 .dragbar {
-    background-color: var(--dragbar);
-    width: 7px;
-    cursor: e-resize;
+  background-color: var(--dragbar);
+  width: 7px;
+  cursor: e-resize;
 }
 
 .dragbar:hover {
-    background-color: var(--dragbar-hover);
-    width: 7px;
-    z-index: 2;
+  background-color: var(--dragbar-hover);
+  width: 7px;
+  z-index: 2;
 }
 
-.dragbar:before, .dragbar:after {
-    position: absolute;
-    content: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='5' height='20'%3E%3Cpath d='M2 0h3v3H2zm0 5h3v3H2zm0 5h3v3H2zm0 5h3v3H2z' style='fill:%239da7b7'/%3E%3C/svg%3E");
-    box-sizing: border-box;
+.dragbar:before,
+.dragbar:after {
+  position: absolute;
+  content: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='5' height='20'%3E%3Cpath d='M2 0h3v3H2zm0 5h3v3H2zm0 5h3v3H2zm0 5h3v3H2z' style='fill:%239da7b7'/%3E%3C/svg%3E");
+  box-sizing: border-box;
 }
 
 .dragbar:before {
-    margin-top: calc(15vh - 9px);
+  margin-top: calc(15vh - 9px);
 }
 
 .dragbar:after {
-    margin-top: calc(80vh - 9px);
+  margin-top: calc(80vh - 9px);
 }
 
 /* the logic for resizing the split inside panes is in panes.js */
 .split-dragbar {
-    background-color: var(--dragbar);
-    height: 7px;
-    position: absolute;
-    width: 100%;
-    cursor: s-resize;
-    z-index: 1;
-    container-type: inline-size;
-    container-name: split-dragbar;
+  background-color: var(--dragbar);
+  height: 7px;
+  position: absolute;
+  width: 100%;
+  cursor: s-resize;
+  z-index: 1;
+  container-type: inline-size;
+  container-name: split-dragbar;
 }
 
 .split-button {
-    display: none;
+  display: none;
 }
 
-@container split-dragbar (min-width: 90px) { 
-    .split-button {
-        background-color: #696969;
-        color:white;
-        display: block;
-        position:absolute;
-        width: 35px;
-        height: 7px; 
-        border: none;
-    }
+@container split-dragbar (min-width: 90px) {
+  .split-button {
+    background-color: #696969;
+    color: white;
+    display: block;
+    position: absolute;
+    width: 35px;
+    height: 7px;
+    border: none;
+  }
 
-    .split-button:hover {
-        background-color: #2185d0;
-        display: block;
-        position:absolute;
-        width: 35px;
-        height: 7px; 
-        border: none;
-    }
+  .split-button:hover {
+    background-color: #2185d0;
+    display: block;
+    position: absolute;
+    width: 35px;
+    height: 7px;
+    border: none;
+  }
 
-    .split-button i {
-        position: absolute;
-        font-size: 7px;
-        margin-left: -3px;
-    }
+  .split-button i {
+    position: absolute;
+    font-size: 7px;
+    margin-left: -3px;
+  }
 
-    .split-button i.fa-undo {
-        font-size: 5px;
-        margin-top: -2px;
-    }
+  .split-button i.fa-undo {
+    font-size: 5px;
+    margin-top: -2px;
+  }
 
-    .split-max {
-        margin-left: calc(50% + 15px);
-    }
+  .split-max {
+    margin-left: calc(50% + 15px);
+  }
 
-    .split-max i {
-        margin-top: -2.5px;
-    }
+  .split-max i {
+    margin-top: -2.5px;
+  }
 
-    .split-min {
-        margin-left: calc(50% - 50px);
-    }
+  .split-min {
+    margin-left: calc(50% - 50px);
+  }
 
-    .split-min i {
-        margin-top: -3.5px;
-    }
+  .split-min i {
+    margin-top: -3.5px;
+  }
 }
 
-@container split-dragbar (min-width: 20px) { 
-    .split-dragbar:after {
-        position: absolute;
-        content: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='5'%3E%3Cpath d='M0 1.5h3v3H0zm5 0h3v3H5zm5 0h3v3h-3zm5 0h3v3h-3z' style='fill:%239da7b7'/%3E%3C/svg%3E");
-        box-sizing: border-box;
-        display: block;
-        line-height: 0;
-        margin-top: 0.5px;
-        margin-left: calc(50% - 9px);
-    }
+@container split-dragbar (min-width: 20px) {
+  .split-dragbar:after {
+    position: absolute;
+    content: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='5'%3E%3Cpath d='M0 1.5h3v3H0zm5 0h3v3H5zm5 0h3v3h-3zm5 0h3v3h-3z' style='fill:%239da7b7'/%3E%3C/svg%3E");
+    box-sizing: border-box;
+    display: block;
+    line-height: 0;
+    margin-top: 0.5px;
+    margin-left: calc(50% - 9px);
+  }
 }
 
 .split-dragbar:hover {
-    background-color: var(--dragbar-hover);
+  background-color: var(--dragbar-hover);
 }
 
 .pane {
-    border-top: 5px var(--pane-background) solid; /* avoids flickering between active and non-active panes*/
+  border-top: 5px var(--pane-background) solid;
+  /* avoids flickering between active and non-active panes*/
 }
 
 .active-pane {
-    -webkit-box-sizing: border-box; /* Safari/Chrome, other WebKit */
-    -moz-box-sizing: border-box;    /* Firefox, other Gecko */
-    box-sizing: border-box; 
+  -webkit-box-sizing: border-box;
+  /* Safari/Chrome, other WebKit */
+  -moz-box-sizing: border-box;
+  /* Firefox, other Gecko */
+  box-sizing: border-box;
 
-    border: var(--active-pane) solid;
-    border-width: 5px 2px 5px 2px;
-    
-    container-type: inline-size;
-    container-name: active-pane;
+  border: var(--active-pane) solid;
+  border-width: 5px 2px 5px 2px;
 
-    @container active-pane (min-width: 100px) { 
-        .pane-controls {
-            display:block;
-            position:absolute;
-            z-index:3;
-            .button {
-                background: var(--active-pane);
-                i {
-                    color:white;
-                }
-            }
+  container-type: inline-size;
+  container-name: active-pane;
+
+  @container active-pane (min-width: 100px) {
+    .pane-controls {
+      display: block;
+      position: absolute;
+      z-index: 3;
+
+      .button {
+        background: var(--active-pane);
+
+        i {
+          color: white;
         }
+      }
     }
+  }
 }
 
 .pane-controls {
-    display:none;
+  display: none;
 }
 
 .ui.attached.buttons {
-    margin-top: -4px;
-    margin-left: 5px;
+  margin-top: -4px;
+  margin-left: 5px;
 }
 
 #cy-overview {
-    height: 100%;
-    width: 100%;
-    position: absolute;
-    left: 0;
-    background-color: var(--pane-background);
-    border-top: 1px solid #ccc;
-  }
+  height: 100%;
+  width: 100%;
+  position: absolute;
+  left: 0;
+  background-color: var(--pane-background);
+  border-top: 1px solid #ccc;
+}
 
 .cy-s {
-    width: 100px;
-    display: inline-block;
-    position: relative;
-    background-color: var(--pane-background);
-    
-    -webkit-user-select: none;  
-    -moz-user-select: none;    
-    -ms-user-select: none;      
-    user-select: none;
+  width: 100px;
+  display: inline-block;
+  position: relative;
+  background-color: var(--pane-background);
+
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
 
 .cy {
-    width: 100%;
-    height: calc(100%); /* 10px is the height of the scrollbar */
+  width: 100%;
+  height: calc(100%);
+  /* 10px is the height of the scrollbar */
 
 }
-

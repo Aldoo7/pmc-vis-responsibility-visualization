@@ -1,27 +1,27 @@
 @import '../colors.css';
-  
+
 .dropdown-menu {
-    box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    border: none;
+  box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: none;
 }
 
 .dropdown-menu .dropdown-item {
-    font-size: 12px;
-    color: var(--ctx-menu-text-color) !important;
-    background: var(--ctx-menu-bg-color);
-    display: block;
-    box-sizing: border-box;
-    width: 250px;
-    padding: 0.5rem;
+  font-size: 12px;
+  color: var(--ctx-menu-text-color) !important;
+  background: var(--ctx-menu-bg-color);
+  display: block;
+  box-sizing: border-box;
+  width: 250px;
+  padding: 0.5rem;
 }
 
 .dropdown-menu .dropdown-item:hover {
-    background-color: var(--ctx-menu-hover-color);
+  background-color: var(--ctx-menu-hover-color);
 }
 
 .dropdown-menu .dropdown-divider {
-    margin: 0;
+  margin: 0;
 }

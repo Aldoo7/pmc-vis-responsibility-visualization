@@ -29,7 +29,7 @@ const titleOverview = 'overview';
 
 // pages
 app.get('/', (req, res) => {
-  const id = req.query.id;
+  //const id = req.query.id;
   renderMain(req, res);
 });
 

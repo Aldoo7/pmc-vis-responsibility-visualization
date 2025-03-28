@@ -53,7 +53,7 @@ Promise.all([
   const firstPaneId = "pane-0";
   const pane = spawnPane(
     { id: firstPaneId },
-    nodesIds
+    nodesIds,
   );
 
   spawnGraph(pane, data, params);

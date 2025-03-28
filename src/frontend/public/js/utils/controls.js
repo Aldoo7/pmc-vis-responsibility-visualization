@@ -6,7 +6,7 @@ import { params as _elk } from "../views/node-link/layout-options/elk.js";
 import { params as _dagre } from "../views/node-link/layout-options/dagre.js";
 import { params as _klay } from "../views/node-link/layout-options/klay.js";
 import { params as _cola } from "../views/node-link/layout-options/cola.js";
-import { NAMES, STATUS } from "./names.js";
+import { CONSTANTS } from "./names.js";
 import {
   markRecurringNodes,
   setMaxIteration,
@@ -20,7 +20,6 @@ const $cy_config = $("#cy-config");
 const $graph_config = $("#graph-config");
 const $pcp_config = $("#pcp-config");
 const $props_config = $("#props-config");
-const $merge_config = $("#merge-config");
 const $overview_config = $("#overview-config");
 
 const url = new URL(window.location.href);
@@ -53,10 +52,7 @@ $("#config-toggle")?.addEventListener("click", function () {
 // panes and settings rely heavily on this function to work
 // this function is called by every interaction to ensure changes happen to the correct pane
 // therefore, be careful when introducing expensive operations here.
-function setPane(paneId, { 
-  make = false, 
-  force = false,
-} = {}) {
+function setPane(paneId, { make = false, force = false } = {}) {
   const panes = getPanes();
 
   if (panes[paneId]) {
@@ -84,8 +80,11 @@ function setPane(paneId, {
     document.onkeydown = (e) => pane.cy.vars["ur"].fn(pane.cy, e);
     document.getElementById("selected-pane").innerHTML = paneId;
     document.getElementById(pane.id).classList.add("active-pane");
-    if (info.metadata.updating && pane.cy.vars['update'].value === STATUS.missing) {
-      pane.cy.vars['update'].fn();
+    if (
+      info.metadata.updating &&
+      pane.cy.vars["update"].value === CONSTANTS.STATUS.missing
+    ) {
+      pane.cy.vars["update"].fn();
     }
     createControllers(pane.cy.params);
 
@@ -141,7 +140,7 @@ function hideAllTippies() {
 function createControllers(params) {
   // props
   $props_config.innerHTML = "";
-  
+
   makeSchedulerPropDropdown();
   makeDetailCheckboxes();
   makeAppendDropdown();
@@ -173,7 +172,7 @@ function createControllers(params) {
 
   // recurring nodes setting
   makeRecurringNodeMarkSettings();
-  
+
   // pcp config
   $pcp_config.innerHTML = "";
   makePCPSettings();
@@ -256,12 +255,14 @@ function makeParamButton(opts) {
 }
 
 function makeParamToggle(opts) {
-  const id = `checkbox-${opts.param}${opts.subParam?opts.subParam:''}`;
+  const id = `checkbox-${opts.param}${opts.subParam ? opts.subParam : ""}`;
   const value = opts.subParam
     ? pane.cy.params[opts.param][opts.subParam]
     : pane.cy.params[opts.param];
 
-  const $label = h("label", { class: "label label-default", for:id }, [t(opts.label)]);
+  const $label = h("label", { class: "label label-default", for: id }, [
+    t(opts.label),
+  ]);
   const $param = h("div", {
     class: "param ui small checkbox",
     style: "display: flex",
@@ -318,7 +319,7 @@ function makeParamDropdown(opts) {
       makeLayout(pane.cy.params);
       pane.cy._layout.run();
     },
-    "select-" + opts.param + (opts.subParam ? opts.subParam : ''),
+    "select-" + opts.param + (opts.subParam ? opts.subParam : ""),
     opts.label,
     $cy_config
   );
@@ -345,8 +346,10 @@ function makeSelectionModesDropdown() {
 
 function makeSchedulerPropDropdown() {
   const options = Object.keys(
-    info.metadata['Scheduler'] // only scheduler from the 'details'
-  ).map(k => { return { value: k, name: k } });
+    info.metadata["Scheduler"] // only scheduler from the 'details'
+  ).map((k) => {
+    return { value: k, name: k };
+  });
   options.push({ value: "_none_", name: "No scheduler" });
 
   _makeDropdown(
@@ -383,7 +386,7 @@ function makeSchedulerPropDropdown() {
 }
 
 function updatePropsValues() {
-  const original = pane.cy.vars['details'].value;
+  const original = pane.cy.vars["details"].value;
   const update = {};
 
   Object.keys(original).forEach((d) => {
@@ -393,7 +396,7 @@ function updatePropsValues() {
       props: {},
     };
     Object.keys(original[d].props).forEach((p) => {
-      const cbp = document.getElementById(`checkbox-${d}-${p}`)
+      const cbp = document.getElementById(`checkbox-${d}-${p}`);
       update[d].props[p] = cbp?.checked;
     });
   });
@@ -402,28 +405,32 @@ function updatePropsValues() {
 }
 
 async function status() {
-  const status = await fetch(`http://localhost:8080/${PROJECT}/status`, { method: "GET" });
+  const status = await fetch(`http://localhost:8080/${PROJECT}/status`, {
+    method: "GET",
+  });
   const data = await status.json();
-  console.log(data)
+  console.log(data);
   return data;
 }
 
 async function triggerModelCheckProperty(e, propType, props) {
-  
   e.target.className = spinningIcon;
-  props.forEach(p => {
-    document.getElementById(`trigger-button-${propType}-${p}`).className = spinningIcon;
+  props.forEach((p) => {
+    document.getElementById(`trigger-button-${propType}-${p}`).className =
+      spinningIcon;
   });
 
   fetch(
-    `http://localhost:8080/${PROJECT}/check?property=${props.join('&property=')}`,
+    `http://localhost:8080/${PROJECT}/check?property=${props.join(
+      "&property="
+    )}`,
     { method: "GET" }
   );
-  
-  let interval = setInterval(async _ => {
-    const state = await status(); 
-    
-    if (state.messages[0] === 'All tasks finished') {
+
+  let interval = setInterval(async () => {
+    const state = await status();
+
+    if (state.messages[0] === CONSTANTS.MESSAGES.all_finished) {
       setInfo(state.info);
       info.metadata.updating = true;
       setPane(pane.id, { force: true });
@@ -433,20 +440,21 @@ async function triggerModelCheckProperty(e, propType, props) {
 }
 
 async function clear() {
-  const request = await fetch(`http://localhost:8080/${PROJECT}/clear`, { method: "GET" }); 
-  const response = await request.json(); 
+  const request = await fetch(`http://localhost:8080/${PROJECT}/clear`, {
+    method: "GET",
+  });
+  const response = await request.json();
 
-  if (response.content.startsWith('Cleared database for')) {
-    const state = await status(); 
+  if (response.content.startsWith(CONSTANTS.MESSAGES.cleared_starts_with)) {
+    const state = await status();
     setInfo(state.info);
     setPane(pane.id, { force: true });
   }
-  
-  console.log(response)
+
+  console.log(response);
 }
 
 function makeDetailCheckboxes() {
-
   const $param =
     document.getElementById("props-checkboxes") ||
     h("div", {
@@ -463,9 +471,10 @@ function makeDetailCheckboxes() {
   $param.innerHTML = "";
   $param.appendChild($label);
 
-  const options = pane.cy.vars['details'].value;
+  const options = pane.cy.vars["details"].value;
 
-  $props_config.insertAdjacentHTML('beforeend', 
+  $props_config.insertAdjacentHTML(
+    "beforeend",
     `<div class="buttons param"> 
       <button class="ui button" id="clear">
         <span>Clear Properties (Testing)</span>
@@ -473,26 +482,32 @@ function makeDetailCheckboxes() {
       <button class="ui button" id="status">
         <span>Print Status</span>
       </button>
-    </div>`);
-  document.getElementById("clear").addEventListener('click', _ => clear())
-  document.getElementById("status").addEventListener('click', _ => status())
+    </div>`
+  );
+  document.getElementById("clear").addEventListener("click", () => clear());
+  document.getElementById("status").addEventListener("click", () => status());
 
   Object.keys(options).forEach((k) => {
-    const statuses = Object.values(options[k].metadata).map(a => a.status);
-    const ready = 
-      k !== NAMES.results || 
-      statuses.filter(a => a === STATUS.ready).length === statuses.length;
-    const computing = statuses.filter(a => a === STATUS.computing).length === statuses.length;
+    const statuses = Object.values(options[k].metadata).map((a) => a.status);
+    const ready =
+      k !== CONSTANTS.results ||
+      statuses.filter((a) => a === CONSTANTS.STATUS.ready).length ===
+        statuses.length;
+    const computing =
+      statuses.filter((a) => a === CONSTANTS.STATUS.computing).length ===
+      statuses.length;
 
-    const $button = h("i", { 
-      class: computing ? spinningIcon : triggerIcon, 
-      id: `trigger-button-${k}`
+    const $button = h("i", {
+      class: computing ? spinningIcon : triggerIcon,
+      id: `trigger-button-${k}`,
     });
 
     if (!ready && !computing) {
-      $button.addEventListener('click', e => triggerModelCheckProperty(e, k, Object.keys(options[k].props)));  
+      $button.addEventListener("click", (e) =>
+        triggerModelCheckProperty(e, k, Object.keys(options[k].props))
+      );
     }
-    
+
     const $toggle = h("input", {
       type: "checkbox",
       class: "checkbox-prop",
@@ -505,10 +520,13 @@ function makeDetailCheckboxes() {
     const $option_label = h("details", { class: "ui accordion" }, [
       h("summary", { class: "title", style: "display:flex" }, [
         h("i", { class: "dropdown icon left" }, []),
-        ready ? 
-          h("div", { class: "ui small checkbox" }, [$toggle, h("label", { for: `checkbox-${k}` })]) : 
-          $button,
-        h("p", { class: "prop-text-label-text" }, [t(k)])
+        ready
+          ? h("div", { class: "ui small checkbox" }, [
+              $toggle,
+              h("label", { for: `checkbox-${k}` }),
+            ])
+          : $button,
+        h("p", { class: "prop-text-label-text" }, [t(k)]),
       ]),
       h("div", { class: "content" }, [
         ...makeDetailPropsCheckboxes(options[k], k),
@@ -519,17 +537,16 @@ function makeDetailCheckboxes() {
 
     $toggle.addEventListener("change", (e) => {
       Object.keys(options[k].props).forEach((p) => {
-
         document.getElementById(`checkbox-${k}-${p}`).checked =
           e.target.checked;
       });
-      pane.cy.vars['details'].fn(pane.cy, {
-        update: updatePropsValues()
+      pane.cy.vars["details"].fn(pane.cy, {
+        update: updatePropsValues(),
       });
     });
-    $button.addEventListener("click", (e)=> {
+    $button.addEventListener("click", (e) => {
       e.preventDefault();
-    })
+    });
 
     $param.appendChild($option_label);
   });
@@ -538,23 +555,25 @@ function makeDetailCheckboxes() {
 }
 
 function makeDetailPropsCheckboxes(options, propType) {
-  const props = options.props; 
+  const props = options.props;
   const toggles = [];
   const $param = h("div", {
     class: "prop-checkboxes",
     id: `props-checkboxes-${propType}`,
     style: "display: block",
   });
-  const meta = pane.cy.vars['details'].value[propType].metadata;
+  const meta = pane.cy.vars["details"].value[propType].metadata;
 
   Object.keys(props).forEach((propName) => {
     const checked = props[propName];
-    const $button = h("i", { 
+    const $button = h("i", {
       class: "fa fa-rocket trigger-check-prop",
       id: `trigger-button-${propType}-${propName}`,
     });
 
-    $button.addEventListener('click', e => triggerModelCheckProperty(e, propType, [propName]));
+    $button.addEventListener("click", (e) =>
+      triggerModelCheckProperty(e, propType, [propName])
+    );
     const $toggle = h("input", {
       type: "checkbox",
       class: "checkbox-prop",
@@ -567,31 +586,42 @@ function makeDetailPropsCheckboxes(options, propType) {
     const html =
       meta[propName] && meta[propName].identifier
         ? [
-          meta[propName].icon
-            ? h("i", { class: meta[propName].identifier + " prop-text-label-icon" })
-            : h("span", { class: "prop-text-label-icon" }, [ t(meta[propName].identifier), ]),
-          t(propName),
-        ] : [t(propName)];
+            meta[propName].icon
+              ? h("i", {
+                  class: meta[propName].identifier + " prop-text-label-icon",
+                })
+              : h("span", { class: "prop-text-label-icon" }, [
+                  t(meta[propName].identifier),
+                ]),
+            t(propName),
+          ]
+        : [t(propName)];
 
-    const which = propType !== NAMES.results || options.metadata[propName].status === STATUS.ready;
-    const $div = h("div",
-      { 
-          class: "prop-text ui small checkbox",
-          style: "display:flex",
+    const which =
+      propType !== CONSTANTS.results ||
+      options.metadata[propName].status === CONSTANTS.STATUS.ready;
+    const $div = h(
+      "div",
+      {
+        class: "prop-text ui small checkbox",
+        style: "display:flex",
       },
-      [ 
-        which ? 
-          h("div", {}, [ $toggle, h("label", { for: `checkbox-${propType}-${propName}` }) ]) : 
-          $button,
-        h("p", { class: "prop-text-label-text" }, html)
+      [
+        which
+          ? h("div", {}, [
+              $toggle,
+              h("label", { for: `checkbox-${propType}-${propName}` }),
+            ])
+          : $button,
+        h("p", { class: "prop-text-label-text" }, html),
       ]
     );
 
     $toggle.checked = checked;
 
-    $toggle.addEventListener("change", (e) => {
-      pane.cy.vars['details'].fn(pane.cy, {
-        update: updatePropsValues()
+    $toggle.addEventListener("change", () => {
+      pane.cy.vars["details"].fn(pane.cy, {
+        update: updatePropsValues(),
       });
     });
 
@@ -683,7 +713,7 @@ function makePCPSettings() {
     pane.cy.pcp
       ? "Selected elements: " + pane.cy.pcp.getSelection().length
       : null
-    }</pre>`;
+  }</pre>`;
   $pcp_config.appendChild(countPrinter);
 
   const jsonPrinter = h("div", { class: "content" });
@@ -691,7 +721,7 @@ function makePCPSettings() {
     pane.cy.pcp
       ? JSON.stringify(pane.cy.pcp.getSelection(), undefined, 2)
       : null
-    }</pre>`;
+  }</pre>`;
   const $label = h("details", { class: "ui accordion" }, [
     h("summary", { class: "title" }, [
       h("i", { class: "dropdown icon left" }, []),
@@ -769,12 +799,12 @@ function makeAppendDropdown() {
 }
 
 function makeFullSyncToggle() {
-  const param = "fullSync"
+  const param = "fullSync";
   const value = pane.cy.vars[param].value;
   const id = `checkbox-${param}`;
 
   const $label = h("label", { class: "label label-default", for: id }, [
-    t("Automatically synchronize selections")
+    t("Automatically synchronize selections"),
   ]);
   const $param = h("div", {
     class: "param ui small checkbox",
@@ -793,7 +823,7 @@ function makeFullSyncToggle() {
   $param.appendChild($label);
 
   const update = (e) => {
-    pane.cy.vars["fullSync"].fn(pane.cy,  e.target.checked)
+    pane.cy.vars["fullSync"].fn(pane.cy, e.target.checked);
   };
 
   $toggle.addEventListener("change", update);

@@ -19,7 +19,6 @@ import {
   h,
   t,
   fixed,
-  getRandomColor,
 } from "../../utils/utils.js";
 import {
   makeTippy,
@@ -30,7 +29,7 @@ import {
 } from "../../utils/controls.js";
 import { parallelCoords } from "../parallel-coords/parallel-coords.js";
 import { ndl_to_pcp } from "../format.js";
-import { INTERACTIONS, NAMES, STATUS } from "../../utils/names.js";
+import { CONSTANTS } from "../../utils/names.js";
 import events from "../../utils/events.js";
 
 const THROTTLE_DEBOUNCE_DELAY = 100;
@@ -122,7 +121,7 @@ async function renewInfo(cy) {
 
   const graph = { 
     open: cy.$('node.s[[outdegree > 0]]').map(n => n.data().id), 
-    closed: cy.$('node.s[[outdegree = 0]]').map(n => n.data().id)
+    closed: cy.$('node.s[[outdegree = 0]]').map(n => n.data().id),
   }
   const data = await getSameGraph(graph);
   const mapper = {};
@@ -141,10 +140,10 @@ async function renewInfo(cy) {
 // requests outgoing edges from a selection of nodes and adds them to the graph
 async function graphExpand(cy, nodes, onLayoutStopFn) {
   const res = await fetch(
-      BACKEND +
+    BACKEND +
       PROJECT +
       "/outgoing?id=" +
-      nodes.map(n => n.data().id).join("&id=")
+      nodes.map(n => n.data().id).join("&id="),
   );
   const data = await res.json();
   const elements = {
@@ -169,7 +168,7 @@ async function graphExpand(cy, nodes, onLayoutStopFn) {
           label: d.label,
           source: d.source,
           target: d.target,
-        }
+        },
       }))
       .filter(d => {
         const accept = !cy.elementMapper.edges.has(getEdgeId(d));
@@ -184,7 +183,7 @@ async function graphExpand(cy, nodes, onLayoutStopFn) {
   cy.add(elements);
   if (elements.nodes.length > 0) {
     cy.$("#" + elements.nodes.map((n) => n.data.id).join(", #")).position(
-      nodes[0].position()
+      nodes[0].position(),
     ); // alternatively, cy.nodes().position(node.position())
   }
   cy.nodes().unlock();
@@ -204,16 +203,16 @@ async function graphExpand(cy, nodes, onLayoutStopFn) {
   const panes = getPanes();
   panes[cy.paneId].nodesIds = new Set([
     ...(panes[cy.paneId].nodesIds || []), 
-    ...nodesIds
+    ...nodesIds,
   ]);
   updatePanes(panes);
 }
 
 // inits cy with graph data on a pane
-function spawnGraph(pane, data, params, vars = {}, src) {
+function spawnGraph(pane, data, params, vars = {}) {
   const elements = {
     nodes: data.nodes.map(d => ({ data: d.data ? d.data : d })),
-    edges: data.edges.map(d => ({ data: d.data ? d.data : d }))
+    edges: data.edges.map(d => ({ data: d.data ? d.data : d })),
   };
 
   const cytoscapeInit = {
@@ -241,7 +240,7 @@ function spawnGraph(pane, data, params, vars = {}, src) {
       edges: cy
         .elements()
         .edges()
-        .map(d => ({ data: d.data() }))
+        .map(d => ({ data: d.data() })),
     });
 
     cy.startBatch();
@@ -327,10 +326,10 @@ function spawnGraphOnNewPane(cy, nodes) {
 
 async function fetchAndSpawn(cy, nodes) {
   const res = await fetch(
-      BACKEND +
+    BACKEND +
       PROJECT +
       "/outgoing?id=" +
-      nodes.map((n) => n.id).join("&id=")
+      nodes.map((n) => n.id).join("&id="),
   );
   const data = await res.json();
 
@@ -343,7 +342,7 @@ async function fetchAndSpawn(cy, nodes) {
   const pane = spawnPane(
     { spawner: cy.container().parentElement.id, id: null, newPanePosition }, // pane that spawns the new one
     nodesIds,
-    spawnerNodes
+    spawnerNodes,
   );
 
   let vars = {};
@@ -366,8 +365,8 @@ async function fetchAndSpawn(cy, nodes) {
 async function expandBestPath(cy, allSources) {
   const sources = allSources.filter(s => 
     !s.data()
-    ?.details[NAMES.atomicPropositions][NAMES.ap_end]
-    ?.value
+      ?.details[CONSTANTS.atomicPropositions][CONSTANTS.ap_end]
+      ?.value,
   );
 
   // open everything, as there is no decider / DOI / scheduler
@@ -499,7 +498,7 @@ function spawnPCP(cy, _nodes) {
           .filter(d => cy.vars['mode'].value.includes(d.type)),
 
     }, 
-    cy.vars['details'].value
+    cy.vars['details'].value,
   );
 
   const hidden = new Set(['color']);
@@ -513,8 +512,8 @@ function spawnPCP(cy, _nodes) {
       nominals: props.filter(k => pld[k].type === 'nominal'),
       booleans: props.filter(k => pld[k].type === 'boolean'),
       numbers: props.filter(k => pld[k].type === 'number'),
-      pld
-    }
+      pld,
+    },
   );
 
   cy.paneFromPCP = (pane) => {
@@ -548,7 +547,7 @@ function bindListeners(cy) {
     }
   });
 
-  cy.on('cxttapstart', function (e) {
+  cy.on('cxttapstart', function () {
     setPane(cy.paneId);
     hideAllTippies();
   });
@@ -562,17 +561,17 @@ function bindListeners(cy) {
     }
   });
 
-  cy.on('tap', 'edge', function (e) {
+  cy.on('tap', 'edge', function () {
     setPane(cy.paneId);
     hideAllTippies();
   });
 
-  cy.on('zoom pan', function (e) {
+  cy.on('zoom pan', function () {
     setPane(cy.paneId);
     hideAllTippies();
   });
 
-  cy.on("boxselect tapselect tapunselect", _.debounce(function (e) {
+  cy.on("boxselect tapselect tapunselect", _.debounce(function () {
     // automatically syncs node selection to the PCP
     const nodes = cy.$('node:selected');
     if (
@@ -593,7 +592,7 @@ function bindListeners(cy) {
   });
 
   // re-enable selections after the previous check happened
-  cy.on('dbltap mousemove', _ => {
+  cy.on('dbltap mousemove', () => {
     cy.nodes().selectify();
   });
 
@@ -616,7 +615,7 @@ function bindListeners(cy) {
       Object.keys(details).forEach(d => {
         const show = details[d].all || 
           Object.values(
-            details[d].props
+            details[d].props,
           ).reduce((a, b) => a || b, false);
 
         if (show) {
@@ -630,7 +629,7 @@ function bindListeners(cy) {
                 } else {
                   return h('p', {}, [t(k + ': ' + (g.details[d][k]) + '\n ')]);
                 }
-              })
+              }),
           );
         }
       });
@@ -659,7 +658,7 @@ function bindListeners(cy) {
     markRecurringNodesById(nodeId);
   });
 
-  cy.on("mouseout", "node", function (event) {
+  cy.on("mouseout", "node", function () {
     unmarkRecurringNodes();
   });
 }
@@ -698,20 +697,20 @@ function setSelectMode(cy, mode = 's') {
 
 // if there are properties 'missing', an update is 'missing'. 
 function setUpdateState(cy) {
-  const props = cy.vars['details'].value[NAMES.results].metadata;
+  const props = cy.vars['details'].value[CONSTANTS.results].metadata;
   let decided = false;
 
   Object.keys(props).forEach(k => {
     if (decided) return; 
     
-    if (info[NAMES.results][k].status !== STATUS.ready) {
-      cy.vars['update'].value = STATUS.missing;
+    if (info[CONSTANTS.results][k].status !== CONSTANTS.STATUS.ready) {
+      cy.vars['update'].value = CONSTANTS.STATUS.missing;
       decided = true;
     }
   });
 
   if (!decided) {
-    cy.vars['update'].value = STATUS.ready;
+    cy.vars['update'].value = CONSTANTS.STATUS.ready;
   }
 }
 
@@ -724,18 +723,18 @@ function updateDetailsToShow(cy, { update }) {
     init = false;
   }
 
-  let mode = NAMES.results;
-  const ready = details[NAMES.results] && 
-    Object.values(details[NAMES.results])
-      .map(a => a.status === STATUS.ready)
+  let mode = CONSTANTS.results;
+  const ready = details[CONSTANTS.results] && 
+    Object.values(details[CONSTANTS.results])
+      .map(a => a.status === CONSTANTS.STATUS.ready)
       .reduce((a, b) => a && b, true);
 
   if (!ready) {
-    mode = NAMES.variables;
+    mode = CONSTANTS.variables;
   }
 
   Object.keys(details).forEach(d => {
-    if (d === NAMES.metadata) {
+    if (d === CONSTANTS.metadata) {
       return;
     }
 
@@ -751,7 +750,7 @@ function updateDetailsToShow(cy, { update }) {
     };
 
     Object.keys(details[d]).forEach(p => {
-      const iv = truthVal || (d === NAMES.results && info[d][p].status === STATUS.ready)
+      const iv = truthVal || (d === CONSTANTS.results && info[d][p].status === CONSTANTS.STATUS.ready)
       props[d].props[p] = init ? iv : update[d].props[p];
       props[d].metadata[p] = info[d] ? info[d][p] : undefined;
     });
@@ -782,9 +781,9 @@ function selectBasedOnAP(cy, e, ap) {
     cy.nodes().deselect();
     const states = cy.nodes('.s')
       .filter(d => d.data()
-        .details[NAMES.atomicPropositions][ap]
-        ?.value === true
-    );
+        .details[CONSTANTS.atomicPropositions][ap]
+        ?.value === true,
+      );
 
     if (states.length > 0) {
       states.select();
@@ -826,11 +825,11 @@ async function importCy(cy) {
         const file = input.files[0];
         const reader = new FileReader();
         reader.onload = (e) => {
-          const backup = {
-            nodes: Array.from(cy.elementMapper.nodes.values()),
-            edges: Array.from(cy.elementMapper.edges.values()),
-            info: info,
-          };
+          // const backup = {
+          //   nodes: Array.from(cy.elementMapper.nodes.values()),
+          //   edges: Array.from(cy.elementMapper.edges.values()),
+          //   info: info,
+          // };
 
           const data = {
             nodes: [],
@@ -856,7 +855,7 @@ async function importCy(cy) {
             getPanes()[cy.paneId], 
             data, 
             structuredClone(cy.params), 
-            vars
+            vars,
           );
           setPane(cy.paneId, { make: true, force: true }); // reset sidebar to new content
           dispatchEvent(events.GLOBAL_PROPAGATE);
@@ -988,13 +987,13 @@ function setPublicVars(cy, preset) {
       fn: toggleFullSync,
     },
     update: {
-      value: STATUS.ready,
+      value: CONSTANTS.STATUS.ready,
       fn: () => {
         renewInfo(cy);
         updateDetailsToShow(cy, { update: cy.vars['details'].value });
         setUpdateState(cy);
-      }
-    }
+      },
+    },
   };
 
   cy.fns = {
@@ -1044,7 +1043,7 @@ function duplicatePane(cy, initSpawner) {
       id: "DUPLICATE-" + cy.paneId + "-" + Math.random(), // TODO make monotonically increasing instead of random
     },
     nodesIds,
-    spawnerNodes
+    spawnerNodes,
   );
 
   let vars = {};
@@ -1115,7 +1114,6 @@ function markRecurringNodes() {
     if (duplicatePanes.size > 1) {
       recurringNodes[nodeId] = duplicatePanes;
 
-      const randomColor = getRandomColor();
       duplicatePanes.forEach((paneId) => {
         const paneCy = panes[paneId].cy;
         paneCy.$("#" + nodeId).addClass("recurring");
@@ -1192,7 +1190,7 @@ function mergePane(panesToMerge, cy, prevSpawners) {
         id: "MERGED-" + spawnerIds.join("-"),
       },
       nodesIds,
-      spawnerNodes
+      spawnerNodes,
     );
 
     let vars = {};
@@ -1323,7 +1321,7 @@ function handleExportPane() {
   }
 }
 
-function handleMarkNodes(cy, e) {
+function handleMarkNodes(cy) {
   const targets = cy.$('node:selected');
   if (targets.length > 0) {
     if (!targets.classes().includes("marked")) {
@@ -1346,7 +1344,7 @@ function initControls(cy) {
     document.activeElement.blur()
   });
   
-  document.getElementById(`${cy.paneId}-expandN`).addEventListener('click', (e) => {
+  document.getElementById(`${cy.paneId}-expandN`).addEventListener('click', () => {
     iteration = 0;
     expandBestPath(cy, cy.$('node.s:selected'));
     document.activeElement.blur()
@@ -1361,8 +1359,14 @@ function ctxmenu(cy) {
       // node specific
       {
         id: 'expand',
-        content: INTERACTIONS.expand1.name, 
-        tooltipText: `${INTERACTIONS.expand1.description} \t (${INTERACTIONS.expand1.keyboard})`,
+        content: CONSTANTS.INTERACTIONS.expand1.name, 
+        tooltipText: `${CONSTANTS
+          .INTERACTIONS
+          .expand1
+          .description} \t (${CONSTANTS
+          .INTERACTIONS
+          .expand1
+          .keyboard})`,
         selector: 'node.s',
         onClickFunction: () => {
           setPane(cy.paneId);
@@ -1384,8 +1388,14 @@ function ctxmenu(cy) {
       },*/
       {
         id: "expand-best-path",
-        content: INTERACTIONS.expandN.name,
-        tooltipText: `${INTERACTIONS.expandN.description} \t (${INTERACTIONS.expandN.keyboard})`,
+        content: CONSTANTS.INTERACTIONS.expandN.name,
+        tooltipText: `${CONSTANTS
+          .INTERACTIONS
+          .expandN
+          .description} \t (${CONSTANTS
+          .INTERACTIONS
+          .expandN
+          .keyboard})`,
         selector: "node.s:selected",
         onClickFunction: () => {
           iteration = 0;
@@ -1395,8 +1405,14 @@ function ctxmenu(cy) {
       },
       {
         id: "mark-node",
-        content: INTERACTIONS.mark.name,
-        tooltipText: `${INTERACTIONS.mark.description} \t (${INTERACTIONS.mark.keyboard})`,
+        content: CONSTANTS.INTERACTIONS.mark.name,
+        tooltipText: `${CONSTANTS
+          .INTERACTIONS
+          .mark
+          .description} \t (${CONSTANTS
+          .INTERACTIONS
+          .mark
+          .keyboard})`,
         selector: "node.s",
         onClickFunction: e => {
           handleMarkNodes(cy, e);
@@ -1405,8 +1421,14 @@ function ctxmenu(cy) {
       },
       {
         id: "expand-new",
-        content: `${INTERACTIONS.expand1.name} on New Pane`,
-        tooltipText: `${INTERACTIONS.expand1.description} \t (${INTERACTIONS.expand1.keyboard_pane})`,
+        content: `${CONSTANTS.INTERACTIONS.expand1.name} on New Pane`,
+        tooltipText: `${CONSTANTS
+          .INTERACTIONS
+          .expand1
+          .description} \t (${CONSTANTS
+          .INTERACTIONS
+          .expand1
+          .keyboard_pane})`,
         selector: "node.s:selected",
         onClickFunction: () => {
           const nodes = cy.$("node.s:selected");
@@ -1432,7 +1454,7 @@ function ctxmenu(cy) {
         content: "Inspect selection details",
         tooltipText: "inspect selection details",
         selector: "node:selected",
-        onClickFunction: _ => {
+        onClickFunction: () => {
           spawnPCP(cy);
         },
         hasTrailingDivider: true,
@@ -1455,7 +1477,7 @@ function ctxmenu(cy) {
         onClickFunction: () => {
           togglePane(
             document.getElementById(
-              document.getElementById("selected-pane").innerHTML
+              document.getElementById("selected-pane").innerHTML,
             ),
           );
         },
@@ -1535,7 +1557,7 @@ function ctxmenu(cy) {
           resetPaneNodeMarkings();
         },
         hasTrailingDivider: false,
-      }
+      },
     ],
     menuItemClasses: ["dropdown-item"],
     contextMenuClasses: ["dropdown-menu"],
@@ -1572,17 +1594,17 @@ function keyboardShortcuts(cy, e) {
 
   // ctrl+i: select initial states 
   if (e.keyCode === 73 && modifier) {
-    selectBasedOnAP(cy, e, NAMES.ap_init);
+    selectBasedOnAP(cy, e, CONSTANTS.ap_init);
   }
 
   // ctrl+d: select deadlock states 
   if (e.keyCode === 68 && modifier) {
-    selectBasedOnAP(cy, e, NAMES.ap_deadlock);
+    selectBasedOnAP(cy, e, CONSTANTS.ap_deadlock);
   }
 
   // ctrl+e: select end states 
   if (e.keyCode === 69 && modifier) {
-    selectBasedOnAP(cy, e, NAMES.ap_end);
+    selectBasedOnAP(cy, e, CONSTANTS.ap_end);
   }
 
   // ctrl+m: mark/unmark selected nodes 
@@ -1659,24 +1681,24 @@ function keyboardShortcuts(cy, e) {
 socket.on("handle selection", (data) => {
   if (data) {
     switch (data) {
-      case "merge":
-        handleMergePane();
-        break;
-      case "delete":
-        handleDeletePane();
-        break;
-      case "duplicate":
-        handleDuplicatePane();
-        break;
-      case "expand":
-        handleExpandPane();
-        break;
-      case "collapse":
-        handleCollapsePane();
-        break;
-      case "export":
-        handleExportPane();
-        break;
+    case "merge":
+      handleMergePane();
+      break;
+    case "delete":
+      handleDeletePane();
+      break;
+    case "duplicate":
+      handleDuplicatePane();
+      break;
+    case "expand":
+      handleExpandPane();
+      break;
+    case "collapse":
+      handleCollapsePane();
+      break;
+    case "export":
+      handleExportPane();
+      break;
     }
   }
 });
