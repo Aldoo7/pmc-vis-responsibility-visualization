@@ -225,7 +225,7 @@ public class ModelChecker implements Namespace {
                 int numRewards = modulesFile.getNumRewardStructs();
                 try {
                     database.execute(String.format("CREATE TABLE %s (%s INTEGER PRIMARY KEY NOT NULL, %s TEXT, %s BOOLEAN)", stateTable, ENTRY_S_ID, ENTRY_S_NAME, ENTRY_S_INIT));
-                    database.execute(String.format("CREATE TABLE %s (%s INTEGER PRIMARY KEY, %s INTEGER NOT NULL, %s TEXT, %s INTEGER);", transTable, ENTRY_T_ID, ENTRY_T_OUT, ENTRY_T_ACT, ENTRY_T_PROB));
+                    database.execute(String.format("CREATE TABLE %s (%s INTEGER PRIMARY KEY NOT NULL, %s INTEGER NOT NULL, %s TEXT, %s INTEGER);", transTable, ENTRY_T_ID, ENTRY_T_OUT, ENTRY_T_ACT, ENTRY_T_PROB));
                     database.execute(String.format("CREATE TABLE %s (%s TEXT, %s TEXT)", schedTable, ENTRY_SCH_ID, ENTRY_SCH_NAME));
 
                     for (int i = 0; i < numRewards; i++) {
@@ -240,7 +240,7 @@ public class ModelChecker implements Namespace {
                 List<String> stateList = model.getReachableStates().exportToStringList();
 
                 String stateInsertCall = String.format("INSERT INTO %s (%s,%s,%s) VALUES(?,?,?)", stateTable, ENTRY_S_ID, ENTRY_S_NAME, ENTRY_S_INIT);
-                String transitionInsertCall = String.format("INSERT INTO %s(%s,%s,%s) VALUES (?,?,?)", transTable, ENTRY_T_OUT, ENTRY_T_ACT, ENTRY_T_PROB);
+                String transitionInsertCall = String.format("INSERT INTO %s(%s,%s,%s,%s) VALUES (?,?,?,?)", transTable, ENTRY_T_ID, ENTRY_T_OUT, ENTRY_T_ACT, ENTRY_T_PROB);
                 if (numRewards > 0) {
                     String[] rewardHeader = new String[numRewards];
                     String[] questionHeader = new String[numRewards];
@@ -249,7 +249,7 @@ public class ModelChecker implements Namespace {
                         questionHeader[i] = "?";
                     }
                     stateInsertCall = String.format("INSERT INTO %s (%s,%s,%s,%s) VALUES(?,?,?,%s)", stateTable, ENTRY_S_ID, ENTRY_S_NAME, ENTRY_S_INIT, String.join(",", rewardHeader), String.join(",", questionHeader));
-                    transitionInsertCall = String.format("INSERT INTO %s(%s,%s,%s,%s) VALUES (?,?,?,%s)", transTable, ENTRY_T_OUT, ENTRY_T_ACT, ENTRY_T_PROB, String.join(",", rewardHeader), String.join(",", questionHeader));
+                    transitionInsertCall = String.format("INSERT INTO %s(%s,%s,%s,%s,%s) VALUES (?,?,?,?,%s)", transTable, ENTRY_T_ID, ENTRY_T_OUT, ENTRY_T_ACT, ENTRY_T_PROB, String.join(",", rewardHeader), String.join(",", questionHeader));
                 }
 
                 try (Batch toExecute = database.createBatch(stateInsertCall, 3 + numRewards)) {
@@ -287,7 +287,7 @@ public class ModelChecker implements Namespace {
                     throw new RuntimeException(e);
                 }
 
-                try (Batch toExecute = database.createBatch(transitionInsertCall, 3 + numRewards)) {
+                try (Batch toExecute = database.createBatch(transitionInsertCall, 4 + numRewards)) {
                     for (int i = 0; i < stateList.size(); i++) {
                         String stateName = project.getModelParser().normalizeStateName(stateList.get(i));
                         parser.State s = project.getModelParser().parseState(stateName);
@@ -299,6 +299,8 @@ public class ModelChecker implements Namespace {
                             Choice<Double> choice = transitionList.getChoice(j);
                             String actionName = choice.getModuleOrAction();
 
+                            long t_id = project.getModelParser().transitionIdentifier(s, choice);
+
                             Map<Long, Double> probabilities = new HashMap<>();
 
                             for (int l = 0; l < choice.size(); l++) {
@@ -309,16 +311,17 @@ public class ModelChecker implements Namespace {
                             if (numRewards > 0) {
                                 double[] rewards = new double[numRewards];
                                 updater.calculateTransitionRewards(s, choice.getModuleOrActionIndex(), rewards);
-                                String[] inputs = new String[numRewards + 3];
-                                inputs[0] =  Long.toString(s_id);
-                                inputs[1] = actionName;
-                                inputs[2] = probabilities.entrySet().stream().map(e -> String.format("%s:%s", e.getKey(), e.getValue())).collect(Collectors.joining(";"));
+                                String[] inputs = new String[numRewards + 4];
+                                inputs[0] =  Long.toString(t_id);
+                                inputs[1] =  Long.toString(s_id);
+                                inputs[2] = actionName;
+                                inputs[3] = probabilities.entrySet().stream().map(e -> String.format("%s:%s", e.getKey(), e.getValue())).collect(Collectors.joining(";"));
                                 for (int l = 0; l < numRewards; l++) {
-                                    inputs[l + 3] = String.valueOf(rewards[l]);
+                                    inputs[l + 4] = String.valueOf(rewards[l]);
                                 }
                                 toExecute.addToBatch(inputs);
                             } else {
-                                toExecute.addToBatch( Long.toString(s_id), actionName, probabilities.entrySet().stream().map(e -> String.format("%s:%s", e.getKey(), e.getValue())).collect(Collectors.joining(";")));
+                                toExecute.addToBatch(Long.toString(t_id), Long.toString(s_id), actionName, probabilities.entrySet().stream().map(e -> String.format("%s:%s", e.getKey(), e.getValue())).collect(Collectors.joining(";")));
                             }
                         }
                     }
