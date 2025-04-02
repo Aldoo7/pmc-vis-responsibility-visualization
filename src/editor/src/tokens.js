@@ -4,14 +4,14 @@ const vscode = require('vscode');
 const tokenTypes = new Map();
 const tokenModifiers = new Map();
 const tokenLegend = (function () {
-    const tokenTypesLegend = ['parameter','variable', 'function'];
+    const tokenTypesLegend = ['parameter', 'variable', 'function'];
     tokenTypesLegend.forEach((tokenType, index) => tokenTypes.set(tokenType, index));
     const tokenModifiersLegend = ['readonly', 'modification'];
     tokenModifiersLegend.forEach((tokenModifier, index) => tokenModifiers.set(tokenModifier, index));
     return new vscode.SemanticTokensLegend(tokenTypesLegend, tokenModifiersLegend);
 })();
 
-//Global Storage for pattern matching for declerations
+//Global Storage for pattern matching for declarations
 let _constants = null;
 let _formulas = null;
 let _variables = null;
@@ -37,7 +37,7 @@ class DocumentSemanticTokensProvider {
         return builder.build();
     }
 
-    _parseConstants(text){
+    _parseConstants(text) {
         const lines = text.split(/\r\n|\r|\n/);
         let constants = [];
 
@@ -45,39 +45,39 @@ class DocumentSemanticTokensProvider {
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             const matched_c = line.match(constantRegExp)
-            if (matched_c != null){
+            if (matched_c != null) {
                 constants.push(matched_c[2]);
             }
         }
         return constants;
     }
 
-    _parseFormulas(text){
+    _parseFormulas(text) {
         const lines = text.split(/\r\n|\r|\n/);
 
         let formulas = [];
-        
+
         //gather all declerations
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             const matched_f = line.match(formulaRegExp)
-            if (matched_f != null){
+            if (matched_f != null) {
                 formulas.push(matched_f[1]);
             }
         }
         return formulas;
     }
 
-    _parseVariables(text){
+    _parseVariables(text) {
         const lines = text.split(/\r\n|\r|\n/);
 
         let variables = [];
-        
+
         //gather all declerations
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             const matched_v = line.match(variableRegExp)
-            if (matched_v != null){
+            if (matched_v != null) {
                 variables.push(matched_v[1]);
             }
         }
@@ -108,29 +108,29 @@ class DocumentSemanticTokensProvider {
         return result;
     }
 
-    _initializeDocument(document){
-    
+    _initializeDocument(document) {
+
         //Read all constant declarations and save them globally
         const constants = this._parseConstants(document.getText());
-        if(constants.length > 0){
+        if (constants.length > 0) {
             _constants = new RegExp(`\\b(${constants.join("|")})\\b`, 'g');
-        }else{
+        } else {
             _constants = new RegExp("^\b$", ''); // This does not match anything
         }
-    
+
         //Read all function declarations and save them globally
         const formulas = this._parseFormulas(document.getText());
-        if(formulas.length>0){
+        if (formulas.length > 0) {
             _formulas = new RegExp(`\\b(${formulas.join("|")})\\b`, 'g');
-        }else{
+        } else {
             _formulas = new RegExp("^\b$", ''); // This does not match anything
         }
-    
+
         //Read all variable declarations and save them globally
         const variables = this._parseVariables(document.getText());
-        if(variables.length>0){
-        _variables = new RegExp(`\\b(${variables.join("|")})\\b`, 'g');
-        }else{
+        if (variables.length > 0) {
+            _variables = new RegExp(`\\b(${variables.join("|")})\\b`, 'g');
+        } else {
             _variables = new RegExp("^\b$", ''); // This does not match anything
         }
     }
@@ -138,7 +138,7 @@ class DocumentSemanticTokensProvider {
     _parseText(text) {
         const token = [];
         const lines = text.split(/\r\n|\r|\n/);
-        
+
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             let match;
@@ -179,5 +179,5 @@ class DocumentSemanticTokensProvider {
     }
 }
 
-module.exports = { DocumentSemanticTokensProvider, tokenLegend};
+module.exports = { DocumentSemanticTokensProvider, tokenLegend };
 

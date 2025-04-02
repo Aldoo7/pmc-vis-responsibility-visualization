@@ -176,6 +176,10 @@ public class Project implements Namespace{
         }
     }
 
+    public void refreshProject(){
+        //TODO Establish Behaviour for modified files
+    }
+
     public TaskManager getTaskManager() {
         return taskManager;
     }
@@ -383,17 +387,21 @@ public class Project implements Namespace{
             if (!Namespace.FILES_RESERVED.contains(file.getName())) {
                 fileForModelCheckingFound = true;
                 if (this.debug) {
-                    System.out.println("Model Checking File: " + file);
+                    System.out.println("Property File: " + file);
                 }
                 modelChecker.parsePropertyFile(file.getPath());
             }
         }
         if (this.debug && !fileForModelCheckingFound) {
-            System.out.println("ERROR: No File for Model Checking found!");
+            System.out.println("Warning: No Properties found!");
         }
         if (this.debug) {
             System.out.printf("Loading Properties in Project %s finished%n", id);
         }
+    }
+
+    public void loadPropertyFile(File file) throws Exception {
+        modelChecker.parsePropertyFile(file.getPath());
     }
 
     public void loadDBInfo(){

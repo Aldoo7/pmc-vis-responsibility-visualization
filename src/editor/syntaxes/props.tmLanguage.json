@@ -1,0 +1,34 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "PRISMProperty",
+	"patterns": [
+		{
+			"include": "#keywords"
+		},
+		{
+			"include": "#strings"
+		}
+	],
+	"repository": {
+		"keywords": {
+			"patterns": [
+				{
+					"name": "keyword.control.mdp",
+					"match": "\\b(A|bool|clock|const|ctmc|C|double|dtmc|E|endinit|endinvariant|endmodule|endobservables|endrewards|endsystem|false|formula|filter|func|F|global|G|init|invariant|I|int|label|max|mdp|min|module|X|nondeterministic|observable|observables|of|Pmax|Pmin|P|pomdp|popta|probabilistic|prob|pta|rate|rewards|Rmax|Rmin|R|S|stochastic|system|true|U|W)\\b"
+				}
+			]
+		},
+		"strings": {
+			"name": "string.quoted.double.mdp",
+			"begin": "\"",
+			"end": "\"",
+			"patterns": [
+				{
+					"name": "constant.character.escape.mdp",
+					"match": "\\\\."
+				}
+			]
+		}
+	},
+	"scopeName": "source.props"
+}

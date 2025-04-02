@@ -74,4 +74,34 @@ public abstract class Resource {
             }
         }
     }
+
+    protected void refreshProject(String projectID){
+
+        if (tasks.containsProject(projectID)) {
+            //Project Already exists, refresh (model and) propertyfile
+            Project project = tasks.getProject(projectID);
+            project.refreshProject();
+        }else{
+            //Project not initialized, initialize with current Files
+            loadProject(projectID);
+        }
+    }
+
+
+    protected void loadProject(String projectID){
+        File projectdir = new File(String.format("%s/%s", rootDir, projectID));
+        loadProject(projectdir);
+    }
+
+    protected void loadProject(File file){
+        if (file.isDirectory()){
+            try {
+                String projectID = file.getName();
+                createStyleFile(projectID);
+                tasks.createProject(projectID, environment, configuration);
+            } catch (Exception e) {
+                System.out.println(e);
+            }
+        }
+    }
 }

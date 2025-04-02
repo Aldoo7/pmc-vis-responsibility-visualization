@@ -65,6 +65,7 @@ public class ModelResource extends Resource {
             @Parameter(description = "Identifier of target node", required = true) @QueryParam("id") List<Long> nodeIDs,
             @QueryParam("view") List<Integer> viewID
     ) {
+        refreshProject(projectID);
         return ok(tasks.getProject(projectID).getSubGraph(nodeIDs, viewID));
     }
 
@@ -103,6 +104,7 @@ public class ModelResource extends Resource {
             @PathParam("project_id") String projectID,
             @QueryParam("view") List<Integer> viewID
     ) {
+        refreshProject(projectID);
         return ok(tasks.getProject(projectID).getInitialNodes(viewID));
     }
 

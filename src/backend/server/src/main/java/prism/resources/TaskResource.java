@@ -1,21 +1,16 @@
 package prism.resources;
 
 import com.codahale.metrics.annotation.Timed;
-import io.dropwizard.db.DataSourceFactory;
-import io.dropwizard.jdbi3.JdbiFactory;
 import io.dropwizard.setup.Environment;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
-import org.jdbi.v3.core.Jdbi;
 import prism.PrismException;
 import prism.api.Message;
 import prism.api.Status;
 import prism.core.Namespace;
 import prism.core.Project;
-import prism.core.Property.Property;
-import prism.db.Database;
 import prism.server.PRISMServerConfiguration;
 import prism.server.TaskManager;
 
@@ -30,7 +25,6 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 @Path("/{project_id}")
 @Produces(MediaType.APPLICATION_JSON)
@@ -64,18 +58,6 @@ public class TaskResource extends Resource {
         }
     }
 
-    private void loadProject(File file){
-        if (file.isDirectory()){
-            try {
-                String projectID = file.getName();
-                createStyleFile(projectID);
-                tasks.createProject(projectID, environment, configuration);
-            } catch (Exception e) {
-                System.out.println(e);
-            }
-        }
-    }
-
     @Path("/status")
     @GET
     @Timed(name="status")
@@ -84,9 +66,11 @@ public class TaskResource extends Resource {
             @Parameter(description = "identifier of project")
             @PathParam("project_id") String projectID
     ) {
+        refreshProject(projectID);
         return ok(new Status(tasks.getProject(projectID), tasks.status()));
     }
 
+    @Deprecated
     @Path("/create-project")
     @POST
     @Timed
@@ -139,6 +123,77 @@ public class TaskResource extends Resource {
         }
 
         return Response.ok(output).build();
+    }
+
+    @Path("/upload-model")
+    @POST
+    @Timed
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    @Operation(summary = "Upload Files to Model Checker", description = "POST Model Files in Order to create a new Project.")
+    public Response uploadModel(
+            @Parameter(description = "identifier of project")
+            @PathParam("project_id") String projectID,
+            @Parameter(description = "Model File to upload to project")
+            @FormDataParam("file") InputStream modelInputStream,
+            @FormDataParam("file") FormDataContentDisposition modelDetail
+    ) {
+        if (new File(String.format("%s/%s", rootDir, projectID)).exists()){
+            return Response.status(Response.Status.FORBIDDEN).entity("Project already exists").build();
+        }
+        String output = "";
+
+        try {
+//            if(modelDetail != null) {
+//                return error("No model uploaded");
+//            }
+
+            Files.createDirectory(Paths.get(String.format("%s/%s", rootDir, projectID)));
+            createStyleFile(projectID);
+            final String uploadModel = String.format("%s/%s/", rootDir, projectID) + Namespace.PROJECT_MODEL;
+            writeToFile(modelInputStream, uploadModel);
+            output += String.format("Model File uploaded to %s\n", uploadModel);
+        } catch (IOException e) {
+            return error(e);
+        }
+
+        try {
+            tasks.createProject(projectID, environment, configuration);
+        } catch (Exception e) {
+            return error(e);
+        }
+
+        return Response.ok(output).build();
+    }
+
+    @Path("/upload-properties")
+    @POST
+    @Timed
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    @Operation(summary = "Upload Files to Model Checker", description = "POST property files in order to add properties to compute")
+    public Response uploadProperty(
+            @Parameter(description = "identifier of project")
+            @PathParam("project_id") String projectID,
+            @Parameter(description = "Property File to upload to project")
+            @FormDataParam("file") InputStream propInputStream,
+            @FormDataParam("file") FormDataContentDisposition propDetail
+    ) {
+        if (!new File(String.format("%s/%s", rootDir, projectID)).exists()){
+            return Response.status(Response.Status.FORBIDDEN).entity("Project does not exist").build();
+        }
+
+        final String uploadProp = String.format("%s/%s/", rootDir, projectID) + propDetail.getFileName();
+        try {
+            writeToFile(propInputStream, uploadProp);
+            if (tasks.containsProject(projectID)) {
+                tasks.getProject(projectID).loadPropertyFile(new File(uploadProp));
+            }else{
+                loadProject(projectID);
+            }
+        } catch (Exception e) {
+            return error(e);
+        }
+
+        return Response.ok(String.format("Property File uploaded to %s\n", uploadProp)).build();
     }
 
     @Path("/add-scheduler")

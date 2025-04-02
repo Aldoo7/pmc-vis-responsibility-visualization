@@ -1,16 +1,16 @@
 {
-  "name": "pmc-itl",
-  "displayName": "pmc-itl",
-  "description": "",
+  "name": "editor",
+  "displayName": "editor",
+  "description": "Editor Extension for PMC-Vis",
   "version": "0.0.1",
   "engines": {
-    "vscode": "^1.85.0"
+    "vscode": "^1.98.0"
   },
   "categories": [
-    "Programming Languages"
+    "Other"
   ],
   "activationEvents": [],
-  "main": "./extension.js",
+  "main": "./src/main.js",
   "contributes": {
     "languages": [
       {
@@ -24,6 +24,19 @@
           ".prism"
         ],
         "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "props",
+        "aliases": [
+          "pctl",
+          "csl"
+        ],
+        "extensions": [
+          ".props",
+          ".pctl",
+          ".csl"
+        ],
+        "configuration": "./language-configuration.json"
       }
     ],
     "grammars": [
@@ -31,6 +44,11 @@
         "language": "mdp",
         "scopeName": "source.mdp",
         "path": "./syntaxes/mdp.tmLanguage.json"
+      },
+      {
+        "language": "mdp",
+        "scopeName": "source.props",
+        "path": "./syntaxes/props.tmLanguage.json"
       }
     ],
     "configurationDefaults": {
@@ -41,14 +59,18 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "stateViewContainer",
-          "title": "State Details",
+          "id": "PMC-VisViewContainer",
+          "title": "PMC-Vis",
           "icon": "$(checklist)"
         }
       ]
     },
     "views": {
-      "stateViewContainer": [
+      "PMC-VisViewContainer": [
+        {
+          "id": "connectionView",
+          "name": "PMC-Vis Projects"
+        },
         {
           "id": "stateView",
           "name": "State Details"
@@ -73,9 +95,30 @@
       {
         "command": "pmcVis.moveTo",
         "title": "moves window to selected line"
+      },
+      {
+        "command": "connectionView.connect",
+        "title": "Connect to new Project",
+        "icon": "$(diff-insert)"
+      },
+      {
+        "command": "connectionView.upload",
+        "title": "Upload Current File to PMC-Vis",
+        "icon": "$(file-add)"
+      },
+      {
+        "command": "connectionView.front",
+        "title": "Upload Current File to PMC-Vis",
+        "icon": "$(debug-start)"
       }
     ],
     "menus": {
+      "view/title": [
+        {
+          "command": "connectionView.connect",
+          "group": "navigation"
+        }
+      ],
       "view/item/context": [
         {
           "command": "stateView.select",
@@ -95,6 +138,16 @@
         {
           "command": "stateView.unselect",
           "when": "view == stateView && viewItem == State",
+          "group": "inline"
+        },
+        {
+          "command": "connectionView.upload",
+          "when": "view == connectionView",
+          "group": "inline"
+        },
+        {
+          "command": "connectionView.front",
+          "when": "view == connectionView",
           "group": "inline"
         }
       ]
@@ -118,13 +171,13 @@
     "test": "vscode-test"
   },
   "devDependencies": {
+    "@types/vscode": "^1.98.0",
     "@types/mocha": "^10.0.6",
     "@types/node": "18.x",
-    "@types/vscode": "^1.85.0",
-    "@vscode/test-cli": "^0.0.4",
-    "@vscode/test-electron": "^2.3.8",
     "eslint": "^8.54.0",
-    "typescript": "^5.3.2"
+    "typescript": "^5.3.2",
+    "@vscode/test-cli": "^0.0.4",
+    "@vscode/test-electron": "^2.3.8"
   },
   "dependencies": {
     "cors": "^2.8.5",
