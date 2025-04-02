@@ -149,7 +149,7 @@ async function expandGraph(cy, nodes, onLayoutStopFn) {
     nodes: data.nodes
       .map(d => ({
         group: 'nodes',
-        data: d,
+        data: setNeedsHTML(d),
         // position: node.position()
         // WARNING: setting this prop makes nodes immutable, possible bug with cytoscape
       }))
@@ -204,7 +204,18 @@ async function expandGraph(cy, nodes, onLayoutStopFn) {
   updatePanes(panes);
 }
 
-function initHTML(cy) {
+function setNeedsHTML(d) {
+  // allows checking for 'node[needsHTML = "true"]' to not create empty divs per node
+  const aps = d.details[CONSTANTS.atomicPropositions];
+  d.needsHTML = '' + (aps && (
+    aps[CONSTANTS.ap_init]
+    || aps[CONSTANTS.ap_deadlock]
+    || aps[CONSTANTS.ap_end]
+  ));
+  return d;
+}
+
+const initHTML = _.debounce((cy) =>{
   const html = document.getElementById(cy.container().id);
 
   Array.from(html.childNodes[0].childNodes).forEach((d, i) => {
@@ -229,14 +240,10 @@ function initHTML(cy) {
     events[ap]();
   };
 
-  function apsfn(data, padding) {
+  function apsfn(cy, data, padding) {
     const aps = data.details[CONSTANTS.atomicPropositions];
 
-    if (!(aps[CONSTANTS.ap_init] || aps[CONSTANTS.ap_deadlock] || aps[CONSTANTS.ap_end])) {
-      return;
-    }
-
-    return `<div style="position: relative; padding-top:${padding}px" id="${cy.htmlID}">
+    return `<div style="position: relative; padding-top:${padding}px" id="${cy.paneId}-${data.id}">
       ${aps[CONSTANTS.ap_init]
         ? `<a onclick="selectAP('${CONSTANTS.ap_init}')" title="${CONSTANTS
           .INTERACTIONS
@@ -272,25 +279,25 @@ function initHTML(cy) {
 
   cy.nodeHtmlLabel([
     {
-      query: '.s',
+      query: 'node[needsHTML = "true"].s',
       tpl(data) {
-        return apsfn(data, 36.5);
+        return apsfn(cy, data, 36.5);
       },
     },
     {
-      query: '.s:selected',
+      query: 'node[needsHTML = "true"].s:selected',
       tpl(data) {
-        return apsfn(data, 45);
+        return apsfn(cy, data, 45);
       },
     },
   ], { enablePointerEvents: true });
-}
+}, 50);
 
 // inits cy with graph data on a pane
 function spawnGraph(pane, data, params, vars = {}) {
   const elements = {
-    nodes: data.nodes.map(d => ({ data: d.data ? d.data : d })),
-    edges: data.edges.map(d => ({ data: d.data ? d.data : d })),
+    nodes: data.nodes.map(d => ({ data: setNeedsHTML(d) })),
+    edges: data.edges.map(d => ({ data: setNeedsHTML(d) })),
   };
 
   const cytoscapeInit = {
@@ -445,7 +452,7 @@ async function fetchAndSpawn(cy, nodes) {
     });
     vars = structuredClone(varsValues);
   }
-  spawnGraph(pane, data, structuredClone(cy.params), vars, nodes);
+  spawnGraph(pane, data, structuredClone(cy.params), vars);
 }
 
 async function expandBestPath(cy, allSources) {
