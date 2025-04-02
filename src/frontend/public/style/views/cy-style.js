@@ -74,6 +74,7 @@ const stylesheet = [
       'border-width': outlines.width,
       'border-color': colors.NODE_COLOR,
       'text-outline-opacity': 0,
+      'bounds-expansion': '20px',
     },
   },
   {
@@ -81,7 +82,6 @@ const stylesheet = [
     style: {
       'background-image': '/style/icons/badge-green.svg',
       'background-image-containment': 'over',
-      'bounds-expansion': '20px',
       'background-clip': 'none',
       'background-height': badges.height,
       'background-width': badges.width,

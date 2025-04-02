@@ -44,9 +44,28 @@ const CONSTANTS = {
     // ctrl+z: undo
     // ctrl+y: redo
     // ctrl+a: select all nodes
+
     // ctrl+i: select initial states
+    ap_init: {
+      name: 'Select Initial States',
+      icon: 'fa-regular fa-circle-play',
+      description: 'Selects initial states on the current pane, if any exist. This is based on the atomic proposition "init".',
+      keyboard: 'Ctrl+I',
+    },
     // ctrl+d: select deadlock states
+    ap_deadlock: {
+      name: 'Select Deadlock States',
+      icon: 'fa-solid fa-rotate-left',
+      description: 'Selects deadlock states on the current pane, if any exist. This is based on the atomic proposition "deadlock".',
+      keyboard: 'Ctrl+D',
+    },
     // ctrl+e: select end states
+    ap_end: {
+      name: 'Select End States',
+      icon: 'fa-solid fa-flag-checkered',
+      description: 'Selects end states on the current pane, if any exist. This is based on the atomic proposition "finished".',
+      keyboard: 'Ctrl+E',
+    },
 
     // ideas:
     // ctrl+n: new (empty) pane

@@ -238,16 +238,34 @@ function initHTML(cy) {
 
     return `<div style="position: relative; padding-top:${padding}px" id="${cy.htmlID}">
       ${aps[CONSTANTS.ap_init]
-        ? `<a onclick="selectAP('${CONSTANTS.ap_init}')" title="Select all initial states">
-          <i class="fa-xs fa-regular fa-circle-play"></i>
+        ? `<a onclick="selectAP('${CONSTANTS.ap_init}')" title="${CONSTANTS
+          .INTERACTIONS
+          .ap_initial
+          .name} \t (${CONSTANTS
+          .INTERACTIONS
+          .ap_initial
+          .keyboard})">
+          <i class="fa-xs ${CONSTANTS.INTERACTIONS.ap_initial.icon}"></i>
         </a>` : ''}
       ${aps[CONSTANTS.ap_deadlock]
-        ? `<a onclick="selectAP('${CONSTANTS.ap_deadlock}')" title="Select all deadlocks">
-          <i class="fa-xs fa-solid fa-rotate-left"></i>
+        ? `<a onclick="selectAP('${CONSTANTS.ap_deadlock}')" title="${CONSTANTS
+          .INTERACTIONS
+          .ap_deadlock
+          .name} \t (${CONSTANTS
+          .INTERACTIONS
+          .ap_deadlock
+          .keyboard})">
+          <i class="fa-xs ${CONSTANTS.INTERACTIONS.ap_deadlock.icon}"></i>
         </a>` : ''}
       ${aps[CONSTANTS.ap_end]
-        ? `<a onclick="selectAP('${CONSTANTS.ap_end}')" title="Select all end states">
-        <i class="fa-xs fa-solid fa-flag-checkered"></i>
+        ? `<a onclick="selectAP('${CONSTANTS.ap_end}')" title="${CONSTANTS
+          .INTERACTIONS
+          .ap_end
+          .name} \t (${CONSTANTS
+          .INTERACTIONS
+          .ap_end
+          .keyboard})">
+          <i class="fa-xs ${CONSTANTS.INTERACTIONS.ap_end.icon}"></i>
         </a>` : ''}
     </div>`;
   }
