@@ -33,12 +33,12 @@ const selections = {
     // opacity: 1,
   },
   secondary: {
+    width: '10px',
+    height: '10px',
     'border-color': colors.SECONDARY_SELECTION,
     'border-width': outlines.width_selected,
     'border-style': 'solid',
     'border-position': 'center',
-    width: '10px',
-    height: '10px',
     // opacity: 1,
   },
 };
@@ -56,6 +56,10 @@ const stylesheet = [
     selector: 'node.s',
     style: {
       label: 'data(id)',
+      color: colors.LIGHT_TEXT,
+      shape: 'rectangle',
+      height: 20,
+      width: 50,
       'font-size': 10,
       'font-family': 'monospace',
       'text-valign': 'center',
@@ -64,12 +68,8 @@ const stylesheet = [
       'background-color': colors.NODE_COLOR,
       'text-outline-color': colors.NODE_COLOR,
       'text-outline-width': '2px',
-      color: colors.LIGHT_TEXT,
       'overlay-padding': '6px',
       'z-index': '10',
-      shape: 'rectangle',
-      height: 20,
-      width: 50,
       'background-opacity': 1,
       'border-width': outlines.width,
       'border-color': colors.NODE_COLOR,
@@ -90,6 +90,12 @@ const stylesheet = [
     },
   },
   {
+    selector: 'node.s.marked:selected',
+    style: {
+      'background-position-y': badges.y_s,
+    },
+  },
+  {
     selector: 'node.t',
     style: {
       height: '5px',
@@ -101,8 +107,8 @@ const stylesheet = [
   {
     selector: 'node.s[[outdegree > 0]]', // expanded node
     style: {
-      'background-opacity': 0,
       color: colors.DARK_TEXT,
+      'background-opacity': 0,
       'border-color': colors.NODE_COLOR,
     },
   },
@@ -126,16 +132,11 @@ const stylesheet = [
     selector: 'edge',
     style: {
       label: 'data(label)',
-      'font-size': 8,
       color: colors.NODE_COLOR,
-      'curve-style': 'bezier', // taxi
       width: 1.5,
-      // 'arrow-scale': 0.8
+      'font-size': 8,
+      'curve-style': 'bezier', // taxi
       'target-arrow-shape': 'triangle',
-      // 'text-outline-color' : colors.NODE_COLOR,
-      // 'text-outline-opacity' : 1,
-      // 'text-outline-width' : 0.8,
-
       'line-color': colors.EDGE_COLOR,
       'target-arrow-color': colors.EDGE_COLOR,
       'line-style': 'dashed',
@@ -178,16 +179,11 @@ const overviewStylesheet = [
     selector: 'edge',
     style: {
       label: 'data(label)',
-      'font-size': 8,
       color: colors.NODE_COLOR,
-      'curve-style': 'bezier', // taxi
       width: 1.5,
-      // 'arrow-scale': 0.8
+      'font-size': 8,
+      'curve-style': 'bezier',
       'target-arrow-shape': 'triangle',
-      // 'text-outline-color' : colors.NODE_COLOR,
-      // 'text-outline-opacity' : 1,
-      // 'text-outline-width' : 0.8,
-
       'line-color': colors.EDGE_COLOR,
       'target-arrow-color': colors.EDGE_COLOR,
       'line-style': 'dashed',
