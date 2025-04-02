@@ -10,7 +10,7 @@
     "Other"
   ],
   "activationEvents": [],
-  "main": "./extension.js",
+  "main": "./src/main.js",
   "contributes": {
     "languages": [
       {
@@ -59,14 +59,18 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "stateViewContainer",
-          "title": "State Details",
+          "id": "PMC-VisViewContainer",
+          "title": "PMC-Vis",
           "icon": "$(checklist)"
         }
       ]
     },
     "views": {
-      "stateViewContainer": [
+      "PMC-VisViewContainer": [
+        {
+          "id": "connectionView",
+          "name": "PMC-Vis Projects"
+        },
         {
           "id": "stateView",
           "name": "State Details"
@@ -93,23 +97,26 @@
         "title": "moves window to selected line"
       },
       {
-        "command": "pmcVis.uploadModel",
-        "title": "upload"
+        "command": "connectionView.connect",
+        "title": "Connect to new Project",
+        "icon": "$(diff-insert)"
       },
       {
-        "command": "pmcVis.uploadProperty",
-        "title": "upload"
+        "command": "connectionView.upload",
+        "title": "Upload Current File to PMC-Vis",
+        "icon": "$(file-add)"
+      },
+      {
+        "command": "connectionView.front",
+        "title": "Upload Current File to PMC-Vis",
+        "icon": "$(debug-start)"
       }
     ],
     "menus": {
-      "commandPalette": [
+      "view/title": [
         {
-          "command": "pmcVis.uploadModel",
-          "when": "editorLangId == mdp"
-        },
-        {
-          "command": "pmcVis.uploadProperty",
-          "when": "editorLangId == props"
+          "command": "connectionView.connect",
+          "group": "navigation"
         }
       ],
       "view/item/context": [
@@ -131,6 +138,16 @@
         {
           "command": "stateView.unselect",
           "when": "view == stateView && viewItem == State",
+          "group": "inline"
+        },
+        {
+          "command": "connectionView.upload",
+          "when": "view == connectionView",
+          "group": "inline"
+        },
+        {
+          "command": "connectionView.front",
+          "when": "view == connectionView",
           "group": "inline"
         }
       ]

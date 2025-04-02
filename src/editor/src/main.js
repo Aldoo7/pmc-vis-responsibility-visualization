@@ -3,18 +3,20 @@
 const vscode = require('vscode');
 
 //Semantic tokenizer
-const token = require("./src/tokens.js");
+const token = require("./tokens.js");
 
 //Basic internal server setup
 const express = require('express');
 const cors = require('cors');
-const { StateProvider } = require('./src/stateView.js');
+const { StateProvider } = require('./stateView.js');
+const { ConnectionViewProvider, ConnectionItem } = require('./connectionView.js');
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 const port = 3001;
 
 let activeStateProvider;
+let connectionProvider;
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -22,9 +24,6 @@ let activeStateProvider;
  * @param {vscode.ExtensionContext} context
  */
 function activate(context) {
-	context.subscriptions.push(vscode.commands.registerCommand('pmcVis.uploadModel', () => uploadFile("upload-model")));
-	context.subscriptions.push(vscode.commands.registerCommand('pmcVis.uploadProperty', () => uploadFile("upload-properties")));
-
 	context.subscriptions.push(vscode.languages.registerDocumentSemanticTokensProvider({ language: 'mdp' }, new token.DocumentSemanticTokensProvider(), token.tokenLegend));
 
 	//Start an internal server to listen to pmc-vis
@@ -45,6 +44,7 @@ function activate(context) {
 
 	let activeEditor = vscode.window.activeTextEditor;
 	activeStateProvider = new StateProvider(activeEditor);
+	connectionProvider = new ConnectionViewProvider();
 
 	//register All commands using global variables initialized in openDocument()
 	context.subscriptions.push(vscode.window.registerTreeDataProvider("stateView", activeStateProvider));
@@ -53,6 +53,12 @@ function activate(context) {
 	context.subscriptions.push(vscode.commands.registerCommand('stateView.select', item => activeStateProvider.selectState(item)));
 	context.subscriptions.push(vscode.commands.registerCommand('stateView.unselect', item => activeStateProvider.unselectState(item)));
 	context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(openDocument));
+	//Commands for backend communication
+	context.subscriptions.push(vscode.window.registerTreeDataProvider("connectionView", connectionProvider));
+	context.subscriptions.push(vscode.commands.registerCommand('connectionView.connect', () => connectionProvider.addProject()))
+	context.subscriptions.push(vscode.commands.registerCommand('connectionView.upload', item => connectionProvider.uploadFile(item)));
+	context.subscriptions.push(vscode.commands.registerCommand('connectionView.front', item => connectionProvider.openFrontend(item)));
+
 }
 
 function openDocument() {
@@ -90,34 +96,6 @@ function moveTo(line) {
 	let activeEditor = vscode.window.activeTextEditor;
 	if (activeEditor) {
 		activeEditor.revealRange(new vscode.Range(line, 0, line + 10, 0), vscode.TextEditorRevealType.InCenter);
-	}
-}
-
-async function uploadFile(call) {
-
-	const id = await vscode.window.showInputBox();
-	if (!id) {
-		return;
-	}
-
-	let activeEditor = vscode.window.activeTextEditor;
-	if (activeEditor) {
-		var data = new FormData();
-		const path = activeEditor.document.uri.path
-		const fileName = path.split('\\').pop().split('/').pop();
-		const fileContent = activeEditor.document.getText();
-		const blob = new Blob([fileContent], { type: 'text/plain' });
-
-		data.append('file', blob, fileName);
-
-		await fetch(`http://localhost:8080/${id}/${call}`, { // Your POST endpoint
-			method: 'POST',
-			body: data // This is your file object
-		}).then(
-			success => console.log(success) // Handle the success response object
-		).catch(
-			error => console.log(error) // Handle the error response object
-		);
 	}
 }
 
