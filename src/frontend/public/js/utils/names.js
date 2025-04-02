@@ -5,7 +5,7 @@ const CONSTANTS = {
 
   ap_init: 'init',
   ap_deadlock: 'deadlock',
-  ap_end: 'end',
+  ap_end: 'finished',
 
   metadata: 'metadata',
 

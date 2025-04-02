@@ -406,7 +406,7 @@ async function status() {
 async function triggerModelCheckProperty(e, propType, props) {
   e.target.className = spinningIcon;
   props.forEach((p) => {
-    document.getElementById(`trigger-button-${propType}-${p}`).className =      spinningIcon;
+    document.getElementById(`trigger-button-${propType}-${p}`).className = spinningIcon;
   });
 
   fetch(
@@ -444,7 +444,7 @@ async function clear() {
 }
 
 function makeDetailCheckboxes() {
-  const $param =    document.getElementById('props-checkboxes')
+  const $param = document.getElementById('props-checkboxes')
     || h('div', {
       class: 'param',
       id: 'props-checkboxes',
@@ -477,10 +477,10 @@ function makeDetailCheckboxes() {
 
   Object.keys(options).forEach((k) => {
     const statuses = Object.values(options[k].metadata).map((a) => a.status);
-    const ready =      k !== CONSTANTS.results
+    const ready = k !== CONSTANTS.results
       || statuses.filter((a) => a === CONSTANTS.STATUS.ready).length
         === statuses.length;
-    const computing =      statuses.filter((a) => a === CONSTANTS.STATUS.computing).length
+    const computing = statuses.filter((a) => a === CONSTANTS.STATUS.computing).length
       === statuses.length;
 
     const $button = h('i', {
@@ -516,7 +516,7 @@ function makeDetailCheckboxes() {
 
     $toggle.addEventListener('change', (e) => {
       Object.keys(options[k].props).forEach((p) => {
-        document.getElementById(`checkbox-${k}-${p}`).checked =          e.target.checked;
+        document.getElementById(`checkbox-${k}-${p}`).checked = e.target.checked;
       });
       pane.cy.vars['details'].fn(pane.cy, {
         update: updatePropsValues(),
@@ -559,7 +559,7 @@ function makeDetailPropsCheckboxes(options, propType) {
       value: propName,
     });
 
-    const html =      meta[propName] && meta[propName].identifier
+    const html = meta[propName] && meta[propName].identifier
       ? [
         meta[propName].icon
           ? h('i', {
@@ -570,7 +570,7 @@ function makeDetailPropsCheckboxes(options, propType) {
       ]
       : [t(propName)];
 
-    const which =      propType !== CONSTANTS.results
+    const which = propType !== CONSTANTS.results
       || options.metadata[propName].status === CONSTANTS.STATUS.ready;
     const $div = h(
       'div',

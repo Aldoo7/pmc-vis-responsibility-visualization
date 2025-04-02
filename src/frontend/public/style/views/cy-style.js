@@ -29,12 +29,14 @@ const selections = {
     'border-color': colors.SELECTED_BORDER,
     'border-width': outlines.width_selected,
     'border-style': 'double',
+    'border-position': 'center',
     // opacity: 1,
   },
   secondary: {
     'border-color': colors.SECONDARY_SELECTION,
     'border-width': outlines.width_selected,
-    'border-style': 'double',
+    'border-style': 'solid',
+    'border-position': 'center',
     width: '10px',
     height: '10px',
     // opacity: 1,
@@ -72,14 +74,6 @@ const stylesheet = [
       'border-width': outlines.width,
       'border-color': colors.NODE_COLOR,
       'text-outline-opacity': 0,
-      'background-image': badges.deadlock,
-      'background-image-containment': 'over',
-      'bounds-expansion': '20px',
-      'background-clip': 'none',
-      'background-height': badges.height,
-      'background-width': badges.width,
-      'background-position-x': badges.x,
-      'background-position-y': badges.y,
     },
   },
   {
@@ -105,20 +99,20 @@ const stylesheet = [
     },
   },
   {
-    selector: 'node.s:selected',
-    style: selections.primary,
-  },
-  {
-    selector: 'node.t:selected',
-    style: selections.secondary,
-  },
-  {
     selector: 'node.s[[outdegree > 0]]', // expanded node
     style: {
       'background-opacity': 0,
       color: colors.DARK_TEXT,
       'border-color': colors.NODE_COLOR,
     },
+  },
+  {
+    selector: 'node.s:selected',
+    style: selections.primary,
+  },
+  {
+    selector: 'node.t:selected',
+    style: selections.secondary,
   },
   {
     selector: 'node.recurring',

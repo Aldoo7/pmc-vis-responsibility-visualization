@@ -217,7 +217,7 @@ function resizeSplit(div, pheight, save = true) {
 
   div.style.height = _height + 'px';
 
-  panes[div.parentElement.id].split =    1 - _height / panes[div.parentElement.id].height;
+  panes[div.parentElement.id].split = 1 - _height / panes[div.parentElement.id].height;
 }
 
 function togglePane(div) {
@@ -481,7 +481,7 @@ function updateDocDims() {
     window.getComputedStyle(document.body).getPropertyValue('--nav-height'),
   );
 
-  height =    -navHeight
+  height = -navHeight
     + (window.innerHeight
       || document.documentElement.clientHeight
       || document.body.clientHeight);
@@ -498,8 +498,8 @@ addEventListener('resize', () => {
     panes[pane].height = height;
     const container = document.getElementById(panes[pane].id);
     container.style.height = height + 'px';
-    document.getElementById(panes[pane].container).style.height =      height * (1 - panes[pane].split) + 'px';
-    document.getElementById(panes[pane].details).style.height =      height * panes[pane].split + 'px';
+    document.getElementById(panes[pane].container).style.height = height * (1 - panes[pane].split) + 'px';
+    document.getElementById(panes[pane].details).style.height = height * panes[pane].split + 'px';
   });
 });
 
@@ -616,7 +616,7 @@ document.getElementById('export-strat')?.addEventListener('click', () => {
   paneData.elements.nodes = Array.from(returnable.nodes.values());
   paneData.elements.edges = Array.from(returnable.edges.values());
 
-  const dataStr =    'data:text/json;charset=utf-8,'
+  const dataStr = 'data:text/json;charset=utf-8,'
     + encodeURIComponent(JSON.stringify(paneData));
   const dl = document.getElementById('download');
   dl.setAttribute('href', dataStr);

@@ -1,7 +1,6 @@
 import { info } from '../../main/main.js';
 import {
   colors,
-  selections,
   stylesheet,
 } from '../../../style/views/cy-style.js';
 import {
@@ -82,7 +81,7 @@ function setStyles(cy) {
       if (source && source.startsWith('t_')) {
         const node = cy.elementMapper.nodes.get(source);
         if (node && node.data.scheduler) {
-          const nodeSchedulerValue =            node.data.scheduler[cy.vars['scheduler'].value];
+          const nodeSchedulerValue = node.data.scheduler[cy.vars['scheduler'].value];
           return nodeSchedulerValue > 0;
         }
 
@@ -92,7 +91,7 @@ function setStyles(cy) {
       if (target && target.startsWith('t_')) {
         const node = cy.elementMapper.nodes.get(target);
         if (node && node.data.scheduler) {
-          const nodeSchedulerValue =            node.data.scheduler[cy.vars['scheduler'].value];
+          const nodeSchedulerValue = node.data.scheduler[cy.vars['scheduler'].value];
           return nodeSchedulerValue > 0;
         }
 
@@ -136,7 +135,9 @@ async function renewInfo(cy) {
 }
 
 // requests outgoing edges from a selection of nodes and adds them to the graph
-async function graphExpand(cy, nodes, onLayoutStopFn) {
+async function expandGraph(cy, nodes, onLayoutStopFn) {
+  if (!nodes.length) return;
+
   const res = await fetch(
     BACKEND
       + PROJECT
@@ -190,10 +191,9 @@ async function graphExpand(cy, nodes, onLayoutStopFn) {
   const layout = cy.layout(cy.params);
   layout.pon('layoutstop').then(onLayoutStopFn);
   layout.run();
-
   bindListeners(cy);
   setStyles(cy);
-  // initHTML(cy);
+  initHTML(cy);
 
   const nodesIds = data.nodes
     .map((node) => node.id)
@@ -202,6 +202,70 @@ async function graphExpand(cy, nodes, onLayoutStopFn) {
   const panes = getPanes();
   panes[cy.paneId].nodesIds = new Set([...(panes[cy.paneId].nodesIds || []), ...nodesIds]);
   updatePanes(panes);
+}
+
+function initHTML(cy) {
+  const html = document.getElementById(cy.container().id);
+
+  Array.from(html.childNodes[0].childNodes).forEach((d, i) => {
+    // the html layer lives here, remove it before creating a new one
+    i > 2 && d.remove();
+  });
+
+  window.selectAP = (ap) => {
+    const events = {};
+    events[CONSTANTS.ap_init] = () => document
+      .dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'i', ctrlKey: true, keyCode: 73 }),
+      );
+    events[CONSTANTS.ap_deadlock] = () => document
+      .dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'd', ctrlKey: true, keyCode: 68 }),
+      );
+    events[CONSTANTS.ap_end] = () => document
+      .dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'e', ctrlKey: true, keyCode: 69 }),
+      );
+    events[ap]();
+  };
+
+  function apsfn(data, padding) {
+    const aps = data.details[CONSTANTS.atomicPropositions];
+
+    if (!(aps[CONSTANTS.ap_init] || aps[CONSTANTS.ap_deadlock] || aps[CONSTANTS.ap_end])) {
+      return;
+    }
+
+    return `<div style="position: relative; padding-top:${padding}px" id="${cy.htmlID}">
+      ${aps[CONSTANTS.ap_init]
+        ? `<a onclick="selectAP('${CONSTANTS.ap_init}')" title="Select all initial states">
+          <i class="fa-xs fa-regular fa-circle-play"></i>
+        </a>` : ''}
+      ${aps[CONSTANTS.ap_deadlock]
+        ? `<a onclick="selectAP('${CONSTANTS.ap_deadlock}')" title="Select all deadlocks">
+          <i class="fa-xs fa-solid fa-rotate-left"></i>
+        </a>` : ''}
+      ${aps[CONSTANTS.ap_end]
+        ? `<a onclick="selectAP('${CONSTANTS.ap_end}')" title="Select all end states">
+        <i class="fa-xs fa-solid fa-flag-checkered"></i>
+        </a>` : ''}
+    </div>`;
+  }
+
+  cy.nodeHtmlLabel([
+    {
+      query: '.s',
+      tpl(data) {
+        return apsfn(data, 36.5);
+      },
+    },
+    {
+      query: '.s:selected',
+      tpl(data) {
+        return apsfn(data, 45);
+      },
+    },
+  ], { enablePointerEvents: true });
 }
 
 // inits cy with graph data on a pane
@@ -250,6 +314,7 @@ function spawnGraph(pane, data, params, vars = {}) {
     setStyles(cy);
     bindListeners(cy);
     setPane(pane.id, { make: true });
+    initHTML(cy);
     cy.endBatch();
 
     initControls(cy);
@@ -323,6 +388,8 @@ function spawnGraphOnNewPane(cy, nodes) {
 }
 
 async function fetchAndSpawn(cy, nodes) {
+  if (!nodes.length) return;
+
   const res = await fetch(
     BACKEND
       + PROJECT
@@ -370,7 +437,7 @@ async function expandBestPath(cy, allSources) {
 
   // open everything, as there is no decider / DOI / scheduler
   if (cy.vars['scheduler'].value === '_none_') {
-    await graphExpand(cy, sources, () => {
+    await expandGraph(cy, sources, () => {
       const ids = sources.map(src => getNextInPath(cy, src.data().id).next).flat();
       const nexts = cy.nodes('#' + ids.join(', #'));
       iteration += 1;
@@ -380,7 +447,7 @@ async function expandBestPath(cy, allSources) {
       }
     });
   } else { // follow only the "best" path according to DOI/scheduler
-    await graphExpand(cy, sources, () => {
+    await expandGraph(cy, sources, () => {
       const ids = sources.map(src => getNextBestInPath(cy, src.data().id).bestNext);
       const nextBests = cy.nodes('#' + ids.join(', #'));
       iteration += 1;
@@ -410,7 +477,7 @@ function getNextBestInPath(cy, sourceNodeId) {
     if (target && target.startsWith('t_')) {
       const node = cy.elementMapper.nodes.get(target);
       if (node && node.data.scheduler && source === sourceNodeId) {
-        const nodeSchedulerValue =          node.data.scheduler[cy.vars['scheduler'].value];
+        const nodeSchedulerValue = node.data.scheduler[cy.vars['scheduler'].value];
         if (nodeSchedulerValue >= bestValue) {
           bestValue = nodeSchedulerValue;
           bestNext = target;
@@ -428,7 +495,7 @@ function getNextBestInPath(cy, sourceNodeId) {
     if (source && source.startsWith('t_') && source === tId) {
       const node = cy.elementMapper.nodes.get(source);
       if (node && node.data.scheduler) {
-        const nodeSchedulerValue =          node.data.scheduler[cy.vars['scheduler'].value];
+        const nodeSchedulerValue = node.data.scheduler[cy.vars['scheduler'].value];
         if (nodeSchedulerValue >= bestValue) {
           bestValue = nodeSchedulerValue;
           bestNext = target;
@@ -535,6 +602,7 @@ function unbindListeners(cy) {
 
 function bindListeners(cy) {
   unbindListeners(cy);
+  cy.edges().unselectify();
 
   // new listeners
   cy.on('tap', (e) => {
@@ -583,6 +651,7 @@ function bindListeners(cy) {
     if (cy.keyboard?.shiftKey && e.target.selected()) {
       e.target.unselect();
       e.target.unselectify();
+      cy.pendingSelectify = true;
     };
   });
 
@@ -590,14 +659,15 @@ function bindListeners(cy) {
   cy.on('tap', (e) => {
     if (e.target === cy) { // background
       cy.nodes().unselectify();
+      cy.pendingSelectify = true;
     } else {
-      cy.nodes().selectify();
+      selectifyByMode(cy);
     }
   });
 
   // re-enable selections after the previous check happened
   cy.on('dbltap mousemove', () => {
-    cy.nodes().selectify();
+    cy.pendingSelectify &&= (selectifyByMode(cy) && false);
   });
 
   cy.on('select boxselect', 'node.s', (e) => {
@@ -652,7 +722,7 @@ function bindListeners(cy) {
     ) {
       spawnGraphOnNewPane(cy, [n.data()]);
     } else {
-      graphExpand(cy, [n]);
+      expandGraph(cy, [n]);
     }
   });
 
@@ -667,32 +737,31 @@ function bindListeners(cy) {
   });
 }
 
+function selectifyByMode(cy) {
+  cy.nodes().selectify();
+
+  const mode = cy.vars['mode'].value;
+  if (mode === 's') {
+    cy.$('node.t').unselectify();
+  } else if (mode === 't') {
+    cy.$('node.s').unselectify();
+  }
+}
+
 // functions called from other to set variables (see setPublicVars below)
 function setSelectMode(cy, mode = 's') {
   cy.vars['mode'].value = mode;
-
   cy.startBatch();
+  cy.nodes().unselect();
   // adjust selection styles
   if (mode === 's') { // states
-    cy.style().selector('core').css({
-      'selection-box-color': colors.SELECTED_NODE_COLOR,
-    });
-    cy.style().selector('node.t:selected').css({
-      opacity: '0.5',
-      'border-color': colors.SECONDARY_NODE_COLOR,
-    });
-    cy.style().selector('node.s:selected').css(selections.primary);
+    cy.style().selector('core').css({ 'selection-box-color': colors.SELECTED_NODE_COLOR });
+    cy.$('node.t').unselectify();
   } else if (mode === 't') { // actions / transitions
     cy.style().selector('core').css({ 'selection-box-color': colors.SECONDARY_SELECTION });
-    cy.style().selector('node.s:selected').css({
-      opacity: '0.5',
-      'border-color': colors.NODE_COLOR,
-    });
-    cy.style().selector('node.t:selected').css(selections.secondary);
+    cy.$('node.s').unselectify();
   } else if (mode === 's+t') { // both
     cy.style().selector('core').css({ 'selection-box-color': colors.DUAL_SELECTION });
-    cy.style().selector('node.s:selected').css(selections.primary);
-    cy.style().selector('node.t:selected').css(selections.secondary);
   }
 
   cy.style().update();
@@ -782,14 +851,12 @@ function toggleFullSync(cy, prop) {
 }
 
 function selectBasedOnAP(cy, e, ap) {
-  e.preventDefault();
+  e && e.preventDefault();
 
   if (info.metadata.initial !== '#') {
     cy.nodes().deselect();
     const states = cy.nodes('.s')
-      .filter(d => d.data()
-        .details[CONSTANTS.atomicPropositions][ap]
-        ?.value === true);
+      .filter(d => d.data().details[CONSTANTS.atomicPropositions][ap]);
 
     if (states.length > 0) {
       states.select();
@@ -1339,9 +1406,9 @@ function initControls(cy) {
   document.getElementById(`${cy.paneId}-expand1`).addEventListener('click', (e) => {
     const modifier = (e.ctrlKey || e.altKey);
     if (modifier) {
-      spawnGraphOnNewPane(cy, cy.$('node:selected').map(n => n.data()));
+      spawnGraphOnNewPane(cy, cy.$('node.s:selected').map(n => n.data()));
     } else {
-      graphExpand(cy, cy.$('node:selected'));
+      expandGraph(cy, cy.$('node.s:selected'));
     }
     document.activeElement.blur();
   });
@@ -1373,7 +1440,7 @@ function ctxmenu(cy) {
         onClickFunction: () => {
           setPane(cy.paneId);
           hideAllTippies();
-          graphExpand(cy, cy.$('node:selected'));
+          expandGraph(cy, cy.$('node.s:selected'));
         },
         hasTrailingDivider: false,
       },
@@ -1443,7 +1510,7 @@ function ctxmenu(cy) {
         id: 'mark-recurring-node-pane',
         content: 'Mark recurring pane-nodes',
         tooltipText: 'Mark pane-nodes that include this node',
-        selector: 'node:selected',
+        selector: 'node.s:selected',
         onClickFunction: (event) => {
           const target = event.target || event.cyTarget;
           const nodeId = target.data().id;
@@ -1575,7 +1642,7 @@ function keyboardShortcuts(cy, e) {
   cy.keyboard = e;
   const modifier = (e.ctrlKey || e.altKey);
 
-  cy.nodes().selectify();
+  selectifyByMode(cy);
 
   // ctrl+z: undo
   if (e.keyCode === 90 && modifier) {
@@ -1675,9 +1742,9 @@ function keyboardShortcuts(cy, e) {
   // enter, ctrl+enter
   if (e.key === 'Enter' || e.keyCode === 13) {
     if (modifier) {
-      spawnGraphOnNewPane(cy, cy.$('node:selected').map(n => n.data()));
+      spawnGraphOnNewPane(cy, cy.$('node.s:selected').map(n => n.data()));
     } else {
-      graphExpand(cy, cy.$('node:selected'));
+      expandGraph(cy, cy.$('node.s:selected'));
     }
   }
 }

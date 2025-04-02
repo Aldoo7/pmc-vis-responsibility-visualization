@@ -154,10 +154,10 @@ function parallelCoords(pane, data, metadata) {
     foreground.globalAlpha = 0.5;
     foreground.lineWidth = 1;
 
-    background.strokeStyle =      getComputedStyle(div).getPropertyValue('--pcp-bg-stroke');
+    background.strokeStyle = getComputedStyle(div).getPropertyValue('--pcp-bg-stroke');
     background.globalAlpha = 0.1;
 
-    highlight.strokeStyle =      getComputedStyle(div).getPropertyValue('--pcp-hover-stroke');
+    highlight.strokeStyle = getComputedStyle(div).getPropertyValue('--pcp-hover-stroke');
     highlight.lineWidth = 3;
     highlight.globalAlpha = 1;
 
@@ -273,7 +273,7 @@ function parallelCoords(pane, data, metadata) {
 
     function checkIfActive(point) {
       return Array.from(selections).every(([key, [min, max]]) => {
-        const val =          metadata.pld[key].type === 'number'
+        const val = metadata.pld[key].type === 'number'
           ? point[key]
           : resp.axes[key].mapping[point[key]];
         return val >= Math.min(min, max) && val <= Math.max(min, max);
@@ -392,7 +392,7 @@ function parallelCoords(pane, data, metadata) {
       data.map((point) => {
         const active = checkIfActive(point);
         if (point[dim] !== undefined) {
-          const val =            metadata.pld[dim].type === 'number'
+          const val = metadata.pld[dim].type === 'number'
             ? point[dim]
             : resp.axes[dim].mapping[point[dim]];
           if (
