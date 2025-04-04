@@ -9,7 +9,9 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onFileSystem:virtual"
+  ],
   "main": "./src/main.js",
   "contributes": {
     "languages": [
@@ -108,8 +110,12 @@
       },
       {
         "command": "connectionView.front",
-        "title": "Upload Current File to PMC-Vis",
+        "title": "Open Graph-View in Browser",
         "icon": "$(debug-start)"
+      },
+      {
+        "command": "connectionView.openDocument",
+        "title": "Open Document from Backend"
       }
     ],
     "menus": {
@@ -142,12 +148,12 @@
         },
         {
           "command": "connectionView.upload",
-          "when": "view == connectionView",
+          "when": "view == connectionView && viewItem == Project",
           "group": "inline"
         },
         {
           "command": "connectionView.front",
-          "when": "view == connectionView",
+          "when": "view == connectionView && viewItem == Project",
           "group": "inline"
         }
       ]

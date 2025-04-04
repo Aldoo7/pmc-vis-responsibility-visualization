@@ -22,9 +22,7 @@ import prism.server.PRISMServerConfiguration;
 import prism.server.TaskManager;
 import simulator.TransitionList;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
+import java.io.*;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -408,6 +406,42 @@ public class Project implements Namespace{
         if (modelChecker.isBuilt()) {
             this.setBuilt(true);
         }
+    }
+
+    public List<String> getFileStructure() {
+
+        List<String> structure = new ArrayList<>();
+
+        for (File file : Objects.requireNonNull(new File(String.format("%s/%s", rootDir, id)).listFiles())) {
+            String fileName = file.getName();
+            if (!Namespace.FILES_INVISIBLE.contains(fileName)){
+                structure.add(file.getName());
+            }
+        }
+        structure.sort(String::compareTo);
+        return structure;
+    }
+
+    public Map<String, String> getFileContent(int fileID) {
+        List<String> structure = getFileStructure();
+        String fileName = getFileStructure().get(fileID);
+
+        File file = new File(String.format("%s/%s/%s", rootDir, id, fileName));
+        StringBuilder content = new StringBuilder();
+        try(BufferedReader r = new BufferedReader(new FileReader(file))){
+            while (r.ready()) {
+                content.append(r.readLine()).append("\n");
+            }
+
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        Map<String, String> map = new TreeMap<>();
+        map.put("name", fileName);
+        map.put("content", content.toString());
+        map.put("language", Namespace.getLanguage(fileName));
+        return map;
     }
 
 //    public TreeMap<String, String> modelCheckAllStatistical(long maxPathLength, String simulationMethod, boolean parallel, Optional<String> schedulerName) throws Exception {

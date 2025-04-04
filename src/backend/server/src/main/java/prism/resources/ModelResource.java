@@ -79,6 +79,7 @@ public class ModelResource extends Resource {
             @Parameter(description = "Identifier of target node that is not explored", required = true) @QueryParam("idu") List<Long> unexploredNodeIDs,
             @QueryParam("view") List<Integer> viewID
     ) {
+        refreshProject(projectID);
         return ok(tasks.getProject(projectID).resetGraph(nodeIDs, unexploredNodeIDs));
     }
 
@@ -91,6 +92,7 @@ public class ModelResource extends Resource {
             @Parameter(description = "Identifier of target node", required = true) @QueryParam("id") List<Long> nodeIDs,
             @QueryParam("view") List<Integer> viewID
     ) {
+        refreshProject(projectID);
         if (!tasks.containsProject(projectID)) return error(String.format("project %s not open", projectID));
         return ok(tasks.getProject(projectID).getOutgoing(nodeIDs, viewID));
     }
@@ -106,6 +108,33 @@ public class ModelResource extends Resource {
     ) {
         refreshProject(projectID);
         return ok(tasks.getProject(projectID).getInitialNodes(viewID));
+    }
+
+    @Path("/files")
+    @GET
+    @Timed(name="initial")
+    @Operation(summary = "Returns the project files", description = "Returns the filename of all files that are currently placed in the project")
+    public Response getFileStructure(
+            @Parameter(description = "identifier of project")
+            @PathParam("project_id") String projectID
+    ) {
+        refreshProject(projectID);
+        if (!tasks.containsProject(projectID)) return ok(new ArrayList<String>());
+        return ok(tasks.getProject(projectID).getFileStructure());
+    }
+
+    @Path("/file:{file}")
+    @GET
+    @Timed(name="initial")
+    @Operation(summary = "Returns the project files", description = "Returns the filename of all files that are currently placed in the project")
+    public Response getFileContent(
+            @Parameter(description = "identifier of project")
+            @PathParam("project_id") String projectID,
+            @Parameter(description = "id of the targeted file")
+            @PathParam("file") int fileID
+    ) {
+        refreshProject(projectID);
+        return ok(tasks.getProject(projectID).getFileContent(fileID));
     }
 
     @Path("/view:{type}")

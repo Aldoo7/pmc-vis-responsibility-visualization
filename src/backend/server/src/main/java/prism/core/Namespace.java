@@ -55,6 +55,8 @@ public interface Namespace {
 
     Set<String> FILES_RESERVED = new HashSet<>(Arrays.asList(PROJECT_MODEL, PROFEAT_MODEL, SCHEDULER_FILE, TEMP_FILE, STYLE_FILE, LOG_FILE, DATABASE_FILE, DATABASE_FILE + "-shm", DATABASE_FILE + "-wal"));
 
+    Set<String> FILES_INVISIBLE = new HashSet<>(Arrays.asList(TEMP_FILE, STYLE_FILE, LOG_FILE, DATABASE_FILE, DATABASE_FILE + "-shm", DATABASE_FILE + "-wal"));
+
     String OUTPUT_RESULTS = "Model Checking Results";
 
     String OUTPUT_VARIABLES = "Variable Values";
@@ -84,4 +86,16 @@ public interface Namespace {
     String TYPE_BLANK = "missing";
 
     String TYPE_COMP = "computing";
+
+    static String getLanguage(String filename){
+        String language = filename.substring(filename.lastIndexOf(".") + 1);
+        switch (language){
+            case "prism":
+            case "mdp":
+                return "mdp";
+            case "props":
+            default:
+                return "props";
+        }
+    }
 }
