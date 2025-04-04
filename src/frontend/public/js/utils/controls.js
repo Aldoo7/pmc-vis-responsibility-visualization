@@ -254,6 +254,7 @@ function makeParamButton(opts) {
 
 function makeParamToggle(opts) {
   const id = `checkbox-${opts.param}${opts.subParam ? opts.subParam : ''}`;
+
   const value = opts.subParam
     ? pane.cy.params[opts.param][opts.subParam]
     : pane.cy.params[opts.param];

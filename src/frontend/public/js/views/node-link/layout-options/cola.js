@@ -24,6 +24,7 @@ const params = {
   // not in controls
   padding: 30,
   nodeDimensionsIncludeLabels: true,
+  ungrabifyWhileSimulating: true,
 
   controls: [
     ...controls,

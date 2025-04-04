@@ -1,5 +1,5 @@
 import { spawnPane, getPanes } from '../views/panes/panes.js';
-import { params } from '../views/node-link/layout-options/elk.js';
+import { params } from '../views/node-link/layout-options/cola.js';
 import { spawnGraph } from '../views/node-link/node-link.js';
 import { BACKEND, PROJECT } from '../utils/controls.js';
 import events from '../utils/events.js';
@@ -31,8 +31,9 @@ if (ww && numberOfPanes) {
 }
 
 Promise.all([
-  fetch(BACKEND + PROJECT + '/status').then(r => r.json()), fetch(BACKEND + PROJECT + '/initial').then(r => r.json()),
-  // fetch(BACKEND + PROJECT).then((res) => res.json()), // requests entire dataset
+  fetch(BACKEND + PROJECT + '/status').then(r => r.json()),
+  // fetch(BACKEND + PROJECT + '/initial').then(r => r.json()),
+  fetch(BACKEND + PROJECT).then((res) => res.json()), // requests entire dataset
 ]).then((promises) => {
   const newInfo = promises[0].info;
   setInfo(newInfo);
