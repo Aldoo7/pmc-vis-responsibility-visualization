@@ -31,9 +31,8 @@ if (ww && numberOfPanes) {
 }
 
 Promise.all([
-  fetch(BACKEND + PROJECT + '/status').then(r => r.json()),
-  // fetch(BACKEND + PROJECT + '/initial').then(r => r.json()),
-  fetch(BACKEND + PROJECT).then((res) => res.json()), // requests entire dataset
+  fetch(BACKEND + PROJECT + '/status').then(r => r.json()), fetch(BACKEND + PROJECT + '/initial').then(r => r.json()),
+  // fetch(BACKEND + PROJECT).then((res) => res.json()), // requests entire dataset
 ]).then((promises) => {
   const newInfo = promises[0].info;
   setInfo(newInfo);
