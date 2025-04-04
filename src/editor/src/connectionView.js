@@ -1,5 +1,6 @@
 const vscode = require('vscode');
 
+
 class ConnectionViewProvider {
 
     constructor() {
@@ -16,12 +17,13 @@ class ConnectionViewProvider {
         }
 
         this._openProjects.push(new ConnectionItem(id));
-        this._onDidChangeTreeData.fire(undefined);
+        vscode.workspace.fs.createDirectory(vscode.Uri.parse(`virtual:/${id}`))
+        this.refresh()
     }
 
     removeProject(projectID) {
         this._openProjects = this._openProjects.filter(item => item._projectID != projectID);
-        this._onDidChangeTreeData.fire(undefined);
+        this.refresh()
     }
 
     getChildren(element) {
@@ -37,19 +39,24 @@ class ConnectionViewProvider {
     }
 
     getProject(element) {
-        return this._openProjects.find(project => element.id == project.id)
+        return this._openProjects.find(project => element.label == project.label)
     }
 
-    uploadFile(element) {
+    async refresh() {
+        await Promise.all(this._openProjects.map(async project => await project.refresh()))
+        this._onDidChangeTreeData.fire(undefined);
+    }
+
+    async uploadFile(element) {
         let activeEditor = vscode.window.activeTextEditor
         const project = this.getProject(element);
         if (activeEditor && project) {
             switch (String(activeEditor.document.languageId)) {
                 case "mdp":
-                    project.uploadFile("upload-model");
+                    await project.uploadFile("upload-model");
                     break;
                 case "props":
-                    project.uploadFile("upload-properties");
+                    await project.uploadFile("upload-properties");
                     break;
                 default:
                     vscode.window.showInformationMessage("File not recognized")
@@ -61,6 +68,7 @@ class ConnectionViewProvider {
                 vscode.window.showInformationMessage("No project found")
             }
         }
+        this.refresh()
     }
 
     openFrontend(element) {
@@ -70,12 +78,57 @@ class ConnectionViewProvider {
         }
     }
 
+    openDocument(element) {
+        element.openDocument()
+    }
 }
 
 class ConnectionItem extends vscode.TreeItem {
-    constructor(projectID) {
-        super(projectID, vscode.TreeItemCollapsibleState.None);
-        this._projectID = projectID;
+    constructor(label, parent, position) {
+        super(label, vscode.TreeItemCollapsibleState.None);
+        this._children = [];
+        this._document = undefined;
+
+        if (parent) {
+            this.contextValue = "File"
+            this.projectID = parent.projectID;
+            this._position = position;
+
+            this.command = {
+                title: label,
+                command: 'connectionView.openDocument',
+                arguments: [this]
+            };
+        } else {
+            this.contextValue = "Project"
+            this.projectID = label;
+            this._position = undefined;
+        }
+    }
+
+    add_child(child, position) {
+        if (this._children.some(element => child == element.label)) {
+            return
+        }
+        if (this.collapsibleState == vscode.TreeItemCollapsibleState.None) {
+            this.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
+        }
+        this._children.push(new ConnectionItem(child, this, position));
+    }
+
+    async refresh() {
+        if (this.contextValue == "Project") {
+            await fetch(`http://localhost:8080/${this.projectID}/files`, {
+                method: 'GET'
+            }).then(
+                result => result.json()
+            ).then(
+                // @ts-ignore
+                data => data.forEach((file, position) => this.add_child(file, position))
+            ).catch(
+                error => console.log(error) // Handle the error response object
+            );
+        }
     }
 
     async uploadFile(call) {
@@ -90,7 +143,7 @@ class ConnectionItem extends vscode.TreeItem {
 
             data.append('file', blob, fileName);
 
-            await fetch(`http://localhost:8080/${this._projectID}/${call}`, { // Your POST endpoint
+            await fetch(`http://localhost:8080/${this.projectID}/${call}`, { // Your POST endpoint
                 method: 'POST',
                 body: data // This is your file object
             }).then(
@@ -102,8 +155,52 @@ class ConnectionItem extends vscode.TreeItem {
     }
 
     openFrontend() {
-        vscode.env.openExternal(vscode.Uri.parse(`http://localhost:3000/?id=${this._projectID}`));
+        vscode.env.openExternal(vscode.Uri.parse(`http://localhost:3000/?id=${this.projectID}`));
+    }
+
+    async openDocument() {
+        if (this.contextValue == "File") {
+            if (!this._document) {
+                await fetch(`http://localhost:8080/${this.projectID}/file:${this._position}`, {
+                    method: 'GET'
+                }).then(
+                    result => result.json()
+                ).then(
+                    // @ts-ignore
+                    async data => {
+                        const uri = vscode.Uri.parse(`virtual:/${this.projectID}/${data['name']}`);
+                        await vscode.workspace.fs.writeFile(uri, Buffer.from(data['content']));
+                        console.log("created File: ", uri)
+                        this._document = await vscode.workspace.openTextDocument(uri);
+                    }).catch(
+                        error => console.log(error) // Handle the error response object
+                    );
+            }
+            await vscode.window.showTextDocument(this._document)
+
+            return this._document
+        }
     }
 }
 
-module.exports = { ConnectionViewProvider, ConnectionItem }
+// class ConnectionFileEditorProvider{
+//     static register(context) {
+// 		const provider = new ConnectionFileEditorProvider(context);
+// 		const providerRegistration = vscode.window.registerCustomEditorProvider(ConnectionFileEditorProvider._viewType(), provider);
+// 		return providerRegistration;
+// 	}
+
+//     static _viewType(){
+//         return 'connectionView.mdp'
+//     }
+
+//     constructor(context){
+
+//     }
+
+//     resolveCustomtextEditor(document, webviewPanel, token){
+
+//     }
+// }
+
+module.exports = { ConnectionViewProvider }

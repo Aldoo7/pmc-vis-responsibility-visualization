@@ -83,8 +83,8 @@ const varDecoration = vscode.window.createTextEditorDecorationType({
     }
 });
 
-class Decorator{
-    constructor(text){
+class Decorator {
+    constructor(text) {
         this._constantDef = new Map();
         this._formulaDef = new Map();
         this._variableDef = new Map();
@@ -98,26 +98,26 @@ class Decorator{
         this.parseVariables(text);
     }
 
-    matchVars(state){
-        for(let key in state.variables){
-            if(!this._variableDef.has(key)){
+    matchVars(state) {
+        for (let key in state.variables) {
+            if (!this._variableDef.has(key)) {
                 return false;
             }
         }
         return true;
     }
-    
+
     updateInfo(state, activeEditor) {
-    
-        if (!activeEditor | !state) {
+
+        if (!activeEditor || !state) {
             activeEditor.setDecorations(allowedActionDecoration, []);
             activeEditor.setDecorations(blockedActionDecoration, []);
             activeEditor.setDecorations(partiallyBlockedActionDecoration, []);
             activeEditor.setDecorations(varDecoration, []);
             return;
         }
-    
-        if(!this.matchVars(state)){
+
+        if (!this.matchVars(state)) {
             activeEditor.setDecorations(allowedActionDecoration, []);
             activeEditor.setDecorations(blockedActionDecoration, []);
             activeEditor.setDecorations(partiallyBlockedActionDecoration, []);
@@ -125,42 +125,42 @@ class Decorator{
             vscode.window.showInformationMessage(`States did not match up with document specification. Did you link the right project?`)
             return;
         }
-    
+
         const document = activeEditor.document;
         const [modules, actions] = this.gatherInformation(document, state);
-    
+
         const allowed = [];
         const blocked = [];
         const partBlocked = [];
         let match;
-    
+
         //Match actions with their guards, and evaluate accepting and blocking actions
         while ((match = actionRegExp.exec(document.getText()))) {
             const startPos = document.positionAt(match.index);
             const endPos = document.positionAt(match.index + match[1].length + 2);
-    
+
             let module = modules[0];
-            for(const m of modules){
-                if(m.startPosition.isBefore(startPos) & m.startPosition.isAfter(module.startPosition)){
+            for (const m of modules) {
+                if (m.startPosition.isBefore(startPos) & m.startPosition.isAfter(module.startPosition)) {
                     module = m;
                 }
             }
-    
+
             const action = module.actions.get(startPos.line);
             const actionName = match[1];
-    
+
             const openLocal = action.enabled;
             const openGlobal = actions.get(actionName);
-    
+
             const hovermessage = new vscode.MarkdownString(`Extended Guard:  \n  `, true);
             hovermessage.isTrusted = true;
             hovermessage.appendMarkdown(`${action.guard}`);
-    
+
             if (openLocal) {
-                if(openGlobal[0]){
-                    const decoration = { range: new vscode.Range(startPos, endPos), hoverMessage: hovermessage};
+                if (openGlobal[0]) {
+                    const decoration = { range: new vscode.Range(startPos, endPos), hoverMessage: hovermessage };
                     allowed.push(decoration);
-                }else{
+                } else {
                     const blockingModules = openGlobal[1].map(item => {
                         const module = modules[item];
                         return `[${module.name}](command:pmcVis.moveTo?${module.startPosition.line})`;
@@ -170,17 +170,17 @@ class Decorator{
                     partBlocked.push(decoration);
                 }
             } else {
-                
-                const decoration = { range: new vscode.Range(startPos, endPos), hoverMessage: hovermessage};
+
+                const decoration = { range: new vscode.Range(startPos, endPos), hoverMessage: hovermessage };
                 blocked.push(decoration);
             }
         }
         activeEditor.setDecorations(allowedActionDecoration, allowed);
         activeEditor.setDecorations(blockedActionDecoration, blocked);
         activeEditor.setDecorations(partiallyBlockedActionDecoration, partBlocked);
-    
+
         const varDeco = [];
-        for(let key in state.variables){
+        for (let key in state.variables) {
             const varReg = new RegExp(`\\b${key}\\b`, 'gm');
             while ((match = varReg.exec(document.getText()))) {
                 const startPos = document.positionAt(match.index);
@@ -192,7 +192,7 @@ class Decorator{
                 varDeco.push(decoration);
             }
         }
-        for(const [formulaReg, definition] of this._formulaDef){
+        for (const [formulaReg, definition] of this._formulaDef) {
             const formEval = this.evaluate(this.fillExpression(definition), state);
             while ((match = formulaReg.exec(document.getText()))) {
                 const startPos = document.positionAt(match.index);
@@ -201,78 +201,78 @@ class Decorator{
                 hoverMessage.appendMarkdown(`[${match[0]}](command:pmcVis.moveTo?${this._formulaLoc.get(match[0])})==${formEval}`);
                 hoverMessage.appendMarkdown(`  \n  Expanded Formula: ${definition}`);
                 hoverMessage.isTrusted = true;
-                const decoration = { range: new vscode.Range(startPos, endPos), hoverMessage: hoverMessage};
+                const decoration = { range: new vscode.Range(startPos, endPos), hoverMessage: hoverMessage };
                 varDeco.push(decoration);
             }
         }
-        for(const [constReg, definition] of this._constantDef){
+        for (const [constReg, definition] of this._constantDef) {
             while ((match = constReg.exec(document.getText()))) {
                 const startPos = document.positionAt(match.index);
                 const endPos = document.positionAt(match.index + match[0].length);
                 const hoverMessage = new vscode.MarkdownString();
                 hoverMessage.appendMarkdown(`[${match[0]}](command:pmcVis.moveTo?${this._constantLoc.get(match[0])})=${definition}`);
                 hoverMessage.isTrusted = true;
-                const decoration = { range: new vscode.Range(startPos, endPos), hoverMessage: hoverMessage};
+                const decoration = { range: new vscode.Range(startPos, endPos), hoverMessage: hoverMessage };
                 varDeco.push(decoration);
             }
         }
         activeEditor.setDecorations(varDecoration, varDeco);
     }
-    
+
     //Gathers all ction guards in the document
-    gatherInformation(document, state){
+    gatherInformation(document, state) {
         const modules = [];
-        const enabledActionsGlobal =new Map();
+        const enabledActionsGlobal = new Map();
         let matchModule;
         let i = 0;
-    
+
         //Gather Information About every Module
         while ((matchModule = moduleRegExp.exec(document.getText()))) {
             const mPos = document.positionAt(matchModule.index);
             const name = matchModule[1];
             const text = matchModule[2];
-    
+
             const actions = new Map();
             const enabledActions = new Map();
             let match;
-    
+
             while ((match = actionRegExp.exec(text))) {
                 const startLine = document.positionAt(matchModule.index + name.length + 8 + match.index).line;
                 const action = match[1];
                 const guard = this.fillExpression(match[2]);
                 const enabled = this.evaluate(guard, state);
-    
+
                 actions.set(startLine, {
                     name: action,
                     guard: guard,
                     enabled: enabled,
                 })
-    
-                if(!enabledActions.has(action)){
+
+                if (!enabledActions.has(action)) {
                     enabledActions.set(action, enabled)
-                }else{
+                } else {
                     const gEnabled = enabledActions.get(action);
                     enabledActions.set(action, enabled || gEnabled);
                 }
             }
-    
+
             const variables = new Map();
-    
+
             while ((match = variableRegExp.exec(text))) {
                 const varName = match[1];
                 let minV;
                 let maxV;
-                if(match[2]){
+                if (match[2]) {
                     minV = match[2];
                     maxV = match[3];
-                }else{
+                } else {
                     minV = 0;
                     maxV = 1;
                 }
-                
-    
+
+
                 const current = state.variables[varName];
-                
+
                 variables.set(varName, {
                     name: varName,
                     minimum: minV,
@@ -280,7 +280,7 @@ class Decorator{
                     current: current
                 });
             }
-    
+
             modules.push({
                 id: i,
                 name: name,
@@ -289,42 +289,42 @@ class Decorator{
                 enabledActions: enabledActions,
                 startPosition: mPos
             })
-    
+
             //Combine module enabled Information in order to determine general availability
-            for(const [action, enabled] of enabledActions){
-                if (!enabledActionsGlobal.has(action)){
-                    if(enabled){
+            for (const [action, enabled] of enabledActions) {
+                if (!enabledActionsGlobal.has(action)) {
+                    if (enabled) {
                         enabledActionsGlobal.set(action, [true]);
-                    }else{
+                    } else {
                         enabledActionsGlobal.set(action, [false, [i]]);
                     }
-                    
-                }else{
+
+                } else {
                     const gEnabled = enabledActionsGlobal.get(action)[0];
-                    if(!gEnabled && !enabled){
+                    if (!gEnabled && !enabled) {
                         const prevCounter = enabledActionsGlobal.get(action)[1];
                         prevCounter.push(i);
                         enabledActionsGlobal.set(action, [false, prevCounter]);
                     }
-                    if(gEnabled && !enabled){
+                    if (gEnabled && !enabled) {
                         enabledActionsGlobal.set(action, [false, [i]]);
                     }
                 }
             }
-            i = i+1;
+            i = i + 1;
         }
         return [modules, enabledActionsGlobal];
     }
-    
+
     //Replace Expression with all Formulas Expanded and all constant values alredy filled in
-    fillExpression(text){
+    fillExpression(text) {
         let t = false;
         let expression = text;
-        while(!t){
+        while (!t) {
             t = true;
             for (const [key, value] of this._formulaDef) {
                 // eslint-disable-next-line no-unused-vars
-                expression = expression.replaceAll(key, function(token){ t = false; return value; });
+                expression = expression.replaceAll(key, function (token) { t = false; return value; });
             }
         }
         for (const [key, value] of this._constantDef) {
@@ -332,17 +332,17 @@ class Decorator{
         }
         return expression;
     }
-    
+
     //Evaluate expanded expression
-    evaluate(expression, state){
+    evaluate(expression, state) {
         const exp = this.clean(expression);
         const res = mathjs.evaluate(exp, state.variables)
         return res;
     }
-    
+
     //Translate prism Syntax into mathjs syntax
-    clean(expression){
-        if(Array.isArray(expression)){
+    clean(expression) {
+        if (Array.isArray(expression)) {
             const e = expression.map(k => this.clean(k));
             return e;
         }
@@ -352,49 +352,49 @@ class Decorator{
         e = e.replaceAll(/!(?!=)/g, " not ");
         return e;
     }
-    
-    parseConstants(text){
+
+    parseConstants(text) {
         const lines = text.split(/\r\n|\r|\n/);
-    
+
         //gather all declerations
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             const matched_c = line.match(constantRegExp);
-            if (matched_c != null){
+            if (matched_c != null) {
                 this._constantDef.set(new RegExp(`\\b${matched_c[2]}\\b`, 'g'), matched_c[3]);
                 this._constantLoc.set(matched_c[2], i);
             }
         }
     }
-    
-    parseFormulas(text){
+
+    parseFormulas(text) {
         const lines = text.split(/\r\n|\r|\n/);
-        
+
         //gather all declerations
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             const matched_f = line.match(formulaRegExp);
-            if (matched_f != null){
+            if (matched_f != null) {
                 this._formulaDef.set(new RegExp(`\\b${matched_f[1]}\\b`, 'g'), matched_f[2]);
                 this._formulaLoc.set(matched_f[1], i);
             }
         }
     }
-    
-    parseVariables(text){
+
+    parseVariables(text) {
         const lines = text.split(/\r\n|\r|\n/);
-    
+
         //gather all declerations
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             const matched_v = line.match(variableDefRegExp);
-            if (matched_v != null){
-                if(matched_v[2]){
+            if (matched_v != null) {
+                if (matched_v[2]) {
                     this._variableDef.set(matched_v[1], [matched_v[2], matched_v[3]]);
-                }else{
-                    this._variableDef.set(matched_v[1], [0,1]);
+                } else {
+                    this._variableDef.set(matched_v[1], [0, 1]);
                 }
-                
+
                 this._variableLoc.set(matched_v[1], i);
             }
         }
@@ -403,4 +403,4 @@ class Decorator{
 
 
 
-module.exports = {Decorator}
+module.exports = { Decorator }

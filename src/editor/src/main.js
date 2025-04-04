@@ -9,7 +9,8 @@ const token = require("./tokens.js");
 const express = require('express');
 const cors = require('cors');
 const { StateProvider } = require('./stateView.js');
-const { ConnectionViewProvider, ConnectionItem } = require('./connectionView.js');
+const { ConnectionViewProvider } = require('./connectionView.js');
+const { VirtualFileSystemProvider } = require('./virtualFile.js');
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -25,6 +26,13 @@ let connectionProvider;
  */
 function activate(context) {
 	context.subscriptions.push(vscode.languages.registerDocumentSemanticTokensProvider({ language: 'mdp' }, new token.DocumentSemanticTokensProvider(), token.tokenLegend));
+
+	const fileSystemProvider = new VirtualFileSystemProvider();
+
+	//Add a virtual Filesystem
+
+	// @ts-ignore
+	context.subscriptions.push(vscode.workspace.registerFileSystemProvider(VirtualFileSystemProvider.uri(), fileSystemProvider, { isCaseSensitive: true }))
 
 	//Start an internal server to listen to pmc-vis
 	app.use(express.json());
@@ -58,6 +66,8 @@ function activate(context) {
 	context.subscriptions.push(vscode.commands.registerCommand('connectionView.connect', () => connectionProvider.addProject()))
 	context.subscriptions.push(vscode.commands.registerCommand('connectionView.upload', item => connectionProvider.uploadFile(item)));
 	context.subscriptions.push(vscode.commands.registerCommand('connectionView.front', item => connectionProvider.openFrontend(item)));
+	context.subscriptions.push(vscode.commands.registerCommand('connectionView.openDocument', item => connectionProvider.openDocument(item)));
+	//context.subscriptions.push(vscode.window.registerCustomEditorProvider(ConnectionFileEditorProvider.register()));
 
 }
 
