@@ -116,7 +116,7 @@
         <div class="header">
           TODO: Missing / potential controls: 
         </div>  
-        <ul>
+        <ul class="list">
           <li>toggle replace alert (popup / modals) with less obtrusive messages (like this one) </li>
         </ul> 
       </div>
@@ -130,7 +130,7 @@
         <div class="header">
           TODO: Missing / potential controls: 
         </div>  
-        <ul>
+        <ul class="list">
           <li>choose what happens to destroyed panes (save in db, save in file, forget) </li>
           <li>[MUST] select: lens / level-of-detail / abstraction </li>
         </ul>
@@ -149,7 +149,7 @@
         <div class="header">
           TODO: Missing / potential controls: 
         </div>  
-        <ul>
+        <ul class="list">
           <li>options to customize the cytoscape style? states, actions, edges, etc. </li>
           <li>color options</li>
         </ul>  
@@ -178,7 +178,7 @@
         <div class="header">
           TODO: Missing / potential controls: 
         </div>  
-        <ul>
+        <ul class="list">
           <li>[MUST] button: shortcut to create new scheduler from pcp selection</li>
           <li>input #: line segment stack amount until full opacity, currently set to 3</li>
           <li>toggle: orientation (||| vs ☰), currently based on pane dimensions </li>
@@ -201,7 +201,7 @@
         <div class="header">
           TODO: Missing / potential controls: 
         </div>  
-        <ul>
+        <ul class="list">
           <li>button: reset / sync with overview button</li>
           <li>button: highlight pane / show more details in overview</li>
         </ul>   
