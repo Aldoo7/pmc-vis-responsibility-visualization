@@ -438,7 +438,7 @@ function destroyPanes(firstId, { firstOnly = false, pre = false } = {}) {
   const pane = document.getElementById(firstId);
 
   if (pane) {
-    if (panes[firstId] && panes[firstId].spawned.size > 0) {
+    if (panes[firstId] && panes[firstId].spawned?.size > 0) {
       if (!firstOnly) {
         panes[firstId].spawned.forEach(p => destroyPanes(p));
       }

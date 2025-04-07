@@ -331,7 +331,6 @@ function spawnGraph(pane, data, params, vars = {}) {
     container: document.getElementById(pane.container),
     style: stylesheet,
     layout: params,
-    wheelSensitivity: 0.3,
   };
 
   if (cytoscapeInit.container) {

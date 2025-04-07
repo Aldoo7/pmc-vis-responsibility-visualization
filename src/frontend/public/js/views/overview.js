@@ -14,7 +14,6 @@ var cy2 = cytoscape({
   container: document.getElementById('cy-overview'),
   style: overviewStylesheet,
   layout: params,
-  wheelSensitivity: 0.3,
 });
 
 cy2.ready(() => {
