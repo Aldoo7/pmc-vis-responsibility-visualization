@@ -27,6 +27,9 @@ public interface Namespace {
     String ENTRY_C_NAME = "View_Identifier";
     String ENTRY_C_SUB = "views";
 
+    String ENTRY_P_ID = "id";
+    String ENTRY_P_CONTENT = "states";
+
     String ENTRY_SCH_NAME = "name";
 
     String ENTRY_SCH_ID = "id";
@@ -36,6 +39,8 @@ public interface Namespace {
 
     String TABLE_SCHED_GEN = "SCHEDULER_INFO_%s";
     String TABLE_RES_GEN = "INFORMATION_%s";
+
+    String TABLE_PANES = "PANES";
 
     //Set<String> ENTRY_S_RESERVED = new HashSet<>(Arrays.asList(ENTRY_S_ID, ENTRY_S_NAME, ENTRY_C_SUB, ENTRY_S_INIT, ENTRY_S_REW));
 

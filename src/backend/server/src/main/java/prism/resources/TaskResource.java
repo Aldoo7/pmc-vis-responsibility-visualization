@@ -8,6 +8,7 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 import prism.PrismException;
 import prism.api.Message;
+import prism.api.Pane;
 import prism.api.Status;
 import prism.core.Namespace;
 import prism.core.Project;
@@ -22,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -287,6 +289,65 @@ public class TaskResource extends Resource {
         }
 
         return ok(new Message(String.format("Started checking %s in project %s", String.join(", ", properties), projectID)));
+    }
+
+    @Path("/panes")
+    @GET
+    @Timed
+    @Operation(summary = "returns list of all stored panes", description = "Reads the database for the ids of all stored panes")
+    public Response panes(
+            @Parameter(description = "identifier of project")
+            @PathParam("project_id") String projectID
+    ){
+        try{
+            return ok(tasks.getProject(projectID).storedPanes());
+        } catch (Exception e) {
+            return error(e);
+        }
+    }
+
+    @Path("/storePane:{pane_id}")
+    @GET
+    @Timed
+    @Operation(summary = "store a pane", description = "Stores all states in a pane in a dedicated database, allowing future retrieval")
+    public Response storePane(
+            @Parameter(description = "identifier of project")
+            @PathParam("project_id") String projectID,
+            @Parameter(description = "identifier of the pane")
+            @PathParam("pane_id") Long paneID,
+            @Parameter(description = "States contained in the Pane")
+            @QueryParam("id") List<String> states
+    ){
+        try {
+            if(states == null || states.isEmpty()) {
+                return error(new Message("No states provided"));
+            }
+            tasks.getProject(projectID).storePane(paneID, states);
+        } catch (Exception e) {
+            return error(e);
+        }
+        return ok(new Message("Pane stored"));
+    }
+
+    @Path("/retrievePane:{pane_id}")
+    @GET
+    @Timed
+    @Operation(summary = "store a pane", description = "Stores all states in a pane in a dedicated database, allowing future retrieval")
+    public Response retrievePane(
+            @Parameter(description = "identifier of project")
+            @PathParam("project_id") String projectID,
+            @Parameter(description = "identifier of the pane")
+            @PathParam("pane_id") Long paneID
+    ){
+        try {
+            Pane p = tasks.getProject(projectID).retrievePane(paneID);
+            if(p == null) {
+                return error(new Message("Could not find pane " + paneID));
+            }
+            return ok(p);
+        } catch (Exception e) {
+            return error(e);
+        }
     }
 
     @Path("/clear")

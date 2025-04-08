@@ -16,6 +16,7 @@ import prism.core.mdpgraph.MdpGraph;
 import prism.core.View.*;
 import prism.db.Database;
 import prism.db.mappers.PairMapper;
+import prism.db.mappers.PaneMapper;
 import prism.db.mappers.StateMapper;
 import prism.db.mappers.TransitionMapper;
 import prism.server.PRISMServerConfiguration;
@@ -24,6 +25,7 @@ import simulator.TransitionList;
 
 import java.io.*;
 import java.nio.file.Files;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.stream.Collectors;
@@ -810,6 +812,29 @@ public class Project implements Namespace{
         return new Graph(this, states, transitions);
     }
 
+    public Pane retrievePane(Long paneID){
+        if(!paneTableExists()) return null;
+        Optional<Pane> pane = this.database.executeLookupQuery(String.format("SELECT * FROM %s WHERE %s = '%s'", TABLE_PANES, ENTRY_P_ID, paneID), new PaneMapper());
+        return pane.orElse(null);
+    }
+
+    public void storePane(Long paneID, List<String> states) throws SQLException {
+        if(!paneTableExists()) createPaneTable();
+        this.database.execute(String.format("INSERT OR REPLACE INTO %s (%s,%s) VALUES(%s,'%s')", TABLE_PANES, ENTRY_P_ID, ENTRY_P_CONTENT, paneID, String.join(",", states)));
+    }
+
+    private boolean paneTableExists() {
+        return this.database.question(String.format("SELECT name FROM sqlite_schema WHERE type='table' AND name='%s'", TABLE_PANES));
+    }
+
+    private void createPaneTable() throws SQLException {
+        this.database.execute(String.format("CREATE TABLE %s (%s INTEGER PRIMARY KEY NOT NULL, %s TEXT)", TABLE_PANES, ENTRY_P_ID, ENTRY_P_CONTENT));
+    }
+
+    public List<Long> storedPanes(){
+        return this.database.executeCollectionQuery(String.format("SELECT %s FROM %s", ENTRY_P_ID, TABLE_PANES), Long.class);
+    }
+
     /*
     public Graph getIncoming(long stateID) {
         List<State> states = database.executeCollectionQuery(String.format("SELECT %s.* FROM %s LEFT JOIN %s ON %s.%s = %s.%s WHERE %s.%s = %s OR %s.%s = %s", TABLE_STATES, TABLE_STATES, TABLE_TRANS, TABLE_STATES, ENTRY_S_ID, TABLE_TRANS, ENTRY_T_OUT, TABLE_TRANS, ENTRY_T_IN, stateID, TABLE_STATES, ENTRY_S_ID, stateID), new StateMapper(parent,0));
@@ -947,6 +972,7 @@ public class Project implements Namespace{
             p.clear();
         }
         modelChecker.reset();
+        this.database.execute(String.format("DROP TABLE IF EXISTS %s", TABLE_PANES));
     }
 
     // adds DummyView internally for each View in DB for displaying and modifying views
