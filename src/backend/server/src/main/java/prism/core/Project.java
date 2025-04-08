@@ -812,10 +812,22 @@ public class Project implements Namespace{
         return new Graph(this, states, transitions);
     }
 
-    public Pane retrievePane(String paneID){
+    public Pane retrievePanes(List<String> paneIDs){
         if(!paneTableExists()) return null;
-        Optional<Pane> pane = this.database.executeLookupQuery(String.format("SELECT * FROM %s WHERE %s = '%s'", TABLE_PANES, ENTRY_P_ID, paneID), new PaneMapper());
-        return pane.orElse(null);
+        Pane result = null;
+        for(String paneID : paneIDs){
+            Optional<Pane> pane = this.database.executeLookupQuery(String.format("SELECT * FROM %s WHERE %s = '%s'", TABLE_PANES, ENTRY_P_ID, paneID), new PaneMapper());
+            if(pane.isPresent()){
+                if (result == null){
+                    result = pane.get();
+                }else{
+                    result.join(pane.get());
+                }
+            }else{
+                throw new RuntimeException("Pane not found");
+            }
+        }
+        return result;
     }
 
     public void storePane(String paneID, String content) throws SQLException {

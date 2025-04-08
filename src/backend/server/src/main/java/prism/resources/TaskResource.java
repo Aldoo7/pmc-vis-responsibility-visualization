@@ -338,10 +338,11 @@ public class TaskResource extends Resource {
             @Parameter(description = "identifier of project")
             @PathParam("project_id") String projectID,
             @Parameter(description = "identifier of the pane")
-            @QueryParam("pane_id") String paneID
+            @QueryParam("pane_id") List<String> paneID
     ){
         try {
-            Pane p = tasks.getProject(projectID).retrievePane(paneID);
+
+            Pane p = tasks.getProject(projectID).retrievePanes(paneID);
             if(p == null) {
                 return error(new Message("Could not find pane " + paneID));
             }
