@@ -7,31 +7,27 @@ import java.util.Arrays;
 import java.util.List;
 
 public class Pane {
-    private long paneID;
-    private List<String> states;
+    private String paneID;
+    private String content;
 
     public Pane(){
         // Jackson deserialization
     }
 
-    public Pane(long paneID, List<String> states) {
+    public Pane(String paneID, String content) {
         this.paneID = paneID;
-        this.states = states;
+        this.content = content;
     }
 
-    public Pane(long paneID, String stateString){
-        this(paneID, Arrays.asList(stateString.split(",")));
-    }
-
-    @Schema(description = "Identifier of the projeProject")
+    @Schema(description = "Identifier of the pane")
     @JsonProperty
-    public long getPaneID() {
+    public String getPaneID() {
         return paneID;
     }
 
-    @Schema(description = "Identifier of the projeProject")
+    @Schema(description = "Content of the pane")
     @JsonProperty
-    public List<String> getStates() {
-        return states;
+    public String getContent() {
+        return content;
     }
 }

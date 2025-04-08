@@ -291,7 +291,7 @@ public class TaskResource extends Resource {
         return ok(new Message(String.format("Started checking %s in project %s", String.join(", ", properties), projectID)));
     }
 
-    @Path("/panes")
+    @Path("/pane/all")
     @GET
     @Timed
     @Operation(summary = "returns list of all stored panes", description = "Reads the database for the ids of all stored panes")
@@ -306,30 +306,31 @@ public class TaskResource extends Resource {
         }
     }
 
-    @Path("/storePane:{pane_id}")
-    @GET
+    @Path("/pane/store")
+    @POST
+    @Consumes(MediaType.APPLICATION_JSON)
     @Timed
     @Operation(summary = "store a pane", description = "Stores all states in a pane in a dedicated database, allowing future retrieval")
     public Response storePane(
             @Parameter(description = "identifier of project")
             @PathParam("project_id") String projectID,
             @Parameter(description = "identifier of the pane")
-            @PathParam("pane_id") Long paneID,
+            @QueryParam("pane_id") String paneID,
             @Parameter(description = "States contained in the Pane")
-            @QueryParam("id") List<String> states
+            String content
     ){
         try {
-            if(states == null || states.isEmpty()) {
-                return error(new Message("No states provided"));
+            if(content == null) {
+                return error(new Message("No pane provided"));
             }
-            tasks.getProject(projectID).storePane(paneID, states);
+            tasks.getProject(projectID).storePane(paneID, content);
         } catch (Exception e) {
             return error(e);
         }
         return ok(new Message("Pane stored"));
     }
 
-    @Path("/retrievePane:{pane_id}")
+    @Path("/pane")
     @GET
     @Timed
     @Operation(summary = "store a pane", description = "Stores all states in a pane in a dedicated database, allowing future retrieval")
@@ -337,14 +338,14 @@ public class TaskResource extends Resource {
             @Parameter(description = "identifier of project")
             @PathParam("project_id") String projectID,
             @Parameter(description = "identifier of the pane")
-            @PathParam("pane_id") Long paneID
+            @QueryParam("pane_id") String paneID
     ){
         try {
             Pane p = tasks.getProject(projectID).retrievePane(paneID);
             if(p == null) {
                 return error(new Message("Could not find pane " + paneID));
             }
-            return ok(p);
+            return ok(p.getContent());
         } catch (Exception e) {
             return error(e);
         }

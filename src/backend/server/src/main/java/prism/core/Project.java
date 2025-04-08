@@ -812,15 +812,15 @@ public class Project implements Namespace{
         return new Graph(this, states, transitions);
     }
 
-    public Pane retrievePane(Long paneID){
+    public Pane retrievePane(String paneID){
         if(!paneTableExists()) return null;
         Optional<Pane> pane = this.database.executeLookupQuery(String.format("SELECT * FROM %s WHERE %s = '%s'", TABLE_PANES, ENTRY_P_ID, paneID), new PaneMapper());
         return pane.orElse(null);
     }
 
-    public void storePane(Long paneID, List<String> states) throws SQLException {
+    public void storePane(String paneID, String content) throws SQLException {
         if(!paneTableExists()) createPaneTable();
-        this.database.execute(String.format("INSERT OR REPLACE INTO %s (%s,%s) VALUES(%s,'%s')", TABLE_PANES, ENTRY_P_ID, ENTRY_P_CONTENT, paneID, String.join(",", states)));
+        this.database.execute(String.format("INSERT OR REPLACE INTO %s (%s,%s) VALUES(%s,'%s')", TABLE_PANES, ENTRY_P_ID, ENTRY_P_CONTENT, paneID, content));
     }
 
     private boolean paneTableExists() {
@@ -831,8 +831,8 @@ public class Project implements Namespace{
         this.database.execute(String.format("CREATE TABLE %s (%s INTEGER PRIMARY KEY NOT NULL, %s TEXT)", TABLE_PANES, ENTRY_P_ID, ENTRY_P_CONTENT));
     }
 
-    public List<Long> storedPanes(){
-        return this.database.executeCollectionQuery(String.format("SELECT %s FROM %s", ENTRY_P_ID, TABLE_PANES), Long.class);
+    public List<String> storedPanes(){
+        return this.database.executeCollectionQuery(String.format("SELECT %s FROM %s", ENTRY_P_ID, TABLE_PANES), String.class);
     }
 
     /*
