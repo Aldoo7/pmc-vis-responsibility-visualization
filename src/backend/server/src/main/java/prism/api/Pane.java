@@ -33,9 +33,7 @@ public class Pane {
             } catch (JsonProcessingException e) {
                 throw new RuntimeException(e);
             }
-
         }
-
         return map;
     }
 

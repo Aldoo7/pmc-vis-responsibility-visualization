@@ -53,6 +53,7 @@ function activate(context) {
 	let activeEditor = vscode.window.activeTextEditor;
 	activeStateProvider = new StateProvider(activeEditor);
 	connectionProvider = new ConnectionViewProvider();
+	fileSystemProvider.watchSave(connectionProvider);
 
 	//register All commands using global variables initialized in openDocument()
 	context.subscriptions.push(vscode.window.registerTreeDataProvider("stateView", activeStateProvider));

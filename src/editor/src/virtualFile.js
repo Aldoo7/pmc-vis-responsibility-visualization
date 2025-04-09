@@ -63,7 +63,7 @@ class VirtualFileSystemProvider {
         throw vscode.FileSystemError.FileNotFound();
     }
 
-    writeFile(uri, content, options = { create: true, overwrite: true }) {
+    writeFile(uri, content, options = { create: true, overwrite: true, triggerSave: true }) {
         const basename = path.posix.basename(uri.path);
         const parent = this._lookupParentDirectory(uri);
         let entry = parent.entries.get(basename);
@@ -85,7 +85,10 @@ class VirtualFileSystemProvider {
         entry.size = content.byteLength;
         entry.data = content;
 
-        console.log("Written"); // Todo Save
+        if (this._saveWatcher) {
+            this._saveWatcher.onSave(uri, content);
+        }
+
 
         this._fireSoon({ type: vscode.FileChangeType.Changed, uri });
     }
@@ -190,6 +193,11 @@ class VirtualFileSystemProvider {
     watch(_resource) {
         // ignore, fires for all changes...
         return new vscode.Disposable(() => { });
+    }
+
+    //triggers onSave() for specified resource
+    watchSave(resource) {
+        this._saveWatcher = resource;
     }
 
     _fireSoon(...events) {
