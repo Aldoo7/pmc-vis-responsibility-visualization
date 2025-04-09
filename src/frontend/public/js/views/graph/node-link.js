@@ -626,6 +626,9 @@ function spawnPCP(cy) {
       booleans: props.filter(k => pld[k].type === 'boolean'),
       numbers: props.filter(k => pld[k].type === 'number'),
       pld,
+      bounds_indicator: cy.vars['pcp-bounds-indicator'].value,
+      violins: cy.vars['pcp-violins'].value,
+      histograms: cy.vars['pcp-histograms'].value,
     },
   );
 
@@ -1073,66 +1076,6 @@ async function exportCy(cy, selection) {
       dl.click();
     }
   });
-}
-
-// non-standard attempt to organize the 'public interface' of this js file
-function setPublicVars(cy, preset) {
-  cy.vars = {
-    ur: {
-      value: cy.undoRedo(),
-      avoidInClone: true, // workaround for structuredClone
-      fn: _.throttle(keyboardShortcuts, THROTTLE_DEBOUNCE_DELAY),
-    },
-    mode: {
-      value: '.s',
-      fn: setSelectMode,
-    },
-    details: {
-      value: 'r',
-      fn: updateDetailsToShow,
-    },
-    scheduler: {
-      value: undefined,
-      fn: updateScheduler,
-    },
-    panePosition: {
-      value: 'end',
-      fn: updateNewPanePosition,
-    },
-    fullSync: {
-      value: true,
-      fn: toggleFullSync,
-    },
-    update: {
-      value: CONSTANTS.STATUS.ready,
-      fn: () => {
-        renewInfo(cy);
-        updateDetailsToShow(cy, { update: cy.vars['details'].value });
-        setUpdateState(cy);
-      },
-    },
-  };
-
-  cy.fns = {
-    import: importCy,
-    export: exportCy,
-    mark: mark,
-    'undo-mark': unmark,
-  };
-
-  // call functions that need to be init
-  if (Object.keys(preset).length === 0) {
-    setSelectMode(cy);
-    updateDetailsToShow(cy, { update: false });
-    updateScheduler(cy, '_none_');
-  } else {
-    setSelectMode(cy, preset['mode'].value);
-    updateDetailsToShow(cy, { update: preset['details'].value });
-    updateScheduler(cy, preset['scheduler'].value);
-    updateNewPanePosition(cy, preset['panePosition'].value);
-    toggleFullSync(cy, preset['fullSync']);
-  }
-  setUpdateState(cy);
 }
 
 function duplicatePane(cy, initSpawner) {
@@ -1847,6 +1790,79 @@ socket.on('handle overview nodes selected', (data) => {
     };
   }
 });
+
+// cy.vars stores the settings of the application
+// that can be inherited (to next panes) or loaded
+function setPublicVars(cy, preset) {
+  cy.vars = {
+    ur: {
+      value: cy.undoRedo(),
+      avoidInClone: true, // workaround for structuredClone
+      fn: _.throttle(keyboardShortcuts, THROTTLE_DEBOUNCE_DELAY),
+    },
+    mode: {
+      value: '.s',
+      fn: setSelectMode,
+    },
+    details: {
+      value: {},
+      fn: updateDetailsToShow,
+    },
+    scheduler: {
+      value: undefined,
+      fn: updateScheduler,
+    },
+    panePosition: {
+      value: 'end',
+      fn: updateNewPanePosition,
+    },
+    fullSync: {
+      value: true,
+      fn: toggleFullSync,
+    },
+    'pcp-bounds-indicator': {
+      value: 'circle',
+      fn: undefined,
+    },
+    'pcp-violins': {
+      value: false,
+      fn: undefined,
+    },
+    'pcp-histograms': {
+      value: true,
+      fn: undefined,
+    },
+    update: {
+      value: CONSTANTS.STATUS.ready,
+      fn: () => {
+        renewInfo(cy);
+        updateDetailsToShow(cy, { update: cy.vars['details'].value });
+        setUpdateState(cy);
+      },
+    },
+  };
+
+  cy.fns = {
+    import: importCy,
+    export: exportCy,
+    mark: mark,
+    'undo-mark': unmark,
+  };
+
+  // call functions that need to be init
+  if (Object.keys(preset).length === 0) {
+    setSelectMode(cy);
+    updateDetailsToShow(cy, { update: false });
+    updateScheduler(cy, '_none_');
+  } else {
+    setSelectMode(cy, preset['mode'].value);
+    updateDetailsToShow(cy, { update: preset['details'].value });
+    updateScheduler(cy, preset['scheduler'].value);
+    updateNewPanePosition(cy, preset['panePosition'].value);
+    toggleFullSync(cy, preset['fullSync']);
+  }
+  setUpdateState(cy);
+}
 
 export {
   spawnGraph,

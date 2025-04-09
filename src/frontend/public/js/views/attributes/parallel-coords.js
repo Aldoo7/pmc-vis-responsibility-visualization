@@ -5,7 +5,7 @@ import { setPane } from '../../utils/controls.js';
 import events from '../../utils/events.js';
 import { fixed } from '../../utils/utils.js';
 import makeCtxMenu from './ctx-menu.js';
-import { violin } from './violin.js';
+import { histogram, violin } from './axis.js';
 
 function parallelCoords(pane, data, metadata) {
   const selections = new Map(); // stores dimension -> brush selection
@@ -624,9 +624,16 @@ function parallelCoords(pane, data, metadata) {
         const axis_g = d3
           .select(`#${getAxisId(dim)} > .axis`)
           .call(axis.scale(resp.axes[dim]));
-        violin(axis_g, {
-          orient, resp, name: dim, data: data.map((d) => d[dim]),
-        });
+        if (metadata.violins) {
+          violin(axis_g, {
+            orient, resp, name: dim, data: data.map((d) => d[dim]),
+          });
+        }
+        if (metadata.histograms) {
+          histogram(axis_g, {
+            orient, resp, name: dim, data: data.map((d) => d[dim]),
+          });
+        }
       })
       .append('text')
       .attr('text-anchor', resp.anchor[orient])
