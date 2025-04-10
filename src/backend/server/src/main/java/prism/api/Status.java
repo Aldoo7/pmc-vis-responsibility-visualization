@@ -11,7 +11,7 @@ import java.util.TreeMap;
 @Schema(description="Object wrapping the neccessary information for a status call")
 public class Status {
 
-    private TreeMap<String, Object> info;
+    private Info info;
 
     private List<String> messages;
 
@@ -26,7 +26,7 @@ public class Status {
 
     @Schema(description = "Information about the MC process")
     @JsonProperty
-    public Map<String, Object> getInfo() {
+    public Info getInfo() {
         return info;
     }
 

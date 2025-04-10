@@ -85,7 +85,6 @@ public abstract class Resource {
             //Project not initialized, initialize with current Files
             loadProject(projectID);
         }
-        System.out.println(tasks.getProject(projectID));
     }
 
 

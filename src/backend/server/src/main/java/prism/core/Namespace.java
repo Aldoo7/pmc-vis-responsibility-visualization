@@ -16,7 +16,7 @@ public interface Namespace {
     String ENTRY_PROP = "property_";
     String ENTRY_SCHED = "scheduler_";
     String ENTRY_T_ID = "transition_id";
-    String ENTRY_T_OUT = "state_out";
+    String ENTRY_T_OUT = "origin";
     String ENTRY_T_PROB = "probabilityDistribution";
     String ENTRY_T_ACT = "action";
 
@@ -66,6 +66,8 @@ public interface Namespace {
 
     String OUTPUT_VARIABLES = "Variable Values";
 
+    String OUTPUT_ACTION = "Action Parameter";
+
     String OUTPUT_REWARDS = "Reward Structures";
 
     String OUTPUT_LABELS = "Atomic Propositions";
@@ -80,6 +82,7 @@ public interface Namespace {
 
     String DEFAULT_STYLE =  "init:fa-solid fa-arrow-right\n" +
                             "deadlock:fa-solid fa-rotate-right";
+
     String ENTRY_C_BLANK = "__BLANK__";
 
     String C_CONCAT_SYMBOL = "|";
@@ -89,6 +92,8 @@ public interface Namespace {
     String TYPE_NUMBER = "number";
 
     String TYPE_BLANK = "missing";
+
+    String TYPE_NOMINAL = "nominal";
 
     String TYPE_COMP = "computing";
 

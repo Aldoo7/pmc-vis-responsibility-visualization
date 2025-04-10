@@ -59,7 +59,7 @@ public class Project implements Namespace{
     public final int numIterations;
     private final String rootDir;
 
-    private final TreeMap<String, Object> info;
+    private final Info info;
 
     //List of properties that have been project checked
     private final List<Property> properties;
@@ -92,7 +92,7 @@ public class Project implements Namespace{
         this.cuddMaxMem = cuddMaxMem;
         this.numIterations = numIterations;
         this.rootDir = rootDir;
-        this.info = new TreeMap<>();
+        this.info = new Info(id);
 
         File file = new File(String.format("%s/%s/", rootDir, id) + PROJECT_MODEL);
         if (!file.exists()) {
@@ -159,10 +159,16 @@ public class Project implements Namespace{
             }
             APs.put(name,  ap);
         }
-        info.put("ID", id);
-        info.put(OUTPUT_LABELS, APs);
 
-        info.put(OUTPUT_RESULTS, new TreeMap<>());
+        this.info.setStateEntry(OUTPUT_LABELS, APs);
+        this.info.setStateEntry(OUTPUT_RESULTS, new TreeMap<>());
+        this.info.setTransitionEntry(OUTPUT_RESULTS, new TreeMap<>());
+
+        Map<String, VariableInfo> actionParameter = new TreeMap<>();
+        actionParameter.put(ENTRY_T_OUT, new VariableInfo(ENTRY_T_OUT, VariableInfo.parseType("string"), 0,0));
+        actionParameter.put(ENTRY_T_ACT, new VariableInfo(ENTRY_T_ACT, VariableInfo.parseType("string"), 0,0));
+        actionParameter.put(ENTRY_T_PROB, new VariableInfo(ENTRY_T_PROB, VariableInfo.parseType("complex"), 0,0));
+        this.info.setTransitionEntry(OUTPUT_ACTION, actionParameter);
 
         this.loadPropertyFiles();
         this.loadDBInfo();
@@ -200,12 +206,8 @@ public class Project implements Namespace{
         this.built = built;
     }
 
-    public void putInfo(String category, Object newEntry) {
-        info.put(category, newEntry);
-    }
-
-    public Object getInfo(String category) {
-        return info.get(category);
+    public Info getInfo() {
+        return info;
     }
 
     public void addCustomScheduler(File description) throws Exception {
@@ -966,13 +968,16 @@ public class Project implements Namespace{
         return labels;
     }
 
-    public TreeMap<String, Object> getInformation() {
-        TreeMap<String, Object> outInfo = new TreeMap<>(this.info);
-        TreeMap<String, Integer> schedulerInfo = new TreeMap<>();
-        for (Scheduler s : schedulers){
-            schedulerInfo.put(s.getName(), s.getId());
+    public Info getInformation() {
+        Info outInfo = this.info.copy();
+        for (Property p : properties) {
+            if(p.getScheduler() == null){
+                outInfo.setSchedulerEntry(p.getName(), VariableInfo.Status.missing);
+            }
         }
-        outInfo.put(OUTPUT_SCHEDULER, schedulerInfo);
+        for (Scheduler s : schedulers){
+            outInfo.setSchedulerEntry(s.getName(), VariableInfo.Status.ready);
+        }
         return outInfo;
     }
 

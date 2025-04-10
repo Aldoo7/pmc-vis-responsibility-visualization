@@ -52,14 +52,15 @@ public class ModelParser {
             String name = varList.getName(i);
             info.put(name, new VariableInfo(name, VariableInfo.parseType(varList.getType(i).getTypeString()), varList.getLow(i), varList.getHigh(i) ));
         }
-        project.putInfo(Namespace.OUTPUT_VARIABLES, info);
+        project.getInfo().setStateEntry(Namespace.OUTPUT_VARIABLES, info);
         info = new TreeMap<>();
         for (int i = 0; i < modulesFile.getNumRewardStructs() ; i++) {
             RewardStruct rw = modulesFile.getRewardStruct(i);
             String name = rw.getName();
             info.put(name, new VariableInfo(name, VariableInfo.Type.TYPE_NUMBER, 0, Double.POSITIVE_INFINITY));
         }
-        project.putInfo(Namespace.OUTPUT_REWARDS, info);
+        project.getInfo().setStateEntry(Namespace.OUTPUT_REWARDS, info);
+        project.getInfo().setTransitionEntry(Namespace.OUTPUT_REWARDS, info);
     }
 
     public String normalizeStateName(String stateDescription) {
