@@ -45,8 +45,9 @@ path.highlighted-path {
   }
 }
 
-.axis-violin, .axis-histogram {
+.violin path, .bars, .histogram {  
   stroke: none;
-  fill: #000;
+  fill: #ab9dcc;
   opacity: 0.5;
 }
+

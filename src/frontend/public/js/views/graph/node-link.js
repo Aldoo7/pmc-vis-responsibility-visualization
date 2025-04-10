@@ -629,6 +629,7 @@ function spawnPCP(cy) {
       bounds_indicator: cy.vars['pcp-bounds-indicator'].value,
       violins: cy.vars['pcp-violins'].value,
       histograms: cy.vars['pcp-histograms'].value,
+      freqs: cy.vars['pcp-discreet-freqs'].value,
     },
   );
 
@@ -1825,10 +1826,14 @@ function setPublicVars(cy, preset) {
       fn: undefined,
     },
     'pcp-violins': {
-      value: true,
+      value: false,
       fn: undefined,
     },
     'pcp-histograms': {
+      value: true,
+      fn: undefined,
+    },
+    'pcp-discreet-freqs': {
       value: false,
       fn: undefined,
     },

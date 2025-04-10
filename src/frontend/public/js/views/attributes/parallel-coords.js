@@ -5,9 +5,12 @@ import { setPane } from '../../utils/controls.js';
 import events from '../../utils/events.js';
 import { fixed } from '../../utils/utils.js';
 import makeCtxMenu from './ctx-menu.js';
-import { histogram, violin } from './axis.js';
+import {
+  frequencies, histogram, violin,
+} from './axis.js';
 
 function parallelCoords(pane, data, metadata) {
+  let counts = {};
   const selections = new Map(); // stores dimension -> brush selection
   const highlighted = new Set(); // stores hover highlighting, always a subset of selections
   let selected = {}; // stores data selection
@@ -70,7 +73,7 @@ function parallelCoords(pane, data, metadata) {
   function draw(pane, data) {
     function drawForeground(d) {
       foreground.strokeStyle = getComputedStyle(div).getPropertyValue(d.color);
-      path(d, foreground);
+      path(d, foreground, true);
     }
 
     function drawBoundIndicator(dim, selection, ctx) {
@@ -153,8 +156,8 @@ function parallelCoords(pane, data, metadata) {
     }
 
     function checkExceedsStack(line, ctx, ds) {
-      const l0 = fixed(line.l0.x) + '' + fixed(line.l0.y);
-      const l1 = fixed(line.l1.x) + '' + fixed(line.l1.y);
+      const l0 = orient ? fixed(line.l0.y) : fixed(line.l0.x);
+      const l1 = orient ? fixed(line.l1.y) : fixed(line.l1.x);
       ctx.stacks[ds.d0] ||= {};
       ctx.stacks[ds.d0][ds.d1] ||= {};
       ctx.stacks[ds.d0][ds.d1][l0] ||= {};
@@ -181,38 +184,41 @@ function parallelCoords(pane, data, metadata) {
 
     // returns the path for a given data point
     // this maps the generated x/y function for each of the data points to every dimension
-    function path(point, ctx) {
-      if (orient) {
-        dimensions.forEach((d1, i) => {
-          if (i > 0) {
-            const d0 = dimensions[i - 1];
-            const l0 = {
-              x: adjust(resp.scale(d0) + margin.left),
-              y: adjust(resp.axes[d0](point[d0]) + margin.top),
-            };
-            const l1 = {
-              x: adjust(resp.scale(d1) + margin.left),
-              y: adjust(resp.axes[d1](point[d1]) + margin.top),
-            };
-            segment({ l0, l1 }, ctx, { d0, d1 });
-          }
+    function path(point, ctx, count = false) {
+      const lines = orient
+        ? (d0, d1) => ({
+          l0: {
+            x: adjust(resp.scale(d0) + margin.left),
+            y: adjust(resp.axes[d0](point[d0]) + margin.top),
+          },
+          l1: {
+            x: adjust(resp.scale(d1) + margin.left),
+            y: adjust(resp.axes[d1](point[d1]) + margin.top),
+          },
+        })
+        : (d0, d1) => ({
+          l0: {
+            x: adjust(resp.axes[d0](point[d0]) + margin.left),
+            y: adjust(resp.scale(d0) + margin.top),
+          },
+          l1: {
+            x: adjust(resp.axes[d1](point[d1]) + margin.left),
+            y: adjust(resp.scale(d1) + margin.top),
+          },
         });
-      } else {
-        dimensions.forEach((d1, i) => {
-          if (i > 0) {
-            const d0 = dimensions[i - 1];
-            const l0 = {
-              x: adjust(resp.axes[d0](point[d0]) + margin.left),
-              y: adjust(resp.scale(d0) + margin.top),
-            };
-            const l1 = {
-              x: adjust(resp.axes[d1](point[d1]) + margin.left),
-              y: adjust(resp.scale(d1) + margin.top),
-            };
-            segment({ l0, l1 }, ctx, { d0, d1 });
-          }
-        });
-      }
+
+      dimensions.forEach((d1, i) => {
+        if (i > 0) {
+          const d0 = dimensions[i - 1];
+          segment(lines(d0, d1), ctx, { d0, d1 });
+        }
+        if (count) {
+          const val = fixed(resp.axes[d1](point[d1]));
+          counts[d1] ||= {};
+          counts[d1][val] ||= 0;
+          counts[d1][val] += 1;
+        }
+      });
     }
 
     function brush_start(e) {
@@ -240,13 +246,14 @@ function parallelCoords(pane, data, metadata) {
         foreground,
         background,
         highlight,
-      ].forEach(d => {
+      ].forEach(ctx => {
         const right = scale * (width + margin.left + margin.right + 10);
         const bottom = scale * (height + margin.top + margin.bottom + 10);
-        d.clearRect(0, 0, right, bottom);
-        d.stacks = {};
-        d.segments = { drawn: 0, skipped: 0 };
+        ctx.clearRect(0, 0, right, bottom);
+        ctx.stacks = {};
+        ctx.segments = { drawn: 0, skipped: 0 };
       });
+      counts = {};
 
       // get lines within extents
       data.map((d) => {
@@ -254,7 +261,7 @@ function parallelCoords(pane, data, metadata) {
           drawForeground(d);
           selected[d.id] = d;
         } else {
-          path(d, background);
+          path(d, background, true);
         }
       });
 
@@ -270,6 +277,11 @@ function parallelCoords(pane, data, metadata) {
       // } segments`);
 
       dimensions.forEach(d => {
+        if (metadata.freqs) {
+          frequencies(d3.select(`#${getAxisId(d)} > .axis`), {
+            counts, name: d, orient,
+          });
+        }
         const s = selections.get(d);
         if (s?.bound) {
           drawBoundIndicator(d, s, foreground);
@@ -434,8 +446,8 @@ function parallelCoords(pane, data, metadata) {
 
         axis.linear = d3
           .scaleLinear()
-          .domain([0, resp.svg_dims[orient]])
-          .range([0, resp.svg_dims[orient]]);
+          .domain([resp.svg_dims[orient], 0])
+          .range([resp.svg_dims[orient], 0]);
 
         axis.invert = (pos) => axis.linear(pos);
         axis.mapping = {};
@@ -451,8 +463,8 @@ function parallelCoords(pane, data, metadata) {
 
         axis.linear = d3
           .scaleLinear()
-          .domain([0, resp.svg_dims[orient]])
-          .range([0, resp.svg_dims[orient]]);
+          .domain([resp.svg_dims[orient], 0])
+          .range([resp.svg_dims[orient], 0]);
 
         axis.invert = (pos) => axis.linear(pos);
         axis.mapping = {};
@@ -727,18 +739,18 @@ function parallelCoords(pane, data, metadata) {
           .on('end', brush); // updates brush if clicked elsewhere on axis
       });
 
-    makeCtxMenu(pane.details, pane, publicFunctions, {
-      extras: [
-        {
-          label: 'Select Minimum',
-          callback: (e) => drawBrushMinMax(data, e.axisName, pane, 'min'),
-        },
-        {
-          label: 'Select Maximum',
-          callback: (e) => drawBrushMinMax(data, e.axisName, pane, 'max'),
-        },
-      ],
-    });
+    // makeCtxMenu(pane.details, pane, publicFunctions, {
+    //   extras: [
+    //     {
+    //       label: 'Select Minimum',
+    //       callback: (e) => drawBrushMinMax(data, e.axisName, pane, 'min'),
+    //     },
+    //     {
+    //       label: 'Select Maximum',
+    //       callback: (e) => drawBrushMinMax(data, e.axisName, pane, 'max'),
+    //     },
+    //   ],
+    // });
 
     removeEventListener('paneResize', resize, true);
     addEventListener('paneResize', resize, true);
