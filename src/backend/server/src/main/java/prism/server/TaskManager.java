@@ -24,7 +24,6 @@ public class TaskManager implements Executor, Managed {
     private final Queue<Task> tasks = new ArrayDeque<>();
     private ExecutorService executor;
     private Task active;
-    private String lastTaskId;
 
     private final HttpClient httpClient;
 
@@ -119,6 +118,12 @@ public class TaskManager implements Executor, Managed {
         this.interruptTasks(projectID);
         activeProjects.get(projectID).removeFiles();
         activeProjects.remove(projectID);
+    }
+
+    public void resetProject(String projectID) throws Exception {
+        this.clearDatabase(projectID);
+        Project resetProject = Project.reset(activeProjects.get(projectID));
+        activeProjects.put(projectID, resetProject);
     }
 
     public void clearDatabase(String projectID) throws Exception {

@@ -139,29 +139,48 @@ public class TaskResource extends Resource {
             @FormDataParam("file") InputStream modelInputStream,
             @FormDataParam("file") FormDataContentDisposition modelDetail
     ) {
-        if (new File(String.format("%s/%s", rootDir, projectID)).exists()){
-            return Response.status(Response.Status.FORBIDDEN).entity("Project already exists").build();
-        }
+
         String output = "";
 
-        try {
-//            if(modelDetail != null) {
-//                return error("No model uploaded");
-//            }
-
-            Files.createDirectory(Paths.get(String.format("%s/%s", rootDir, projectID)));
-            createStyleFile(projectID);
-            final String uploadModel = String.format("%s/%s/", rootDir, projectID) + Namespace.PROJECT_MODEL;
-            writeToFile(modelInputStream, uploadModel);
-            output += String.format("Model File uploaded to %s\n", uploadModel);
-        } catch (IOException e) {
-            return error(e);
+        //Create Project folder for a new Project
+        if (!new File(String.format("%s/%s", rootDir, projectID)).exists()){
+            try{Files.createDirectory(Paths.get(String.format("%s/%s", rootDir, projectID)));
+                createStyleFile(projectID);
+            } catch (IOException e) {
+                return error(e);
+            }
         }
 
-        try {
-            tasks.createProject(projectID, environment, configuration);
-        } catch (Exception e) {
-            return error(e);
+        final String uploadModel = String.format("%s/%s/", rootDir, projectID) + Namespace.PROJECT_MODEL;
+
+        //Check whether we overwrite the model file. Remove Project and delete file if this is the case.
+        if(new File(uploadModel).delete()) {
+            try {
+                //Write new File
+                try {
+                    writeToFile(modelInputStream, uploadModel);
+                    output += String.format("Model File uploaded to %s\n", uploadModel);
+                } catch (IOException e) {
+                    return error(e);
+                }
+                tasks.resetProject(projectID);
+            } catch (Exception e) {
+                return error(e);
+            }
+        }else{
+            //Write File
+            try {
+                writeToFile(modelInputStream, uploadModel);
+                output += String.format("Model File uploaded to %s\n", uploadModel);
+            } catch (IOException e) {
+                return error(e);
+            }
+
+            try {
+                tasks.createProject(projectID, environment, configuration);
+            } catch (Exception e) {
+                return error(e);
+            }
         }
 
         return Response.ok(output).build();
@@ -180,21 +199,31 @@ public class TaskResource extends Resource {
             @FormDataParam("file") FormDataContentDisposition propDetail
     ) {
         if (!new File(String.format("%s/%s", rootDir, projectID)).exists()){
-            return Response.status(Response.Status.FORBIDDEN).entity("Project does not exist").build();
+            return Response.status(Response.Status.FORBIDDEN).entity("Project does not exist. Please upload a model first.").build();
         }
 
         final String uploadProp = String.format("%s/%s/", rootDir, projectID) + propDetail.getFileName();
-        try {
-            writeToFile(propInputStream, uploadProp);
-            if (tasks.containsProject(projectID)) {
-                tasks.getProject(projectID).loadPropertyFile(new File(uploadProp));
-            }else{
-                loadProject(projectID);
-            }
-        } catch (Exception e) {
-            return error(e);
-        }
 
+        //Check whether we overwrite the property file. Remove Project and delete file if this is the case.
+        if(new File(uploadProp).delete()) {
+            try {
+                writeToFile(propInputStream, uploadProp);
+                tasks.resetProject(projectID);
+            } catch (Exception e) {
+                return error(e);
+            }
+        }else{
+            try {
+                writeToFile(propInputStream, uploadProp);
+                if (tasks.containsProject(projectID)) {
+                    tasks.getProject(projectID).loadPropertyFile(new File(uploadProp));
+                }else{
+                    loadProject(projectID);
+                }
+            } catch (Exception e) {
+                return error(e);
+            }
+        }
         return Response.ok(String.format("Property File uploaded to %s\n", uploadProp)).build();
     }
 

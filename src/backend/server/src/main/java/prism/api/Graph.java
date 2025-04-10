@@ -17,9 +17,7 @@ public class Graph {
 
     private List<Edge> edges;
 
-    private TreeMap<String, Object> info;
-
-    private List<String> scheduler;
+    private Info info;
 
     public Graph(){
         // Jackson deserialization
@@ -33,7 +31,6 @@ public class Graph {
         for (Transition t : transitions){
             edges.addAll(t.createEdges());
         }
-        this.scheduler = project.getSchedulers().stream().map(Scheduler::getName).collect(Collectors.toList());
     }
 
     @Schema(description = "all nodes in the graph")
@@ -50,13 +47,7 @@ public class Graph {
 
     @Schema(description = "Information about the MC process")
     @JsonProperty
-    public Map<String, Object> getInfo() {
+    public Info getInfo() {
         return info;
-    }
-
-    @Schema(description = "Information about the known Schedulers (should move into info, but does not work on frontend otherwise)")
-    @JsonProperty
-    public List<String> getScheduler() {
-        return scheduler;
     }
 }

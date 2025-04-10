@@ -367,9 +367,10 @@ public class ModelChecker implements Namespace {
             try {
                 prism.buildModelIfRequired();
                 VariableInfo newInfo = property.modelCheck();
-                Map<String, VariableInfo> info = (Map<String, VariableInfo>) project.getInfo(OUTPUT_RESULTS);
+                Map<String, VariableInfo> info = (Map<String, VariableInfo>) project.getInfo().getStateEntry(OUTPUT_RESULTS);
                 info.replace(property.getName(), newInfo);
-                project.putInfo(OUTPUT_RESULTS, info);
+                project.getInfo().setStateEntry(OUTPUT_RESULTS, info);
+                project.getInfo().setTransitionEntry(OUTPUT_RESULTS, info);
             } catch (PrismException e) {
                 throw new RuntimeException(e);
             }
@@ -412,9 +413,10 @@ public class ModelChecker implements Namespace {
         Optional<Property> p = project.getProperty(propertyName);
         if(p.isPresent()) {
             Property property = p.get();
-            Map<String, VariableInfo> info = (Map<String, VariableInfo>) project.getInfo(OUTPUT_RESULTS);
+            Map<String, VariableInfo> info = (Map<String, VariableInfo>) project.getInfo().getStateEntry(OUTPUT_RESULTS);
             info.get(propertyName).setStatus(VariableInfo.Status.computing);
-            project.putInfo(OUTPUT_RESULTS, info);
+            project.getInfo().setStateEntry(OUTPUT_RESULTS, info);
+            project.getInfo().setTransitionEntry(OUTPUT_RESULTS, info);
             project.getTaskManager().execute(new modelCheckTask(property));
         }
     }

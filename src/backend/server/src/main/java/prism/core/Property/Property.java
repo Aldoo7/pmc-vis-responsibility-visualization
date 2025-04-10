@@ -46,7 +46,7 @@ public abstract class Property implements Namespace {
         this.expression = prismProperty.getExpression();
         this.propertiesFile = propertiesFile;
 
-        Map<String, VariableInfo> info = (Map<String, VariableInfo>) project.getInfo(OUTPUT_RESULTS);
+        Map<String, VariableInfo> info = (Map<String, VariableInfo>) project.getInfo().getStateEntry(OUTPUT_RESULTS);
 
         if (project.getDatabase().question(String.format("SELECT name FROM pragma_table_info('%s') WHERE name = '%s'", project.getStateTableName(), this.getPropertyCollumn()))) {
             alreadyChecked = true;
@@ -54,7 +54,8 @@ public abstract class Property implements Namespace {
         }else{
             info.put(this.name, VariableInfo.blank(this.name));
         }
-        project.putInfo(OUTPUT_RESULTS, info);
+        project.getInfo().setStateEntry(OUTPUT_RESULTS, info);
+        project.getInfo().setTransitionEntry(OUTPUT_RESULTS, info);
     }
 
     protected VariableInfo getPropertyInfo(){
@@ -109,9 +110,10 @@ public abstract class Property implements Namespace {
 
     public void clear(){
         this.alreadyChecked = false;
-        Map<String, VariableInfo> info = (Map<String, VariableInfo>) project.getInfo(OUTPUT_RESULTS);
+        Map<String, VariableInfo> info = (Map<String, VariableInfo>) project.getInfo().getStateEntry(OUTPUT_RESULTS);
         info.replace(this.name, VariableInfo.blank(this.name));
-        project.putInfo(OUTPUT_RESULTS, info);
+        project.getInfo().setStateEntry(OUTPUT_RESULTS, info);
+        project.getInfo().setTransitionEntry(OUTPUT_RESULTS, info);
     }
 
     public abstract VariableInfo modelCheck() throws PrismException;

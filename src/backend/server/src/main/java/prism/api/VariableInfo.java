@@ -8,7 +8,7 @@ import prism.core.Namespace;
 @Schema(description="Information Object for Variables and Properties")
 public class VariableInfo implements Namespace {
 
-    public enum Type {TYPE_BLANK, TYPE_NUMBER, TYPE_BOOL};
+    public enum Type {TYPE_BLANK, TYPE_NUMBER, TYPE_BOOL, TYPE_OTHER};
 
     public enum Status {missing, ready, computing}
 
@@ -35,6 +35,9 @@ public class VariableInfo implements Namespace {
                 return Type.TYPE_NUMBER;
             case "boolean":
                 return Type.TYPE_BOOL;
+            case "string":
+            case "complex":
+                return Type.TYPE_OTHER;
             default:
                 return Type.TYPE_BLANK;
         }
@@ -52,6 +55,9 @@ public class VariableInfo implements Namespace {
                 break;
             case TYPE_BOOL:
                 this.type = TYPE_BOOLEAN;
+                break;
+            case TYPE_OTHER:
+                this.type = TYPE_NOMINAL;
                 break;
             case TYPE_BLANK:
             default:

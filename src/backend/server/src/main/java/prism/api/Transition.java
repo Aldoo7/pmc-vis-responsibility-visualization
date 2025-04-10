@@ -75,11 +75,11 @@ public class Transition implements Node{
     public Map<String, Map<String, Object>> getDetails() {
         Map<String, Map<String, Object>> details = new HashMap<>();
         Map<String, Object> parameters = new TreeMap<>();
-        parameters.put("origin", source);
-        parameters.put("action", action);
-        parameters.put("outcome distribution", probabilityDistribution);
+        parameters.put(ENTRY_T_OUT, source);
+        parameters.put(ENTRY_T_ACT, action);
+        parameters.put(ENTRY_T_PROB, probabilityDistribution);
 
-        details.put(OUTPUT_VARIABLES, parameters);
+        details.put(OUTPUT_ACTION, parameters);
         details.put(OUTPUT_REWARDS, new TreeMap<>(rewards));
         details.put(OUTPUT_RESULTS, new TreeMap<>(results));
         details.put(OUTPUT_SCHEDULER, new TreeMap<>(scheduler));
