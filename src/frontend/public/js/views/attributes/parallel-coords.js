@@ -521,7 +521,6 @@ function parallelCoords(pane, data, metadata) {
     });
     highlight.stack = 1;
     highlight.globalAlpha = 1;
-    highlight.lineWidth = scale * 4;
 
     // hover highlighting: cursor area visual indicator
     const cursor_rect = svg
@@ -587,9 +586,17 @@ function parallelCoords(pane, data, metadata) {
     svg.on('mousemove', (e) => {
       const right = scale * (width + margin.left + margin.right + 10);
       const bottom = scale * (height + margin.top + margin.bottom + 10);
-      highlight.clearRect(0, 0, right, bottom);
-      highlight.stacks = {};
-      highlight.segments = { drawn: 0, skipped: 0 };
+
+      [
+        highlight,
+        foreground,
+        background,
+      ].forEach(ctx => {
+        ctx.clearRect(0, 0, right, bottom);
+        ctx.stacks = {};
+        ctx.segments = { drawn: 0, skipped: 0 };
+      });
+
       const mouse = d3.pointer(e); // [x, y]
       const cursor_pad = 20;
 
@@ -618,6 +625,14 @@ function parallelCoords(pane, data, metadata) {
         cursor_rect.attr(resp.w_h[orient], 0);
         cursor_rect.attr(resp.w_h[1 - orient], 0);
         countTooltipUpdate(count_tooltip, mouse, '');
+        data.map((point) => {
+          const active = checkIfActive(point);
+          if (active && point[dim] !== undefined) {
+            drawForeground(point);
+          } else {
+            path(point, background);
+          }
+        });
         return;
       }
 
@@ -651,6 +666,11 @@ function parallelCoords(pane, data, metadata) {
             path(point, highlight);
           } else {
             highlighted.delete(point.id);
+            if (active) {
+              drawForeground(point);
+            } else {
+              path(point, background);
+            }
           }
         } else {
           highlighted.delete(point.id);
