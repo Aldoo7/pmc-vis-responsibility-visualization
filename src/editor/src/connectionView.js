@@ -71,6 +71,12 @@ class ConnectionViewProvider {
         this.refresh()
     }
 
+    saveAsLocalFile(element) {
+        if (element) {
+            element.saveAsLocalFile();
+        }
+    }
+
     openFrontend(element) {
         const project = this.getProject(element);
         if (project) {
@@ -197,6 +203,22 @@ class ConnectionItem extends vscode.TreeItem {
             await vscode.window.showTextDocument(this._document)
 
             return this._document
+        }
+    }
+
+    async saveAsLocalFile() {
+        if (this.contextValue = "File") {
+            const workspace = vscode.workspace.workspaceFolders;
+            const defaultPath = workspace ? `${workspace[0].uri.path}/${String(this.label)}` : String(this.label)
+            console.log(defaultPath);
+            vscode.window.showSaveDialog({ defaultUri: vscode.Uri.file(defaultPath) }).then(
+                async uri => {
+                    if (uri) {
+                        const document = await this.openDocument()
+                        await vscode.workspace.fs.writeFile(uri, Buffer.from(document.getText()));
+                    }
+                }
+            )
         }
     }
 
