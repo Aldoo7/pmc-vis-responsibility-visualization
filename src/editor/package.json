@@ -116,6 +116,11 @@
       {
         "command": "connectionView.openDocument",
         "title": "Open Document from Backend"
+      },
+      {
+        "command": "connectionView.saveAsLocalFile",
+        "title": "Save File on Local Filesystem",
+        "icon": "$(save-as)"
       }
     ],
     "menus": {
@@ -154,6 +159,11 @@
         {
           "command": "connectionView.front",
           "when": "view == connectionView && viewItem == Project",
+          "group": "inline"
+        },
+        {
+          "command": "connectionView.saveAsLocalFile",
+          "when": "view == connectionView && viewItem == File",
           "group": "inline"
         }
       ]

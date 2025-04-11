@@ -68,6 +68,7 @@ function activate(context) {
 	context.subscriptions.push(vscode.commands.registerCommand('connectionView.upload', item => connectionProvider.uploadFile(item)));
 	context.subscriptions.push(vscode.commands.registerCommand('connectionView.front', item => connectionProvider.openFrontend(item)));
 	context.subscriptions.push(vscode.commands.registerCommand('connectionView.openDocument', item => connectionProvider.openDocument(item)));
+	context.subscriptions.push(vscode.commands.registerCommand('connectionView.saveAsLocalFile', item => connectionProvider.saveAsLocalFile(item)));
 	//context.subscriptions.push(vscode.window.registerCustomEditorProvider(ConnectionFileEditorProvider.register()));
 
 }
