@@ -74,9 +74,9 @@ function parallelCoords(pane, data, metadata) {
   }
 
   function draw(pane, data) {
-    function drawForeground(d) {
+    function drawForeground(d, count = false) {
       foreground.strokeStyle = getComputedStyle(div).getPropertyValue(d.color);
-      path(d, foreground, true);
+      path(d, foreground, count);
     }
 
     function drawBoundIndicator(dim, selection, ctx) {
@@ -261,7 +261,7 @@ function parallelCoords(pane, data, metadata) {
       // get lines within extents
       data.map((d) => {
         if (checkIfActive(d)) {
-          drawForeground(d);
+          drawForeground(d, true);
           selected[d.id] = d;
         } else {
           path(d, background, true);
@@ -279,17 +279,15 @@ function parallelCoords(pane, data, metadata) {
       //   background.segments.skipped
       // } segments`);
 
-      dimensions.forEach(d => {
-        if (pane.cy.vars['pcp-dfs'].value) {
+      drawBoundIndicators();
+
+      if (pane.cy.vars['pcp-dfs'].value) {
+        dimensions.forEach(d => {
           frequencies(d3.select(`#${getAxisId(d)} > .axis`), {
             counts, name: d, orient,
           });
-        }
-        const s = selections.get(d);
-        if (s?.bound) {
-          drawBoundIndicator(d, s, foreground);
-        }
-      });
+        });
+      }
     }
 
     // sorting function by value, used in scales for each numerical dimension
@@ -582,6 +580,15 @@ function parallelCoords(pane, data, metadata) {
       tooltip.text(text);
     }, 50);
 
+    function drawBoundIndicators() {
+      dimensions.forEach(d => {
+        const s = selections.get(d);
+        if (s?.bound) {
+          drawBoundIndicator(d, s, foreground);
+        }
+      });
+    }
+
     // cursor logic
     svg.on('mousemove', (e) => {
       const right = scale * (width + margin.left + margin.right + 10);
@@ -603,12 +610,12 @@ function parallelCoords(pane, data, metadata) {
       // compute closest dimension
       let dim = dimensions[0];
 
-      dimensions.forEach(i => {
+      dimensions.forEach(d => {
         if (
           Math.abs(position(dim) - mouse[1 - orient])
-          > Math.abs(position(i) - mouse[1 - orient])
+          > Math.abs(position(d) - mouse[1 - orient])
         ) {
-          dim = i;
+          dim = d;
         }
       });
 
@@ -633,6 +640,7 @@ function parallelCoords(pane, data, metadata) {
             path(point, background);
           }
         });
+        drawBoundIndicators();
         return;
       }
 
@@ -657,25 +665,27 @@ function parallelCoords(pane, data, metadata) {
           const val = metadata.pld[dim].type === 'number'
             ? point[dim]
             : resp.axes[dim].mapping[point[dim]];
-          if (
-            active
-            && val >= Math.min(mouse_lower_limit, mouse_upper_limit)
-            && val <= Math.max(mouse_lower_limit, mouse_upper_limit)
-          ) {
-            highlighted.add(point.id);
-            path(point, highlight);
+          if (active) {
+            if (
+              val >= Math.min(mouse_lower_limit, mouse_upper_limit)
+              && val <= Math.max(mouse_lower_limit, mouse_upper_limit)
+            ) {
+              highlighted.add(point.id);
+              path(point, highlight);
+            } else {
+              highlighted.delete(point.id);
+              drawForeground(point);
+            }
           } else {
             highlighted.delete(point.id);
-            if (active) {
-              drawForeground(point);
-            } else {
-              path(point, background);
-            }
+            path(point, background);
           }
         } else {
           highlighted.delete(point.id);
         }
       });
+
+      drawBoundIndicators();
 
       // console.log(`Highlighting layer drew: ${
       //   highlight.segments.drawn
@@ -693,6 +703,7 @@ function parallelCoords(pane, data, metadata) {
         const axis_g = d3
           .select(`#${getAxisId(dim)} > .axis`)
           .call(axis.scale(resp.axes[dim]));
+        
         if (pane.cy.vars['pcp-vs'].value) {
           violin(axis_g, {
             orient, resp, name: dim, data: data.map((d) => d[dim]),
