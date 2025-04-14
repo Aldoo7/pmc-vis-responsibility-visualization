@@ -68,19 +68,19 @@ public class DistanceView extends View {
         List<String> toExecute = new ArrayList<>();
 
         // Compute reachability score
-        Set<Long> visited = new HashSet<>();
-        Set<Long> visiting = new HashSet<>();
+        Set<String> visited = new HashSet<>();
+        Set<String> visiting = new HashSet<>();
         long distance = 0;
 
         // initialise states with expression
         if (identifierExpression.equals("init")){
-            Set<Long> subsetInitStates = model.getInitialStates()
+            Set<String> subsetInitStates = model.getInitialStates()
                     .stream()
                     .filter(stateId -> relevantStates.contains(stateId))
                     .collect(Collectors.toSet());
             visiting.addAll(subsetInitStates);
         } else {
-            Set<Long> subsetStates = model.getStatesByExpression(model.getModelParser().parseSingleExpressionString(identifierExpression).toString())
+            Set<String> subsetStates = model.getStatesByExpression(model.getModelParser().parseSingleExpressionString(identifierExpression).toString())
                     .stream()
                     .filter(stateId -> relevantStates.contains(stateId))
                     .collect(Collectors.toSet());
@@ -91,12 +91,12 @@ public class DistanceView extends View {
 
         // Determine distance from Expression states (both ways)
         while(!visiting.isEmpty()){
-            Set<Long> toVisit = new HashSet<>();
+            Set<String> toVisit = new HashSet<>();
 
-            for (Long stateID : visiting){
+            for (String stateID : visiting){
                 long curr = distance - Math.floorMod(distance, granularity);
 //                    if (!(direction == DistanceDirection.REACHABLE))
-                    toExecute.add(String.format("UPDATE %s SET %s = '%s' WHERE %s = '%s'", model.getStateTableName(), getCollumn(), curr, ENTRY_S_ID, stateID));
+                toExecute.add(String.format("UPDATE %s SET %s = '%s' WHERE %s = '%s'", model.getStateTableName(), getCollumn(), curr, ENTRY_S_ID, stateID));
 
                 Set<Long> reachableStates;
 
@@ -104,7 +104,7 @@ public class DistanceView extends View {
                 switch (direction) {
 //                        case REACHABLE:
                     case BACKWARD:
-                        reachableStates = mdpGraph.incomingEdgesOf(stateID)
+                        reachableStates = mdpGraph.incomingEdgesOf(Long.parseLong(stateID))
                                 .stream()
                                 .map(mdpGraph::getEdgeSource)
                                 .filter(stateId -> relevantStates.contains(stateId))
@@ -112,13 +112,13 @@ public class DistanceView extends View {
                         break;
                     case DIRECTIONLESS:
                         reachableStates =
-                                mdpGraph.outgoingEdgesOf(stateID)
+                                mdpGraph.outgoingEdgesOf(Long.parseLong(stateID))
                                 .stream()
                                 .map(mdpGraph::getEdgeTarget)
                                 .filter(stateId -> relevantStates.contains(stateId))
                                 .collect(Collectors.toSet());
                         reachableStates.addAll(
-                                mdpGraph.incomingEdgesOf(stateID)
+                                mdpGraph.incomingEdgesOf(Long.parseLong(stateID))
                                 .stream()
                                 .map(mdpGraph::getEdgeSource)
                                 .filter(stateId -> relevantStates.contains(stateId))
@@ -126,7 +126,7 @@ public class DistanceView extends View {
                         );
                         break;
                     case FORWARD: default:
-                        reachableStates = mdpGraph.outgoingEdgesOf(stateID)
+                        reachableStates = mdpGraph.outgoingEdgesOf(Long.parseLong(stateID))
                                 .stream()
                                 .map(mdpGraph::getEdgeTarget)
                                 .filter(stateId -> relevantStates.contains(stateId))
@@ -135,7 +135,7 @@ public class DistanceView extends View {
 
                 for (Long idReachableState : reachableStates) {
                     if (!(visited.contains(idReachableState) || visiting.contains(idReachableState))){
-                        toVisit.add(idReachableState);
+                        toVisit.add(String.valueOf(idReachableState));
                     }
                 }
             }

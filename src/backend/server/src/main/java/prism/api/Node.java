@@ -30,7 +30,7 @@ public interface Node extends Namespace {
     Map<String, Map<String, Object>> getDetails();
 
     @JsonIgnore
-    long getNumId();
+    String getNumId();
 
     @JsonIgnore
     double getReward(String name);

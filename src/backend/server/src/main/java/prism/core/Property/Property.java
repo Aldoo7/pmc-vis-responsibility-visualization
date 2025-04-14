@@ -204,15 +204,14 @@ public abstract class Property implements Namespace {
     }
 
     private String createReachableTable() throws Exception {
-        Set<Long> visited = new HashSet<>();
-        Set<Long> visiting = new HashSet<>();
-        visiting.addAll(project.getInitialStates());
+        Set<String> visited = new HashSet<>();
+        Set<String> visiting = new HashSet<>(project.getInitialStates());
         String table_name = project.getStateTableName() + "_reach";
 
-        Map<Long, List<Transition>> outgoing = new HashMap<>();
+        Map<String, List<Transition>> outgoing = new HashMap<>();
 
         for (Transition t : project.getAllTransitions()){
-            long s_id = Long.parseLong(t.getSource());
+            String s_id = t.getSource();
             if (!outgoing.containsKey(s_id)){
                 outgoing.put(s_id, new ArrayList<>());
             }
@@ -226,9 +225,9 @@ public abstract class Property implements Namespace {
 
         try(Batch toExecute = project.getDatabase().createBatch(stateInsertCall, 1)){
             while(!visiting.isEmpty()){
-                Set<Long> toVisit = new HashSet<>();
+                Set<String> toVisit = new HashSet<>();
 
-                for (Long stateID : visiting){
+                for (String stateID : visiting){
                     toExecute.addToBatch(String.valueOf(stateID));
 
                     //See all outgoing
@@ -236,7 +235,7 @@ public abstract class Property implements Namespace {
                     for (Transition vert : out){
                         if (vert.getScheduler().get(this.getName()) > 0){
                             for (String reachable : vert.getProbabilityDistribution().keySet()){
-                                long r = Long.parseLong(reachable);
+                                String r = reachable;
                                 if (!(visited.contains(r) | visiting.contains(r))){
                                     toVisit.add(r);
                                 }

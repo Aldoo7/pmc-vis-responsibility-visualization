@@ -9,7 +9,7 @@ import java.util.stream.Collectors;
 
 public class Transition implements Node{
 
-    private long id;
+    private String id;
     private String source;
 
     private String action;
@@ -28,7 +28,7 @@ public class Transition implements Node{
         // Jackson deserialization
     }
 
-    public Transition(long id, String source, String action, Map<Long, Double> probabilityDistribution, Map<String, Double> rewards, Map<String, Double> results, Map<String, Double> scheduler, List<String> views,  Map<Long, String> translation){
+    public Transition(String id, String source, String action, Map<String, Double> probabilityDistribution, Map<String, Double> rewards, Map<String, Double> results, Map<String, Double> scheduler, List<String> views,  Map<String, String> translation){
         this.id = id;
         this.source = source;
         this.action = action;
@@ -37,12 +37,12 @@ public class Transition implements Node{
         if (rewards != null) this.rewards = new TreeMap<>(rewards); else this.rewards = new TreeMap<>();
         if (scheduler != null) this.scheduler = new TreeMap<>(scheduler); else this.scheduler = new TreeMap<>();
         if (translation == null) {
-            this.probabilityDistribution = probabilityDistribution.entrySet().stream().collect(Collectors.toMap(e -> Long.toString(e.getKey()), Map.Entry::getValue ));
+            this.probabilityDistribution = probabilityDistribution;
         }
         else{
             Map<String, Double> translated = new HashMap<>();
             Double d = 0.0;
-            for (Map.Entry<Long, Double> e : probabilityDistribution.entrySet()) {
+            for (Map.Entry<String, Double> e : probabilityDistribution.entrySet()) {
                 translated.put(translation.get(e.getKey()), e.getValue());
                 d += e.getValue();
             }
@@ -93,8 +93,8 @@ public class Transition implements Node{
         return output;
     }
 
-    @Override
-    public long getNumId() {
+    //@Override
+    public String getNumId() {
         return id;
     }
 

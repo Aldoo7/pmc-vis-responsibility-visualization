@@ -1,5 +1,6 @@
 package prism.core;
 
+import com.google.common.math.BigIntegerMath;
 import parser.State;
 import parser.Values;
 import parser.VarList;
@@ -15,6 +16,9 @@ import prism.api.*;
 import prism.core.Utility.Prism.Updater;
 import simulator.Choice;
 import simulator.TransitionList;
+
+import java.math.BigInteger;
+import java.math.RoundingMode;
 import java.util.*;
 
 public class ModelParser {
@@ -26,7 +30,7 @@ public class ModelParser {
     private final Updater updater;
 
     private final VarList varList;
-    private final long maxStateIndex;
+    private final BigInteger maxStateIndex;
     private List<parser.State> initials;
 
     public ModelParser(Project project, ModulesFile modulesFile, boolean debug) {
@@ -38,10 +42,12 @@ public class ModelParser {
         try {
             this.updater = new Updater(modulesFile, prism);
             this.varList = modulesFile.createVarList();
-            long index = 1;
+            BigInteger index = BigInteger.ONE;
             for (int i = 0; i < varList.getNumVars(); i++) {
                 int range = varList.getRange(i);
-                index *= range;
+                index = index.multiply(BigInteger.valueOf(range));
+                System.out.println("Name: " + varList.getName(i) + " , Range: " + range);
+                System.out.println(index);
             }
             this.maxStateIndex = index;
         }catch (PrismException e){
@@ -66,6 +72,9 @@ public class ModelParser {
             buildInitialStateObjects();
         } catch (Exception e) {
             throw new RuntimeException(e);
+        }
+        if(debug){
+            System.out.println("Parsed Model with " + this.maxStateIndex + " possible states");
         }
     }
 
@@ -217,9 +226,9 @@ public class ModelParser {
         this.initials = initials;
     }
 
-    public long stateIdentifier(parser.State state) {
-        long index = 0;
-        long prevRange = 1;
+    public BigInteger stateIdentifier(parser.State state) {
+        BigInteger index = BigInteger.ZERO;
+        BigInteger prevRange = BigInteger.ONE;
 
         for (int i = varList.getNumVars()-1; i >= 0; i--) {
 
@@ -243,16 +252,16 @@ public class ModelParser {
                     throw new RuntimeException("Unknown type: " + varList.getType(i).getTypeString());
             }
 
-            index = index + ((long) (value - minValue) * prevRange);
-            prevRange = prevRange * range;
+            index = index.add(prevRange.multiply(BigInteger.valueOf(value - minValue)));
+            prevRange = prevRange.multiply(BigInteger.valueOf(range));
         }
 
         return index;
     }
 
-    public long stateIdentifier(int[] values) {
-        long index = 0;
-        long prevRange = 1;
+    public BigInteger stateIdentifier(int[] values) {
+        BigInteger index = BigInteger.ZERO;
+        BigInteger prevRange = BigInteger.ONE;
 
         for (int i = varList.getNumVars()-1; i >= 0; i--) {
 
@@ -268,17 +277,17 @@ public class ModelParser {
                 System.out.println("Value " + value + " is out of range");
                 throw new RuntimeException("Value " + value + " is out of range");}
 
-            index = index + ((long) (value - minValue) * prevRange);
-            prevRange = prevRange * range;
+            index = index.add(prevRange.multiply(BigInteger.valueOf(value - minValue)));
+            prevRange = prevRange.multiply(BigInteger.valueOf(range));
         }
 
         return index;
     }
 
-    public parser.State translateStateIdentifier(long stateIdentifier) {
+    public parser.State translateStateIdentifier(BigInteger stateIdentifier) {
         parser.State state = new State(varList.getNumVars());
 
-        long prevRange = 1;
+        BigInteger prevRange = BigInteger.ONE;
 
         for (int i = varList.getNumVars()-1; i >= 0; i--) {
             int minValue = varList.getLow(i);
@@ -286,8 +295,8 @@ public class ModelParser {
 
             int position = modulesFile.getVarIndex(varList.getName(i));
 
-            int range = (maxValue - minValue) + 1;
-            int value = (int) (Math.floorDiv(stateIdentifier, prevRange) % range);
+            BigInteger range = BigInteger.valueOf((maxValue - minValue) + 1);
+            int value = BigIntegerMath.divide(stateIdentifier, prevRange, RoundingMode.DOWN).mod(range).intValue();
             value += minValue;
 
             switch(varList.getType(i).getTypeString()){
@@ -302,14 +311,14 @@ public class ModelParser {
                     throw new RuntimeException("Unknown type: " + varList.getType(i).getTypeString());
             }
 
-            prevRange = prevRange * range;
+            prevRange = prevRange.multiply(range);
         }
 
         return state;
     }
 
-    public long transitionIdentifier(parser.State outState, Choice<Double> choice) {
-        long index = stateIdentifier(outState);
+    public BigInteger transitionIdentifier(parser.State outState, Choice<Double> choice) {
+        BigInteger index = stateIdentifier(outState);
 
         int minValue = -modulesFile.getNumModules();
         int value = choice.getModuleOrActionIndex();
@@ -317,11 +326,11 @@ public class ModelParser {
             value -= 1;
         }
 
-        return index + ((long) (value - minValue) * this.maxStateIndex);
+        return index.add(this.maxStateIndex.multiply(BigInteger.valueOf(value - minValue)));
     }
 
     private prism.api.State convertApiState(parser.State state) throws Exception {
-        long stateidentifier = stateIdentifier(state);
+        BigInteger stateidentifier = stateIdentifier(state);
 
         int numRewards = modulesFile.getNumRewardStructs();
         List<String> rewardNames = modulesFile.getRewardStructNames();
@@ -339,11 +348,11 @@ public class ModelParser {
             rewards.put(rewardNames.get(i), rewardValues[i]);
         }
 
-        return new prism.api.State(stateidentifier, state.toString(), variables, project.getLabelMap(state), rewards, new TreeMap<>());
+        return new prism.api.State(stateidentifier.toString(), state.toString(), variables, project.getLabelMap(state), rewards, new TreeMap<>());
     }
 
     private Transition convertApiTransition(parser.State out, Choice<Double> choice, Map<parser.State, Double> distribution) throws Exception {
-        long identifier = transitionIdentifier(out, choice);
+        BigInteger identifier = transitionIdentifier(out, choice);
 
         int numRewards = modulesFile.getNumRewardStructs();
         List<String> rewardNames = modulesFile.getRewardStructNames();
@@ -352,9 +361,9 @@ public class ModelParser {
         updater.calculateTransitionRewards(out, choice.getModuleOrActionIndex(), rewardValues);
 
 
-        Map<Long, Double> outDistribution = new HashMap<>();
+        Map<String, Double> outDistribution = new HashMap<>();
         for (parser.State state : distribution.keySet()) {
-            outDistribution.put(stateIdentifier(state), distribution.get(state));
+            outDistribution.put(stateIdentifier(state).toString(), distribution.get(state));
         }
 
         Map<String, Double> rewards = new TreeMap<>();
@@ -362,7 +371,7 @@ public class ModelParser {
             rewards.put(rewardNames.get(i), rewardValues[i]);
         }
 
-        return new Transition(identifier, String.valueOf(stateIdentifier(out)), choice.getModuleOrAction(), outDistribution, rewards, null, null, null, null);
+        return new Transition(identifier.toString(), stateIdentifier(out).toString(), choice.getModuleOrAction(), outDistribution, rewards, null, null, null, null);
     }
 
     // Output Functions
@@ -413,13 +422,13 @@ public class ModelParser {
         return new Graph(project, outStates, transitions);
     }
 
-    public Graph getSubGraph(List<Long> stateIDs) throws Exception {
+    public Graph getSubGraph(List<String> stateIDs) throws Exception {
         List<parser.State> states = new ArrayList<>();
         List<prism.api.State> outStates = new ArrayList<>();
         List<Transition> transitions = new ArrayList<>();
 
-        for (Long stateID : stateIDs) {
-            states.add(translateStateIdentifier(stateID));
+        for (String stateID : stateIDs) {
+            states.add(translateStateIdentifier(new BigInteger(stateID)));
         }
 
         for (parser.State state : states) {
@@ -448,13 +457,13 @@ public class ModelParser {
         return new Graph(project, outStates, transitions);
     }
 
-    public Graph getOutgoing(List<Long> stateIDs) throws Exception {
+    public Graph getOutgoing(List<String> stateIDs) throws Exception {
         List<parser.State> states = new ArrayList<>();
         List<prism.api.State> outStates = new ArrayList<>();
         List<Transition> transitions = new ArrayList<>();
 
-        for (Long stateID : stateIDs) {
-            states.add(translateStateIdentifier(stateID));
+        for (String stateID : stateIDs) {
+            states.add(translateStateIdentifier(new BigInteger(stateID)));
         }
 
         for (parser.State state : states) {
@@ -481,13 +490,13 @@ public class ModelParser {
 
     }
 
-    public Graph resetGraph(List<Long> stateIDs, List<Long> unexploredStateIDs) throws Exception {
+    public Graph resetGraph(List<String> stateIDs, List<String> unexploredStateIDs) throws Exception {
         List<parser.State> states = new ArrayList<>();
         List<prism.api.State> outStates = new ArrayList<>();
         List<Transition> transitions = new ArrayList<>();
 
-        for (Long stateID : stateIDs) {
-            states.add(translateStateIdentifier(stateID));
+        for (String stateID : stateIDs) {
+            states.add(translateStateIdentifier(new BigInteger(stateID)));
         }
 
         for (parser.State state : states) {
@@ -511,9 +520,9 @@ public class ModelParser {
             }
         }
 
-        for (Long stateID : unexploredStateIDs) {
-            if (!outStates.stream().anyMatch(s -> s.getNumId() == stateID)){
-                parser.State state = translateStateIdentifier(stateID);
+        for (String stateID : unexploredStateIDs) {
+            if (outStates.stream().noneMatch(s -> s.getId().equals(stateID))){
+                parser.State state = translateStateIdentifier(new BigInteger(stateID));
                 outStates.add(convertApiState(state));
             }
         }

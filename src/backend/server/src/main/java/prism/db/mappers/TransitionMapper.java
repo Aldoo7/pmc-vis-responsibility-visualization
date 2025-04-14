@@ -26,7 +26,7 @@ public class TransitionMapper implements RowMapper<Transition> {
 
     private final ScheduleMapper scheduleMapper;
 
-    private final Map<Long, String> map;
+    private final Map<String, String> map;
 
     private final List<View> views;
 
@@ -39,7 +39,7 @@ public class TransitionMapper implements RowMapper<Transition> {
         this.views = new ArrayList<>();
     }
 
-    public TransitionMapper(Project project, List<View> views, Map<Long, String> map){
+    public TransitionMapper(Project project, List<View> views, Map<String, String> map){
         distributionMapper = new DistributionMapper();
         this.propertyMapper = null;
         this.rewardMapper = null;
@@ -51,10 +51,10 @@ public class TransitionMapper implements RowMapper<Transition> {
     @Override
     public Transition map(final ResultSet rs, final StatementContext ctx) throws SQLException {
         if (propertyMapper != null){
-            return new Transition(rs.getLong(Namespace.ENTRY_T_ID), rs.getString(Namespace.ENTRY_T_OUT), rs.getString(Namespace.ENTRY_T_ACT), distributionMapper.map(rs, ctx), rewardMapper.map(rs, ctx), propertyMapper.map(rs, ctx), scheduleMapper.map(rs, ctx),  views.stream().map(c -> Long.toString(c.getId())).collect(Collectors.toList()), map);
+            return new Transition(rs.getString(Namespace.ENTRY_T_ID), rs.getString(Namespace.ENTRY_T_OUT), rs.getString(Namespace.ENTRY_T_ACT), distributionMapper.map(rs, ctx), rewardMapper.map(rs, ctx), propertyMapper.map(rs, ctx), scheduleMapper.map(rs, ctx),  views.stream().map(c -> Long.toString(c.getId())).collect(Collectors.toList()), map);
         }
         else {
-            return new Transition(rs.getLong(Namespace.ENTRY_T_ID), rs.getString(Namespace.ENTRY_T_OUT), rs.getString(Namespace.ENTRY_T_ACT), distributionMapper.map(rs, ctx), null, null, null,  views.stream().map(c -> Long.toString(c.getId())).collect(Collectors.toList()), map);
+            return new Transition(rs.getString(Namespace.ENTRY_T_ID), rs.getString(Namespace.ENTRY_T_OUT), rs.getString(Namespace.ENTRY_T_ACT), distributionMapper.map(rs, ctx), null, null, null,  views.stream().map(c -> Long.toString(c.getId())).collect(Collectors.toList()), map);
         }
     }
 }

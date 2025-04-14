@@ -15,6 +15,7 @@ import simulator.Choice;
 import simulator.TransitionList;
 
 import java.io.*;
+import java.math.BigInteger;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -224,8 +225,8 @@ public class ModelChecker implements Namespace {
             try (prism.core.Utility.Timer build = new Timer("Build Database", project.getLog())) {
                 int numRewards = modulesFile.getNumRewardStructs();
                 try {
-                    database.execute(String.format("CREATE TABLE %s (%s INTEGER PRIMARY KEY NOT NULL, %s TEXT, %s BOOLEAN)", stateTable, ENTRY_S_ID, ENTRY_S_NAME, ENTRY_S_INIT));
-                    database.execute(String.format("CREATE TABLE %s (%s INTEGER PRIMARY KEY NOT NULL, %s INTEGER NOT NULL, %s TEXT, %s INTEGER);", transTable, ENTRY_T_ID, ENTRY_T_OUT, ENTRY_T_ACT, ENTRY_T_PROB));
+                    database.execute(String.format("CREATE TABLE %s (%s TEXT PRIMARY KEY NOT NULL, %s TEXT, %s BOOLEAN)", stateTable, ENTRY_S_ID, ENTRY_S_NAME, ENTRY_S_INIT));
+                    database.execute(String.format("CREATE TABLE %s (%s TEXT PRIMARY KEY NOT NULL, %s TEXT NOT NULL, %s TEXT, %s INTEGER);", transTable, ENTRY_T_ID, ENTRY_T_OUT, ENTRY_T_ACT, ENTRY_T_PROB));
                     database.execute(String.format("CREATE TABLE %s (%s TEXT, %s TEXT)", schedTable, ENTRY_SCH_ID, ENTRY_SCH_NAME));
 
                     for (int i = 0; i < numRewards; i++) {
@@ -256,7 +257,7 @@ public class ModelChecker implements Namespace {
                     for (int i = 0; i < stateList.size(); i++) {
                         String stateName = project.getModelParser().normalizeStateName(stateList.get(i));
                         parser.State s = project.getModelParser().parseState(stateName);
-                        long s_id = project.getModelParser().stateIdentifier(s);
+                        String s_id = project.getModelParser().stateIdentifier(s).toString();
 
                         //Determine whether this is an initial state or not
                         Expression initialExpression = modulesFile.getInitialStates();
@@ -272,7 +273,7 @@ public class ModelChecker implements Namespace {
                             double[] rewards = new double[numRewards];
                             updater.calculateStateRewards(s, rewards);
                             String[] inputs = new String[numRewards + 3];
-                            inputs[0] = Long.toString(s_id);
+                            inputs[0] = s_id;
                             inputs[1] = stateName;
                             inputs[2] = initial ? "1" : "0";
                             for (int j = 0; j < numRewards; j++) {
@@ -280,7 +281,7 @@ public class ModelChecker implements Namespace {
                             }
                             toExecute.addToBatch(inputs);
                         } else {
-                            toExecute.addToBatch(Long.toString(s_id), stateName, initial ? "1" : "0");
+                            toExecute.addToBatch(s_id, stateName, initial ? "1" : "0");
                         }
                     }
                 } catch (SQLException e) {
@@ -291,7 +292,7 @@ public class ModelChecker implements Namespace {
                     for (int i = 0; i < stateList.size(); i++) {
                         String stateName = project.getModelParser().normalizeStateName(stateList.get(i));
                         parser.State s = project.getModelParser().parseState(stateName);
-                        long s_id = project.getModelParser().stateIdentifier(s);
+                        String s_id = project.getModelParser().stateIdentifier(s).toString();
 
                         TransitionList<Double> transitionList = new TransitionList<>(Evaluator.forDouble());
                         updater.calculateTransitions(s, transitionList);
@@ -299,21 +300,21 @@ public class ModelChecker implements Namespace {
                             Choice<Double> choice = transitionList.getChoice(j);
                             String actionName = choice.getModuleOrAction();
 
-                            long t_id = project.getModelParser().transitionIdentifier(s, choice);
+                            String t_id = project.getModelParser().transitionIdentifier(s, choice).toString();
 
-                            Map<Long, Double> probabilities = new HashMap<>();
+                            Map<String, Double> probabilities = new HashMap<>();
 
                             for (int l = 0; l < choice.size(); l++) {
                                 double probability = choice.getProbability(l);
                                 parser.State target = choice.computeTarget(l, s, modulesFile.createVarList());
-                                probabilities.put(project.getModelParser().stateIdentifier(target), probability);
+                                probabilities.put(project.getModelParser().stateIdentifier(target).toString(), probability);
                             }
                             if (numRewards > 0) {
                                 double[] rewards = new double[numRewards];
                                 updater.calculateTransitionRewards(s, choice.getModuleOrActionIndex(), rewards);
                                 String[] inputs = new String[numRewards + 4];
-                                inputs[0] =  Long.toString(t_id);
-                                inputs[1] =  Long.toString(s_id);
+                                inputs[0] =  t_id;
+                                inputs[1] =  s_id;
                                 inputs[2] = actionName;
                                 inputs[3] = probabilities.entrySet().stream().map(e -> String.format("%s:%s", e.getKey(), e.getValue())).collect(Collectors.joining(";"));
                                 for (int l = 0; l < numRewards; l++) {
@@ -321,7 +322,7 @@ public class ModelChecker implements Namespace {
                                 }
                                 toExecute.addToBatch(inputs);
                             } else {
-                                toExecute.addToBatch(Long.toString(t_id), Long.toString(s_id), actionName, probabilities.entrySet().stream().map(e -> String.format("%s:%s", e.getKey(), e.getValue())).collect(Collectors.joining(";")));
+                                toExecute.addToBatch(t_id, s_id, actionName, probabilities.entrySet().stream().map(e -> String.format("%s:%s", e.getKey(), e.getValue())).collect(Collectors.joining(";")));
                             }
                         }
                     }

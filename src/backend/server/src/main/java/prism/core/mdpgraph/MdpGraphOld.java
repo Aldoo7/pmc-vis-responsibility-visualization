@@ -65,7 +65,7 @@ public class MdpGraphOld extends DirectedWeightedPseudograph<State, MdpTransitio
                     }
                 }
                 MdpTransitionOld mdpTransitionOld = new MdpTransitionOld(
-                        transition.getNumId(),
+                        0L,//transition.getNumId(),
                         source,
                         target,
                         transition.getAction(),

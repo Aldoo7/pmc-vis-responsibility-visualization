@@ -20,11 +20,11 @@ public class InitView extends View {
         List<String> toExecute = new ArrayList<>();
 
         // 1. Get initial states
-        Set<Long> initStates = new HashSet<>(model.getInitialStates());
+        Set<String> initStates = new HashSet<>(model.getInitialStates());
 
         // Create views by checking if State is among initStates
         for (Long stateId : relevantStates) {
-            boolean isInitState = initStates.contains(stateId);
+            boolean isInitState = initStates.contains(stateId.toString());
             String initGroupingString = calcBinGroupingString(isInitState, "init", "~init");
 
             toExecute.add(String.format("UPDATE %s SET %s = '%s' WHERE %s = '%s'", model.getStateTableName(), getCollumn(), initGroupingString, ENTRY_S_ID, stateId));

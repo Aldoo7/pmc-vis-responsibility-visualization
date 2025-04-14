@@ -9,7 +9,7 @@ import java.util.stream.Collectors;
 @Schema(description="Object representing a single Node of a Graph")
 public class State implements Node{
 
-    private long id;
+    private String id;
 
     private String name;
 
@@ -29,7 +29,7 @@ public class State implements Node{
         // Jackson deserialization
     }
 
-    public State(long id, String name, Map<String, Object> parameters, TreeMap<String, AP> atomicPropositions, Map<String, Double> rewards, Map<String, Double> properties) {
+    public State(String id, String name, Map<String, Object> parameters, TreeMap<String, AP> atomicPropositions, Map<String, Double> rewards, Map<String, Double> properties) {
         this.id = id;
         this.name = name;
         this.parameters = new TreeMap<>(parameters);
@@ -41,7 +41,7 @@ public class State implements Node{
     }
 
     public State(String name, List<String> clusters, List<Long> clusteredNodes) {
-        this.id = -1;
+        this.id = "-1";
         this.name = name;
         this.parameters = new TreeMap<>();
         this.clusteredNodes = clusteredNodes;
@@ -52,7 +52,7 @@ public class State implements Node{
 
     @Override
     public String getId() {
-        return (clusters == null) ? Long.toString(id): String.format("%s_%s", String.join("_", clusters), name);
+        return (clusters == null) ? id: String.format("%s_%s", String.join("_", clusters), name);
     }
 
     @Override
@@ -91,7 +91,7 @@ public class State implements Node{
     }
 
     @Override
-    public long getNumId() {
+    public String getNumId() {
         return id;
     }
 

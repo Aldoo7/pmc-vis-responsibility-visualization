@@ -22,12 +22,12 @@ import java.util.Map;
 public class BaseState {
     private final parser.State state;
 
-    private final long stateID;
+    private final String stateID;
     private final Project parent;
 
     private static final Type[] valueTypes = {TypeInt.getInstance(), TypeDouble.getInstance(), TypeBool.getInstance()};
 
-    public BaseState(long stateID, String stringValues, Project parent) throws PrismLangException {
+    public BaseState(String stateID, String stringValues, Project parent) throws PrismLangException {
         this.stateID = stateID;
         this.parent = parent;
         String intern = stringValues;
@@ -93,7 +93,7 @@ public class BaseState {
         }
     }
 
-    public BaseState(long stateID, parser.State state, Project parent){
+    public BaseState(String stateID, parser.State state, Project parent){
         this.stateID = stateID;
         this.state = state;
         this.parent = parent;
@@ -178,5 +178,5 @@ public class BaseState {
         return this.state;
     }
 
-    public long getStateID() {return this.stateID;}
+    public String getStateID() {return this.stateID;}
 }

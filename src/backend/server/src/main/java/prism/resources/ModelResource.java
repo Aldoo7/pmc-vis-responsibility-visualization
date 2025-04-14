@@ -51,7 +51,7 @@ public class ModelResource extends Resource {
             @Parameter(description = "identifier of project")
             @PathParam("project_id") String projectID,
             @Parameter(description = "Identifier of target node", required = true)
-            @PathParam("id") long nodeID
+            @PathParam("id") String nodeID
     ) {
         return ok(tasks.getProject(projectID).getState(nodeID));
     }
@@ -62,7 +62,7 @@ public class ModelResource extends Resource {
     @Operation(summary = "Returns interconnected subgraph of all given nodes", description = "Returns single Node Object with identifier 'id'")
     public Response getSubGraph(
             @Parameter(description = "identifier of project") @PathParam("project_id") String projectID,
-            @Parameter(description = "Identifier of target node", required = true) @QueryParam("id") List<Long> nodeIDs,
+            @Parameter(description = "Identifier of target node", required = true) @QueryParam("id") List<String> nodeIDs,
             @QueryParam("view") List<Integer> viewID
     ) {
         refreshProject(projectID);
@@ -75,8 +75,8 @@ public class ModelResource extends Resource {
     @Operation(summary = "Returns interconnected subgraph of all given nodes", description = "Returns single Node Object with identifier 'id'")
     public Response resetGraph(
             @Parameter(description = "identifier of project") @PathParam("project_id") String projectID,
-            @Parameter(description = "Identifier of target node", required = true) @QueryParam("id") List<Long> nodeIDs,
-            @Parameter(description = "Identifier of target node that is not explored", required = true) @QueryParam("idu") List<Long> unexploredNodeIDs,
+            @Parameter(description = "Identifier of target node", required = true) @QueryParam("id") List<String> nodeIDs,
+            @Parameter(description = "Identifier of target node that is not explored", required = true) @QueryParam("idu") List<String> unexploredNodeIDs,
             @QueryParam("view") List<Integer> viewID
     ) {
         refreshProject(projectID);
@@ -89,7 +89,7 @@ public class ModelResource extends Resource {
     @Operation(summary = "Returns all outgoing edges", description = "Returns all edges starting in state 'id'")
     public Response getOutgoing(
             @Parameter(description = "identifier of project") @PathParam("project_id") String projectID,
-            @Parameter(description = "Identifier of target node", required = true) @QueryParam("id") List<Long> nodeIDs,
+            @Parameter(description = "Identifier of target node", required = true) @QueryParam("id") List<String> nodeIDs,
             @QueryParam("view") List<Integer> viewID
     ) {
         refreshProject(projectID);

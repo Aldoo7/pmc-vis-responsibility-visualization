@@ -14,7 +14,7 @@ public class MdpState {
     private boolean isFinal = false; // TODO remove, only for Performance testing of ReachabilityView
 
     MdpState(State state) {
-        this.id = state.getNumId();
+        this.id = 0L; //state.getNumId();
         this.variables = state.getParameters();
     }
 

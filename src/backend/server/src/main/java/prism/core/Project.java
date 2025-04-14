@@ -321,7 +321,7 @@ public class Project implements Namespace{
 
     // access to Structural Information
 
-    public Long getDefaultInitialState() throws Exception {
+    public String getDefaultInitialState() throws Exception {
         if (modulesFile.getInitialStates() != null) {
             return getInitialStates().get(0);
         }
@@ -334,8 +334,8 @@ public class Project implements Namespace{
      * @return List of stateIDs
      * @throws Exception
      */
-    public List<Long> getInitialStates() throws Exception {
-        List<Long> initials = new ArrayList<>();
+    public List<String> getInitialStates() throws Exception {
+        List<String> initials = new ArrayList<>();
 
         if (modulesFile.getInitialStates() != null) {
             Expression initialExpression = modulesFile.getInitialStates();
@@ -351,12 +351,12 @@ public class Project implements Namespace{
         return initials;
     }
 
-    public List<Long> getStatesByExpression(String expression) {
-        List<Long> members = new ArrayList<>();
+    public List<String> getStatesByExpression(String expression) {
+        List<String> members = new ArrayList<>();
         if (modulesFile.getLabelList().getLabelNames().contains(expression)) {
             for (String stateDescription : this.modelChecker.getModel().getReachableStates().exportToStringList()) {
                 try {
-                    long id = this.getStateID(stateDescription);
+                    String id = this.getStateID(stateDescription);
                     BaseState state = new BaseState(id, stateDescription, this);
                     if (state.getLabels().contains(expression)) {
                         members.add(id);
@@ -369,7 +369,7 @@ public class Project implements Namespace{
         }
         for (String stateDescription : this.modelChecker.getModel().getReachableStates().exportToStringList()) {
             try {
-                long id = this.getStateID(stateDescription);
+                String id = this.getStateID(stateDescription);
                 BaseState state = new BaseState(id, stateDescription, this);
                 if (state.checkForProperty(expression)) {
                     members.add(id);
@@ -495,14 +495,14 @@ public class Project implements Namespace{
 
     // access to database
 
-    public long getStateID(String stateDescription) {
+    public String getStateID(String stateDescription) {
         String stateName = modelParser.normalizeStateName(stateDescription);
-        Optional<Long> results = database.executeLookupQuery(String.format("SELECT %s FROM %s WHERE %s = '%s';", ENTRY_S_ID, TABLE_STATES, ENTRY_S_NAME, stateName), Long.class);
-        if (results.isEmpty()) return -1;
+        Optional<String> results = database.executeLookupQuery(String.format("SELECT %s FROM %s WHERE %s = '%s';", ENTRY_S_ID, TABLE_STATES, ENTRY_S_NAME, stateName), String.class);
+        if (results.isEmpty()) return "-1";
         return results.get();
     }
 
-    public String getStateName(long stateID) {
+    public String getStateName(String stateID) {
         Optional<String> results = database.executeLookupQuery(String.format("SELECT %s FROM %s WHERE %s = '%s';", ENTRY_S_NAME, TABLE_STATES, ENTRY_S_ID, stateID), String.class);
         if (results.isEmpty()) return null;
         return results.get();
@@ -531,7 +531,7 @@ public class Project implements Namespace{
      * @param stateID is ID of state
      * @return List of IDs of transitions
      */
-    public List<Transition> getOutgoingList(long stateID) {
+    public List<Transition> getOutgoingList(String stateID) {
         return database.executeCollectionQuery(String.format("SELECT * FROM %s WHERE %s == %s ", TABLE_TRANS, ENTRY_T_OUT, stateID), new TransitionMapper(this));
 
     }
@@ -636,7 +636,7 @@ public class Project implements Namespace{
 
             List<State> states = database.executeCollectionQuery(String.format("SELECT %s as %s, GROUP_CONCAT(%s,';') AS %s FROM %s GROUP BY %s", identifierStates, ENTRY_C_NAME, ENTRY_S_ID, ENTRY_C_SUB, TABLE_STATES, groupStates), new StateMapper(this, activeViews));
 
-            Map<Long, String> reverseView = database.executeCollectionQuery(String.format("SELECT %s, %s AS %s FROM %s", ENTRY_S_ID, identifierStates, ENTRY_C_NAME, TABLE_STATES), new PairMapper<>(ENTRY_S_ID, ENTRY_C_NAME, Long.class, String.class)).stream().collect(Collectors.toMap(Pair::getKey, Pair::getValue));
+            Map<String, String> reverseView = database.executeCollectionQuery(String.format("SELECT %s, %s AS %s FROM %s", ENTRY_S_ID, identifierStates, ENTRY_C_NAME, TABLE_STATES), new PairMapper<>(ENTRY_S_ID, ENTRY_C_NAME, String.class, String.class)).stream().collect(Collectors.toMap(Pair::getKey, Pair::getValue));
 
             List<Transition> transitions = database.executeCollectionQuery(String.format("SELECT min(%s) AS %s, %s AS %s, %s, GROUP_CONCAT(%s,';') AS %s FROM %s JOIN %s ON %s = %s GROUP BY %s, %s", ENTRY_T_ID, ENTRY_T_ID, identifierStates, ENTRY_T_OUT, ENTRY_T_ACT, ENTRY_T_PROB, ENTRY_T_PROB, TABLE_TRANS, TABLE_STATES, ENTRY_S_ID, ENTRY_T_OUT, groupStates, ENTRY_T_ACT), new TransitionMapper(this, activeViews, reverseView));
             return new Graph(this, states, transitions);
@@ -645,7 +645,7 @@ public class Project implements Namespace{
         }
     }
 
-    public Graph getSubGraph(List<Long> stateIDs) {
+    public Graph getSubGraph(List<String> stateIDs) {
         if (!built) {
             try {
                 return modelParser.getSubGraph(stateIDs);
@@ -653,8 +653,8 @@ public class Project implements Namespace{
                 throw new RuntimeException(e);
             }
         }
-        List<String> stringIds = stateIDs.stream().map(l -> Long.toString(l)).collect(Collectors.toList());
-        String stateID = stateIDs.stream().map(l -> Long.toString(l)).collect(Collectors.joining(","));
+        List<String> stringIds = new ArrayList<>(stateIDs);
+        String stateID = String.join(",", stateIDs);
         List<State> states = database.executeCollectionQuery(String.format("SELECT * FROM %s WHERE %s in (%s)", TABLE_STATES, ENTRY_S_ID, stateID) , new StateMapper(this, null));
         List<Transition> transitions = database.executeCollectionQuery(String.format("SELECT * FROM %s WHERE %s IN (%s)", TABLE_TRANS, ENTRY_T_OUT, stateID), new TransitionMapper(this));
         List<Transition> transitionsOut = new ArrayList<>();
@@ -668,7 +668,7 @@ public class Project implements Namespace{
         return new Graph(this, states, transitionsOut);
     }
 
-    public Graph getSubGraph(List<Long> stateIDs, List<Integer> viewIDs) {
+    public Graph getSubGraph(List<String> stateIDs, List<Integer> viewIDs) {
         List<View> activeViews = this.getViews(viewIDs);
         if (views == null || views.isEmpty() || activeViews.isEmpty()) return this.getSubGraph(stateIDs);
 
@@ -694,11 +694,11 @@ public class Project implements Namespace{
             identifierStates.append(String.format("|| CASE WHEN %s THEN %s ELSE '' END", blankStates.toString(), ENTRY_S_ID));
             groupStates.append(String.format(", CASE WHEN %s THEN %s ELSE 1 END", blankStates.toString(), ENTRY_S_ID));
 
-            String stateID = stateIDs.stream().map(l -> Long.toString(l)).collect(Collectors.joining(","));
+            String stateID = String.join(",", stateIDs);
 
             List<State> states = database.executeCollectionQuery(String.format("SELECT %s as %s, GROUP_CONCAT(%s,';') AS %s FROM %s GROUP BY %s", identifierStates, ENTRY_C_NAME, ENTRY_S_ID, ENTRY_C_SUB, TABLE_STATES, groupStates), new StateMapper(this, activeViews));
             Set<String> stringIDs = states.stream().map(State::getId).collect(Collectors.toSet());
-            Map<Long, String> reverseView = database.executeCollectionQuery(String.format("SELECT %s, %s AS %s FROM %s", ENTRY_S_ID, identifierStates, ENTRY_C_NAME, TABLE_STATES), new PairMapper<>(ENTRY_S_ID, ENTRY_C_NAME, Long.class, String.class)).stream().collect(Collectors.toMap(Pair::getKey, Pair::getValue));
+            Map<String, String> reverseView = database.executeCollectionQuery(String.format("SELECT %s, %s AS %s FROM %s", ENTRY_S_ID, identifierStates, ENTRY_C_NAME, TABLE_STATES), new PairMapper<>(ENTRY_S_ID, ENTRY_C_NAME, String.class, String.class)).stream().collect(Collectors.toMap(Pair::getKey, Pair::getValue));
 
             List<Transition> transitions = database.executeCollectionQuery(String.format("SELECT min(%s) AS %s, %s AS %s, %s, GROUP_CONCAT(%s,';') AS %s FROM %s JOIN %s ON %s = %s WHERE %s IN (%s) GROUP BY %s, %s", ENTRY_T_ID, ENTRY_T_ID, identifierStates, ENTRY_T_OUT, ENTRY_T_ACT, ENTRY_T_PROB, ENTRY_T_PROB , TABLE_TRANS, TABLE_STATES, ENTRY_S_ID, ENTRY_T_OUT ,ENTRY_T_OUT, stateID, groupStates, ENTRY_T_ACT), new TransitionMapper(this, activeViews, reverseView));
             List<Transition> transitionsOut = new ArrayList<>();
@@ -716,10 +716,10 @@ public class Project implements Namespace{
         }
     }
 
-    public Graph getState(long stateID) {
+    public Graph getState(String stateID) {
         if (!built) {
             try {
-                List<Long> stateIDs = new ArrayList<>();
+                List<String> stateIDs = new ArrayList<>();
                 stateIDs.add(stateID);
                 return modelParser.getSubGraph(stateIDs);
             } catch (Exception e) {
@@ -733,7 +733,7 @@ public class Project implements Namespace{
         return new Graph(this, states, new ArrayList<>());
     }
 
-    public Graph getOutgoing(List<Long> stateIDs) {
+    public Graph getOutgoing(List<String> stateIDs) {
         if (!built) {
             try {
                 return modelParser.getOutgoing(stateIDs);
@@ -741,7 +741,7 @@ public class Project implements Namespace{
                 throw new RuntimeException(e);
             }
         }
-        String stateID = stateIDs.stream().map(l -> Long.toString(l)).collect(Collectors.joining(","));
+        String stateID = String.join(",", stateIDs);
         List<Transition> transitions = database.executeCollectionQuery(String.format("SELECT * FROM %s WHERE %s IN (%s)", TABLE_TRANS, ENTRY_T_OUT, stateID), new TransitionMapper(this));
         Set<String> statesOfInterest = new HashSet<>();
         for (Transition t : transitions) {
@@ -753,7 +753,7 @@ public class Project implements Namespace{
         return new Graph(this, states, transitions);
     }
 
-    public Graph getOutgoing(List<Long> stateIDs, List<Integer> viewIDs) {
+    public Graph getOutgoing(List<String> stateIDs, List<Integer> viewIDs) {
         List<View> activeViews = this.getViews(viewIDs);
         if (views == null || views.isEmpty() || activeViews.isEmpty()) return this.getOutgoing(stateIDs);
 
@@ -779,9 +779,9 @@ public class Project implements Namespace{
             identifierStates.append(String.format("|| CASE WHEN %s THEN %s ELSE '' END", blankStates.toString(), ENTRY_S_ID));
             groupStates.append(String.format(", CASE WHEN %s THEN %s ELSE 1 END", blankStates.toString(), ENTRY_S_ID));
 
-            Map<Long, String> reverseView = database.executeCollectionQuery(String.format("SELECT %s, %s AS %s FROM %s", ENTRY_S_ID, identifierStates, ENTRY_C_NAME, TABLE_STATES), new PairMapper<>(ENTRY_S_ID, ENTRY_C_NAME, Long.class, String.class)).stream().collect(Collectors.toMap(Pair::getKey, Pair::getValue));
+            Map<String, String> reverseView = database.executeCollectionQuery(String.format("SELECT %s, %s AS %s FROM %s", ENTRY_S_ID, identifierStates, ENTRY_C_NAME, TABLE_STATES), new PairMapper<>(ENTRY_S_ID, ENTRY_C_NAME, String.class, String.class)).stream().collect(Collectors.toMap(Pair::getKey, Pair::getValue));
 
-            String stateID = stateIDs.stream().map(l -> Long.toString(l)).collect(Collectors.joining(","));
+            String stateID = String.join(",", stateIDs);
 
             List<Transition> transitions = database.executeCollectionQuery(String.format("SELECT min(%s) AS %s, %s AS %s, %s, GROUP_CONCAT(%s,';') AS %s FROM %s JOIN %s ON %s = %s WHERE %s IN (%s) GROUP BY %s, %s", ENTRY_T_ID, ENTRY_T_ID, identifierStates, ENTRY_T_OUT, ENTRY_T_ACT, ENTRY_T_PROB, ENTRY_T_PROB , TABLE_TRANS, TABLE_STATES, ENTRY_S_ID, ENTRY_T_OUT ,ENTRY_T_OUT, stateID, groupStates, ENTRY_T_ACT), new TransitionMapper(this, activeViews, reverseView));
 
@@ -799,7 +799,7 @@ public class Project implements Namespace{
         }
     }
 
-    public Graph resetGraph(List<Long> stateIDs, List<Long> unexploredStateIDs){
+    public Graph resetGraph(List<String> stateIDs, List<String> unexploredStateIDs){
         if (!built) {
             try {
                 return modelParser.resetGraph(stateIDs, unexploredStateIDs);
@@ -807,11 +807,11 @@ public class Project implements Namespace{
                 throw new RuntimeException(e);
             }
         }
-        String stateID = stateIDs.stream().map(l -> Long.toString(l)).collect(Collectors.joining(","));
+        String stateID = String.join(",", stateIDs);
         List<Transition> transitions = database.executeCollectionQuery(String.format("SELECT * FROM %s WHERE %s IN (%s)", TABLE_TRANS, ENTRY_T_OUT, stateID), new TransitionMapper(this));
         Set<String> statesOfInterest = new HashSet<>();
-        for (Long unStateID : unexploredStateIDs){
-            statesOfInterest.add(Long.toString(unStateID));
+        for (String unStateID : unexploredStateIDs){
+            statesOfInterest.add(unStateID);
         }
         for (Transition t : transitions) {
             statesOfInterest.add(t.getSource());

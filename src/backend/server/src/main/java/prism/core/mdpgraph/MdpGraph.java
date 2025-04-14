@@ -25,8 +25,8 @@ public class MdpGraph extends DirectedWeightedPseudograph<Long,Long> {
             while (states.hasNext()) {
                 State state = states.next();
                 MdpState mdpState = new MdpState(state);
-                longToObjStates.put(state.getNumId(), mdpState);
-                addVertex(state.getNumId());
+                //longToObjStates.put(state.getNumId(), mdpState);
+                //addVertex(state.getNumId());
             }
         }
 
@@ -47,7 +47,7 @@ public class MdpGraph extends DirectedWeightedPseudograph<Long,Long> {
                     Long targetState = Long.parseLong(targetStateString);
                     MdpTransition mdpTransLean = new MdpTransition(
                             mdpTransLeanId,
-                            trans.getNumId(),
+                            0L, //trans.getNumId(),
                             sourceState,
                             targetState,
                             trans.getAction()
