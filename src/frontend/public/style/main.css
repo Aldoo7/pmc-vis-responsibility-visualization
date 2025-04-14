@@ -16,17 +16,7 @@ body {
   background-color: var(--body-bg-color);
 }
 
-body,
-.ui,
-h1,
-h2,
-h3,
-h4,
-h5,
-svg text,
-.ui.accordion .accordion>.title,
-.ui.accordion.menu .item>.title,
-.ui.accordion>.title {
+#container, svg text {
   font-family: monospace, monospace !important;
 }
 
@@ -80,14 +70,27 @@ body.config-closed #container {
   .ui.checkbox {
     display: block;
   }
+
+  #json {
+    max-height: 500px; 
+    overflow-y:auto; 
+    font-size: 10px;
+  }
 }
 
 a {
-  color: var(--config-icon-color-active);
+  color: var(--dark-text-color);
 }
 
 a:hover {
-  color: var(--config-icon-color-inactive);
+  color: var(--dark-text-color);
+}
+
+nav {
+  a:hover {
+    color: var(--dark-text-color);
+    background-color: var(--config-icon-color-active);
+  }
 }
 
 #config-toggle {
@@ -396,14 +399,9 @@ nav {
   }
 
   .tool-name {
-    margin-left: 10px;
-    color: var(--dark-text-color)
-  }
-
-  .tool-name:hover {
-    margin-left: 10px;
-    color: var(--dark-text-color-hover)
-  }
+    padding-left: 10px;
+    padding-right: 10px;
+  } 
 
   .tool-title {
     font-size: 20px;

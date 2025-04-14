@@ -36,7 +36,6 @@ function parallelCoords(pane, data, metadata) {
       extents = {};
       dimensions = undefined;
       pcpHtml = undefined;
-      removeEventListener('paneResize', resize, true);
     },
     getSelection: () => {
       return Object.values(selected).map((d) => {
@@ -787,9 +786,6 @@ function parallelCoords(pane, data, metadata) {
         },
       ],
     });
-
-    removeEventListener('paneResize', resize, true);
-    addEventListener('paneResize', resize, true);
     drawBrushed();
     updateCountStrings();
     dispatchEvent(

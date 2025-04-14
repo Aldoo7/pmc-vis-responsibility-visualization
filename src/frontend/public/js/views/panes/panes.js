@@ -109,7 +109,6 @@ function spawnPane({ spawner, id, newPanePosition }, nodesIds, spawnerNodes) {
       sd_maximize.innerHTML = '<i class="fa-solid fa-undo"></i>';
       sd_maximize.title = 'Undo maximize';
     }
-    dispatchEvent(events.RESIZE_ONE(panes[div.id]));
   });
 
   const sd_minimize = document.createElement('button');
@@ -127,7 +126,6 @@ function spawnPane({ spawner, id, newPanePosition }, nodesIds, spawnerNodes) {
       sd_minimize.innerHTML = '<i class="fa-solid fa-undo"></i>';
       sd_minimize.title = 'Undo minimize';
     }
-    dispatchEvent(events.RESIZE_ONE(panes[div.id]));
   });
 
   split_dragbar.appendChild(sd_minimize);
@@ -178,7 +176,6 @@ function spawnPane({ spawner, id, newPanePosition }, nodesIds, spawnerNodes) {
     );
   }
 
-  dispatchEvent(events.RESIZE_ALL);
   return pane;
 }
 
@@ -245,17 +242,12 @@ function togglePane(div) {
       const keys = Object.keys(panes);
       resizePane(document.getElementById(panes[keys[keys.length - 1]].id), 1);
     }
-
-    dispatchEvent(events.RESIZE_ALL);
-    refreshCys();
   }
 }
 
 function expandPane(div) {
   if (div) {
     resizePane(div, 1);
-    dispatchEvent(events.RESIZE_ONE(panes[div.id]));
-    refreshCys();
   }
 }
 
@@ -265,21 +257,6 @@ function collapsePane(div) {
       panes[div.id]._flexGrowth = Number(getComputedStyle(div).flexGrow);
     }
     resizePane(div, MIN_FLEX_GROW);
-    dispatchEvent(events.RESIZE_ONE(panes[div.id]));
-    refreshCys();
-  }
-}
-
-function refreshCys() {
-  Object.values(panes).forEach((pane) => {
-    // The last spawned cy, for some reason, is not reachable like this.
-    if (pane.cy) {
-      pane.cy.resize();
-    }
-  });
-  // force update of the last cy
-  if (window.cy) {
-    window.cy.resize();
   }
 }
 
@@ -367,12 +344,7 @@ function enablePaneDragBars() {
         document.onmousemove = null;
         document.body.style.removeProperty('cursor');
 
-        if (dragging) {
-          dragging = false;
-          // resize vis inside pane
-          dispatchEvent(events.RESIZE_ALL);
-        }
-        refreshCys();
+        dragging &&= false;
       };
     };
 
@@ -411,12 +383,7 @@ function enableSplitDragBars() {
 
       document.onmouseup = () => {
         document.onmousemove = null;
-        if (dragging) {
-          // resize vis inside pane
-          dispatchEvent(events.RESIZE_ONE(dragging));
-          dragging = false;
-        }
-        refreshCys();
+        dragging &&= false;
       };
     };
     d.ondblclick = null;
@@ -460,7 +427,6 @@ function destroyPanes(firstId, { firstOnly = false, pre = false } = {}) {
 
     if (!pre) {
       setPane(panes[newKeys[newKeys.length - 1]].id);
-      dispatchEvent(events.RESIZE_ALL);
     }
 
     socket.emit('pane removed', firstId);

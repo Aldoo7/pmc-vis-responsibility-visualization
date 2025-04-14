@@ -729,12 +729,7 @@ function makePCPSettings() {
 
   const jsonPrinter = h('div', { class: 'content' });
   jsonPrinter.innerHTML = `<pre 
-    id="json" 
-    style="
-      max-height: 500px; 
-      overflow-y:auto; 
-      font-size: 10px"
-    >${
+    id="json">${
       pane.cy.pcp
         ? JSON.stringify(pane.cy.pcp.getSelection(), undefined, 2)
         : null

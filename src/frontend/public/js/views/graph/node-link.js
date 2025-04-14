@@ -250,57 +250,41 @@ const initHTML = _.debounce((cy) =>{
     i > 2 && d.remove();
   });
 
-  window.selectAP = (ap) => {
-    const events = {};
-    events[CONSTANTS.ap_init] = () => document
-      .dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'i', ctrlKey: true, keyCode: 73 }),
-      );
-    events[CONSTANTS.ap_deadlock] = () => document
-      .dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'd', ctrlKey: true, keyCode: 68 }),
-      );
-    events[CONSTANTS.ap_end] = () => document
-      .dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'e', ctrlKey: true, keyCode: 69 }),
-      );
-    events[ap]();
-  };
+  // window.selectAP = (ap) => {
+  //   const events = {};
+  //   events[CONSTANTS.ap_init] = () => document
+  //     .dispatchEvent(
+  //       new KeyboardEvent('keydown', { key: 'i', ctrlKey: true, keyCode: 73 }),
+  //     );
+  //   events[CONSTANTS.ap_deadlock] = () => document
+  //     .dispatchEvent(
+  //       new KeyboardEvent('keydown', { key: 'd', ctrlKey: true, keyCode: 68 }),
+  //     );
+  //   events[CONSTANTS.ap_end] = () => document
+  //     .dispatchEvent(
+  //       new KeyboardEvent('keydown', { key: 'e', ctrlKey: true, keyCode: 69 }),
+  //     );
+  //   events[ap]();
+  // };
 
   function apsfn(cy, data, padding) {
     const aps = data.details[CONSTANTS.atomicPropositions];
 
+    // onclick="selectAP('${CONSTANTS....}')"
+    // title="${CONSTANTS
+    // .INTERACTIONS
+    // .ap_deadlock
+    // .name} \t (${CONSTANTS
+    // .INTERACTIONS
+    // .ap_deadlock
+    // .keyboard})"
     return `<div style="position: relative; padding-top:${padding}px" id="${cy.paneId}-${data.id}">
       ${aps[CONSTANTS.ap_init]
-        ? `<a onclick="selectAP('${CONSTANTS.ap_init}')" title="${CONSTANTS
-          .INTERACTIONS
-          .ap_init
-          .name} \t (${CONSTANTS
-          .INTERACTIONS
-          .ap_init
-          .keyboard})">
-          <i class="fa-xs ${CONSTANTS.INTERACTIONS.ap_init.icon}"></i>
-        </a>` : ''}
+        ? `<p> <i class="fa-xs ${CONSTANTS.INTERACTIONS.ap_init.icon}"></i> </p>` : ''}
       ${aps[CONSTANTS.ap_deadlock]
-        ? `<a onclick="selectAP('${CONSTANTS.ap_deadlock}')" title="${CONSTANTS
-          .INTERACTIONS
-          .ap_deadlock
-          .name} \t (${CONSTANTS
-          .INTERACTIONS
-          .ap_deadlock
-          .keyboard})">
-          <i class="fa-xs ${CONSTANTS.INTERACTIONS.ap_deadlock.icon}"></i>
-        </a>` : ''}
+        ? `<p> <i class="fa-xs ${CONSTANTS.INTERACTIONS.ap_deadlock.icon}"></i> </p>` : ''}
       ${aps[CONSTANTS.ap_end]
-        ? `<a onclick="selectAP('${CONSTANTS.ap_end}')" title="${CONSTANTS
-          .INTERACTIONS
-          .ap_end
-          .name} \t (${CONSTANTS
-          .INTERACTIONS
-          .ap_end
-          .keyboard})">
-          <i class="fa-xs ${CONSTANTS.INTERACTIONS.ap_end.icon}"></i>
-        </a>` : ''}
+        ? `<p> <i class="fa-xs ${CONSTANTS.INTERACTIONS.ap_end.icon}"></i> </p>` : ''}
     </div>`;
   }
 
