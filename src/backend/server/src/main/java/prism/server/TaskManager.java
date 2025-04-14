@@ -16,6 +16,7 @@ import java.util.*;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TaskManager implements Executor, Managed {
 
@@ -24,6 +25,8 @@ public class TaskManager implements Executor, Managed {
     private final Queue<Task> tasks = new ArrayDeque<>();
     private ExecutorService executor;
     private Task active;
+
+    public AtomicBoolean refreshing = new AtomicBoolean();
 
     private final HttpClient httpClient;
 

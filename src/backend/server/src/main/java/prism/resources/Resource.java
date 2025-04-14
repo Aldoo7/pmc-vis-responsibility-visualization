@@ -10,6 +10,7 @@ import prism.server.TaskManager;
 import javax.ws.rs.core.Response;
 import java.io.*;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 public abstract class Resource {
 
@@ -76,6 +77,13 @@ public abstract class Resource {
     }
 
     protected void refreshProject(String projectID){
+        while (tasks.refreshing.getAndSet(true)){
+            try {
+                TimeUnit.MILLISECONDS.sleep(100);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
 
         if (tasks.containsProject(projectID)) {
             //Project Already exists, refresh (model and) propertyfile
@@ -85,6 +93,7 @@ public abstract class Resource {
             //Project not initialized, initialize with current Files
             loadProject(projectID);
         }
+        tasks.refreshing.set(false);
     }
 
 
