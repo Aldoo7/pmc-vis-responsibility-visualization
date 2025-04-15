@@ -654,7 +654,7 @@ public class Project implements Namespace{
             }
         }
         List<String> stringIds = new ArrayList<>(stateIDs);
-        String stateID = String.join(",", stateIDs);
+        String stateID = stateIDs.stream().map(s -> "'" + s + "'").collect(Collectors.joining(","));
         List<State> states = database.executeCollectionQuery(String.format("SELECT * FROM %s WHERE %s in (%s)", TABLE_STATES, ENTRY_S_ID, stateID) , new StateMapper(this, null));
         List<Transition> transitions = database.executeCollectionQuery(String.format("SELECT * FROM %s WHERE %s IN (%s)", TABLE_TRANS, ENTRY_T_OUT, stateID), new TransitionMapper(this));
         List<Transition> transitionsOut = new ArrayList<>();
@@ -694,7 +694,7 @@ public class Project implements Namespace{
             identifierStates.append(String.format("|| CASE WHEN %s THEN %s ELSE '' END", blankStates.toString(), ENTRY_S_ID));
             groupStates.append(String.format(", CASE WHEN %s THEN %s ELSE 1 END", blankStates.toString(), ENTRY_S_ID));
 
-            String stateID = String.join(",", stateIDs);
+            String stateID = stateIDs.stream().map(s -> "'" + s + "'").collect(Collectors.joining(","));
 
             List<State> states = database.executeCollectionQuery(String.format("SELECT %s as %s, GROUP_CONCAT(%s,';') AS %s FROM %s GROUP BY %s", identifierStates, ENTRY_C_NAME, ENTRY_S_ID, ENTRY_C_SUB, TABLE_STATES, groupStates), new StateMapper(this, activeViews));
             Set<String> stringIDs = states.stream().map(State::getId).collect(Collectors.toSet());
@@ -741,14 +741,15 @@ public class Project implements Namespace{
                 throw new RuntimeException(e);
             }
         }
-        String stateID = String.join(",", stateIDs);
+        String stateID = stateIDs.stream().map(s -> "'" + s + "'").collect(Collectors.joining(","));
         List<Transition> transitions = database.executeCollectionQuery(String.format("SELECT * FROM %s WHERE %s IN (%s)", TABLE_TRANS, ENTRY_T_OUT, stateID), new TransitionMapper(this));
+        System.out.println(transitions.size());
         Set<String> statesOfInterest = new HashSet<>();
         for (Transition t : transitions) {
             statesOfInterest.add(t.getSource());
             statesOfInterest.addAll(new ArrayList<>(t.getProbabilityDistribution().keySet()));
         }
-        String stateString = String.join(",", statesOfInterest);
+        String stateString = statesOfInterest.stream().map(s -> "'" + s + "'").collect(Collectors.joining(","));
         List<State> states = database.executeCollectionQuery(String.format("SELECT * FROM %s WHERE %s in (%s)", TABLE_STATES, ENTRY_S_ID, stateString), new StateMapper(this, null));
         return new Graph(this, states, transitions);
     }
@@ -781,7 +782,7 @@ public class Project implements Namespace{
 
             Map<String, String> reverseView = database.executeCollectionQuery(String.format("SELECT %s, %s AS %s FROM %s", ENTRY_S_ID, identifierStates, ENTRY_C_NAME, TABLE_STATES), new PairMapper<>(ENTRY_S_ID, ENTRY_C_NAME, String.class, String.class)).stream().collect(Collectors.toMap(Pair::getKey, Pair::getValue));
 
-            String stateID = String.join(",", stateIDs);
+            String stateID = stateIDs.stream().map(s -> "'" + s + "'").collect(Collectors.joining(","));
 
             List<Transition> transitions = database.executeCollectionQuery(String.format("SELECT min(%s) AS %s, %s AS %s, %s, GROUP_CONCAT(%s,';') AS %s FROM %s JOIN %s ON %s = %s WHERE %s IN (%s) GROUP BY %s, %s", ENTRY_T_ID, ENTRY_T_ID, identifierStates, ENTRY_T_OUT, ENTRY_T_ACT, ENTRY_T_PROB, ENTRY_T_PROB , TABLE_TRANS, TABLE_STATES, ENTRY_S_ID, ENTRY_T_OUT ,ENTRY_T_OUT, stateID, groupStates, ENTRY_T_ACT), new TransitionMapper(this, activeViews, reverseView));
 
@@ -807,7 +808,7 @@ public class Project implements Namespace{
                 throw new RuntimeException(e);
             }
         }
-        String stateID = String.join(",", stateIDs);
+        String stateID = stateIDs.stream().map(s -> "'" + s + "'").collect(Collectors.joining(","));
         List<Transition> transitions = database.executeCollectionQuery(String.format("SELECT * FROM %s WHERE %s IN (%s)", TABLE_TRANS, ENTRY_T_OUT, stateID), new TransitionMapper(this));
         Set<String> statesOfInterest = new HashSet<>();
         for (String unStateID : unexploredStateIDs){
@@ -817,7 +818,7 @@ public class Project implements Namespace{
             statesOfInterest.add(t.getSource());
             statesOfInterest.addAll(new ArrayList<>(t.getProbabilityDistribution().keySet()));
         }
-        String stateString = String.join(",", statesOfInterest);
+        String stateString = statesOfInterest.stream().map(s -> "'" + s + "'").collect(Collectors.joining(","));
         List<State> states = database.executeCollectionQuery(String.format("SELECT * FROM %s WHERE %s in (%s)", TABLE_STATES, ENTRY_S_ID, stateString), new StateMapper(this, null));
         return new Graph(this, states, transitions);
     }
