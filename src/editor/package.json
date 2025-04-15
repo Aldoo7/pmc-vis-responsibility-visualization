@@ -71,33 +71,11 @@
       "PMC-VisViewContainer": [
         {
           "id": "connectionView",
-          "name": "PMC-Vis Projects"
-        },
-        {
-          "id": "stateView",
-          "name": "State Details"
+          "name": "Projects"
         }
       ]
     },
     "commands": [
-      {
-        "command": "stateView.select",
-        "title": "select state for showing",
-        "icon": "$(debug-start)"
-      },
-      {
-        "command": "stateView.unselect",
-        "title": "stop selecting state for showing",
-        "icon": "$(debug-stop)"
-      },
-      {
-        "command": "pmcVis.connect",
-        "title": "connect to an already running pmc-vis project"
-      },
-      {
-        "command": "pmcVis.moveTo",
-        "title": "moves window to selected line"
-      },
       {
         "command": "connectionView.connect",
         "title": "Connect to new Project",
@@ -132,26 +110,6 @@
       ],
       "view/item/context": [
         {
-          "command": "stateView.select",
-          "when": "view == stateView",
-          "group": "stateView@0"
-        },
-        {
-          "command": "stateView.unselect",
-          "when": "view == stateView",
-          "group": "stateView@1"
-        },
-        {
-          "command": "stateView.select",
-          "when": "view == stateView && viewItem == State",
-          "group": "inline"
-        },
-        {
-          "command": "stateView.unselect",
-          "when": "view == stateView && viewItem == State",
-          "group": "inline"
-        },
-        {
           "command": "connectionView.upload",
           "when": "view == connectionView && viewItem == Project",
           "group": "inline"
@@ -170,14 +128,8 @@
     },
     "viewsWelcome": [
       {
-        "view": "stateView",
-        "contents": "Connect to PMC-Vis in order to use state-view.\n[Select Project](command:pmcVis.connect)",
-        "when": "!stateView.connected"
-      },
-      {
-        "view": "stateView",
-        "contents": "Connected to PMC-Vis Project. Please select states in order to start",
-        "when": "stateView.connected"
+        "view": "connectionView",
+        "contents": "Connect to a PMC-Vis Project.\n[Select Project](command:connectionView.connect)"
       }
     ]
   },

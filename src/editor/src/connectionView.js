@@ -1,5 +1,7 @@
 const vscode = require('vscode');
 
+//Decorations in TextEditor
+const decorations = require("./decorations.js");
 
 class ConnectionViewProvider {
 
@@ -150,10 +152,12 @@ class ConnectionItem extends vscode.TreeItem {
             ).catch(
                 error => {
                     this._children = oldChildren;
-                    console.log(error)
+                    error => vscode.window.showErrorMessage("Failed to Connect to PMC-Vis.\nIs the backend running?\n\n" + error)
+                    return false;
                 } // Handle the error response object
             );
         }
+        return true;
     }
 
     async uploadFile(call) {
@@ -174,7 +178,7 @@ class ConnectionItem extends vscode.TreeItem {
             }).then(
                 success => console.log(success) // Handle the success response object
             ).catch(
-                error => console.log(error) // Handle the error response object
+                error => vscode.window.showErrorMessage("Failed to Connect to PMC-Vis.\nIs the backend running?\n\n" + error) // Handle the error response object
             );
         }
     }
@@ -197,7 +201,7 @@ class ConnectionItem extends vscode.TreeItem {
                         await vscode.workspace.fs.writeFile(uri, Buffer.from(data['content']));
                         this._document = await vscode.workspace.openTextDocument(uri);
                     }).catch(
-                        error => console.log(error) // Handle the error response object
+                        error => vscode.window.showErrorMessage(error) // Handle the error response object
                     );
             }
             await vscode.window.showTextDocument(this._document)
@@ -231,7 +235,6 @@ class ConnectionItem extends vscode.TreeItem {
     }
 
     async onSave(content) {
-
         let call;
         switch (String(this._document.languageId)) {
             case "mdp":
@@ -264,26 +267,11 @@ class ConnectionItem extends vscode.TreeItem {
 
         console.log("Saved ", this.label)
     }
+
+    refreshDecorations() {
+
+    }
+
 }
-
-// class ConnectionFileEditorProvider{
-//     static register(context) {
-// 		const provider = new ConnectionFileEditorProvider(context);
-// 		const providerRegistration = vscode.window.registerCustomEditorProvider(ConnectionFileEditorProvider._viewType(), provider);
-// 		return providerRegistration;
-// 	}
-
-//     static _viewType(){
-//         return 'connectionView.mdp'
-//     }
-
-//     constructor(context){
-
-//     }
-
-//     resolveCustomtextEditor(document, webviewPanel, token){
-
-//     }
-// }
 
 module.exports = { ConnectionViewProvider }

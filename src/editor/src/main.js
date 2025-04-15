@@ -8,7 +8,6 @@ const token = require("./tokens.js");
 //Basic internal server setup
 const express = require('express');
 const cors = require('cors');
-const { StateProvider } = require('./stateView.js');
 const { ConnectionViewProvider } = require('./connectionView.js');
 const { VirtualFileSystemProvider } = require('./virtualFile.js');
 const app = express();
@@ -38,10 +37,10 @@ function activate(context) {
 	app.use(express.json());
 	app.post(`/:id/update`, (req, res) => {
 		const id = req.params.id;
-		if (activeStateProvider.checkRegistration(id)) {
-			const states = filterState(req.body);
-			activeStateProvider.refresh(states);
-		}
+		// if (activeStateProvider.checkRegistration(id)) {
+		// 	const states = filterState(req.body);
+		// 	activeStateProvider.refresh(states);
+		// }
 		res.send("ok");
 	})
 	app.listen(port, () => {
@@ -50,18 +49,16 @@ function activate(context) {
 		console.log(message);
 	})
 
-	let activeEditor = vscode.window.activeTextEditor;
-	activeStateProvider = new StateProvider(activeEditor);
 	connectionProvider = new ConnectionViewProvider();
 	fileSystemProvider.watchSave(connectionProvider);
 
 	//register All commands using global variables initialized in openDocument()
-	context.subscriptions.push(vscode.window.registerTreeDataProvider("stateView", activeStateProvider));
-	context.subscriptions.push(vscode.commands.registerCommand('pmcVis.connect', connectToPMCVis));
-	context.subscriptions.push(vscode.commands.registerCommand('pmcVis.moveTo', item => moveTo(item)));
-	context.subscriptions.push(vscode.commands.registerCommand('stateView.select', item => activeStateProvider.selectState(item)));
-	context.subscriptions.push(vscode.commands.registerCommand('stateView.unselect', item => activeStateProvider.unselectState(item)));
-	context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(openDocument));
+	//context.subscriptions.push(vscode.window.registerTreeDataProvider("stateView", activeStateProvider));
+	//context.subscriptions.push(vscode.commands.registerCommand('pmcVis.connect', connectToPMCVis));
+	//context.subscriptions.push(vscode.commands.registerCommand('pmcVis.moveTo', item => moveTo(item)));
+	//context.subscriptions.push(vscode.commands.registerCommand('stateView.select', item => activeStateProvider.selectState(item)));
+	//context.subscriptions.push(vscode.commands.registerCommand('stateView.unselect', item => activeStateProvider.unselectState(item)));
+	//context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(openDocument));
 	//Commands for backend communication
 	context.subscriptions.push(vscode.window.registerTreeDataProvider("connectionView", connectionProvider));
 	context.subscriptions.push(vscode.commands.registerCommand('connectionView.connect', () => connectionProvider.addProject()))
@@ -73,20 +70,20 @@ function activate(context) {
 
 }
 
-function openDocument() {
-	let activeEditor = vscode.window.activeTextEditor;
-	if (activeEditor) {
-		activeStateProvider.reconstruct(activeEditor);
-	}
-}
+// function openDocument() {
+// 	let activeEditor = vscode.window.activeTextEditor;
+// 	if (activeEditor) {
+// 		activeStateProvider.reconstruct(activeEditor);
+// 	}
+// }
 
-async function connectToPMCVis() {
-	const id = await vscode.window.showInputBox();
-	if (!id) {
-		return;
-	}
-	activeStateProvider.register(id);
-}
+// async function connectToPMCVis() {
+// 	const id = await vscode.window.showInputBox();
+// 	if (!id) {
+// 		return;
+// 	}
+// 	activeStateProvider.register(id);
+// }
 
 //Here we describe the structure of the global state object
 function filterState(data) {
@@ -104,12 +101,12 @@ function filterState(data) {
 	return data;
 }
 
-function moveTo(line) {
-	let activeEditor = vscode.window.activeTextEditor;
-	if (activeEditor) {
-		activeEditor.revealRange(new vscode.Range(line, 0, line + 10, 0), vscode.TextEditorRevealType.InCenter);
-	}
-}
+// function moveTo(line) {
+// 	let activeEditor = vscode.window.activeTextEditor;
+// 	if (activeEditor) {
+// 		activeEditor.revealRange(new vscode.Range(line, 0, line + 10, 0), vscode.TextEditorRevealType.InCenter);
+// 	}
+// }
 
 // This method is called when your extension is deactivated
 function deactivate() { }

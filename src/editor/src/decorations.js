@@ -316,7 +316,7 @@ class Decorator {
         return [modules, enabledActionsGlobal];
     }
 
-    //Replace Expression with all Formulas Expanded and all constant values alredy filled in
+    //Replace Expression with all Formulas Expanded and all constant values already filled in
     fillExpression(text) {
         let t = false;
         let expression = text;
@@ -356,7 +356,7 @@ class Decorator {
     parseConstants(text) {
         const lines = text.split(/\r\n|\r|\n/);
 
-        //gather all declerations
+        //gather all declarations
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             const matched_c = line.match(constantRegExp);
@@ -370,7 +370,7 @@ class Decorator {
     parseFormulas(text) {
         const lines = text.split(/\r\n|\r|\n/);
 
-        //gather all declerations
+        //gather all declarations
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             const matched_f = line.match(formulaRegExp);
@@ -384,7 +384,7 @@ class Decorator {
     parseVariables(text) {
         const lines = text.split(/\r\n|\r|\n/);
 
-        //gather all declerations
+        //gather all declarations
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             const matched_v = line.match(variableDefRegExp);
