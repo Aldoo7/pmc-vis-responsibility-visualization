@@ -35,6 +35,6 @@ RUN mvn package
 
 RUN sed -i 's/\r$//' bin/run && chmod +x bin/run
 
-ENTRYPOINT ["bin/run", "server", "PRISMDefault.yml"]
+ENTRYPOINT ["bin/run", "server", "DockerDefault.yml"]
 
 EXPOSE 8080

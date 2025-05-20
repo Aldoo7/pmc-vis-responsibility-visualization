@@ -2,6 +2,7 @@ const vscode = require('vscode');
 
 //Decorations in TextEditor
 const decorations = require("./decorations.js");
+const constants = require("./constants.js");
 
 class ConnectionViewProvider {
 
@@ -142,7 +143,7 @@ class ConnectionItem extends vscode.TreeItem {
         const oldChildren = this._children;
         this._children = [];
         if (this.contextValue == "Project") {
-            await fetch(`http://localhost:8080/${this.projectID}/files`, {
+            await fetch(`http://${constants.ADRESS}:8080/${this.projectID}/files`, {
                 method: 'GET'
             }).then(
                 result => result.json()
@@ -152,7 +153,7 @@ class ConnectionItem extends vscode.TreeItem {
             ).catch(
                 error => {
                     this._children = oldChildren;
-                    error => vscode.window.showErrorMessage("Failed to Connect to PMC-Vis.\nIs the backend running?\n\n" + error)
+                    vscode.window.showErrorMessage("Failed to Connect to PMC-Vis.\nIs the backend running?\n\n" + error)
                     return false;
                 } // Handle the error response object
             );
@@ -172,7 +173,7 @@ class ConnectionItem extends vscode.TreeItem {
 
             data.append('file', blob, fileName);
 
-            await fetch(`http://localhost:8080/${this.projectID}/${call}`, { // Your POST endpoint
+            await fetch(`http://${constants.ADRESS}:8080/${this.projectID}/${call}`, { // Your POST endpoint
                 method: 'POST',
                 body: data // This is your file object
             }).then(
@@ -190,7 +191,7 @@ class ConnectionItem extends vscode.TreeItem {
     async openDocument() {
         if (this.contextValue == "File") {
             if (!this._document) {
-                await fetch(`http://localhost:8080/${this.projectID}/file:${this._position}`, {
+                await fetch(`http://${constants.ADRESS}:8080/${this.projectID}/file:${this._position}`, {
                     method: 'GET'
                 }).then(
                     result => result.json()
@@ -255,17 +256,21 @@ class ConnectionItem extends vscode.TreeItem {
         const blob = new Blob([fileContent], { type: 'text/plain' });
 
         data.append('file', blob, fileName);
-
-        await fetch(`http://localhost:8080/${this.projectID}/${call}`, { // Your POST endpoint
+        await fetch(`http://${constants.ADRESS}:8080/${this.projectID}/${call}`, { // Your POST endpoint
             method: 'POST',
             body: data // This is your file object
         }).then(
-            success => console.log(success) // Handle the success response object
-        ).catch(
-            error => console.log(error) // Handle the error response object
-        );
-
-        console.log("Saved ", this.label)
+            async (response) => {
+                if (response.ok) {
+                    //vscode.window.showInformationMessage(response.statusText) // Handle the success response object
+                    console.log("Saved ", this.label)
+                } else {
+                    const t = await response.text();
+                    throw new Error(`Error: ${t}`);
+                }
+            }).catch(
+                error => { vscode.window.showErrorMessage(error.message) } // Handle the error response object
+            );
     }
 
     refreshDecorations() {

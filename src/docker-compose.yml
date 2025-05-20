@@ -10,3 +10,14 @@ services:
     build: backend/server/
     ports:
       - "8080:8080"
+    extra_hosts:
+      - host.docker.internal:host-gateway
+  editor:
+    build: editor/
+    ports:
+      - "3001:3001"
+      - "3002:3002"
+    depends_on:
+      - server
+    extra_hosts:
+      - host.docker.internal:host-gateway

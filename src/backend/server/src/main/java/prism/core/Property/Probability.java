@@ -79,11 +79,10 @@ public class Probability extends Property{
                 try (PersistentQuery query = project.getDatabase().openQuery(transitionQuery); ResultIterator<Transition> it = query.iterator(new TransitionMapper(project))) {
                     while (it.hasNext()) {
                         Transition t = it.next();
-                        int stateID = Integer.parseInt(t.getSource());
 
                         double value = 0.0;
                         for (Map.Entry<String, Double> entry : t.getProbabilityDistribution().entrySet()) {
-                            value += entry.getValue() * values.get(Long.parseLong(entry.getKey()));
+                            value += entry.getValue() * values.get(new BigInteger(entry.getKey()));
                         }
                         toExecute.addToBatch(String.valueOf(value), String.valueOf(t.getNumId()));
                     }

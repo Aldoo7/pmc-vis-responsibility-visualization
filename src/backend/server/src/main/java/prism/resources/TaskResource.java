@@ -154,11 +154,23 @@ public class TaskResource extends Resource {
         final String uploadModel = String.format("%s/%s/", rootDir, projectID) + Namespace.PROJECT_MODEL;
 
         //Check whether we overwrite the model file. Remove Project and delete file if this is the case.
-        if(new File(uploadModel).delete()) {
+        File modelFile = new File(uploadModel);
+        if(modelFile.exists()) {
             try {
                 //Write new File
                 try {
-                    writeToFile(modelInputStream, uploadModel);
+                    final String uploadModelTemp = String.format("%s/%s/temp_", rootDir, projectID) + Namespace.PROJECT_MODEL;
+                    writeToFile(modelInputStream, uploadModelTemp);
+
+                    File tempFile = new File(uploadModelTemp);
+
+                    if(!tasks.checkParse(tempFile, tasks.getProject(projectID).debug)){
+                        tempFile.delete();
+                        return error("File could not be parsed");
+                    }
+                    modelFile.delete();
+                    Files.move(tempFile.toPath(), modelFile.toPath());
+
                     output += String.format("Model File uploaded to %s\n", uploadModel);
                 } catch (IOException e) {
                     return error(e);

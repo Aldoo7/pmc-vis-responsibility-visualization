@@ -46,8 +46,6 @@ public class ModelParser {
             for (int i = 0; i < varList.getNumVars(); i++) {
                 int range = varList.getRange(i);
                 index = index.multiply(BigInteger.valueOf(range));
-                System.out.println("Name: " + varList.getName(i) + " , Range: " + range);
-                System.out.println(index);
             }
             this.maxStateIndex = index;
         }catch (PrismException e){

@@ -1,6 +1,6 @@
 {
-  "name": "editor",
-  "displayName": "editor",
+  "name": "PMC-VIS",
+  "displayName": "PMC-VIS",
   "description": "Editor Extension for PMC-Vis",
   "version": "0.0.1",
   "engines": {

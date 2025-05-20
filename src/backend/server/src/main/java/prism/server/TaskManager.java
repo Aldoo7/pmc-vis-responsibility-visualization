@@ -7,11 +7,19 @@ import io.dropwizard.setup.Environment;
 import org.jdbi.v3.core.Jdbi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import parser.ast.ModulesFile;
+import prism.Prism;
+import prism.PrismDevNullLog;
+import prism.PrismLangException;
+import prism.PrismPrintStreamLog;
 import prism.api.Status;
+import prism.core.ModelParser;
 import prism.core.Namespace;
 import prism.core.Project;
 import prism.db.Database;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.util.*;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -221,6 +229,18 @@ public class TaskManager implements Executor, Managed {
             currentTasks.add("All tasks finished");
         }
         return currentTasks;
+    }
+
+    public boolean checkParse(File modelFile, boolean debug) {
+        Prism prism = debug ? new Prism(new PrismPrintStreamLog(System.out)) : new Prism(new PrismDevNullLog());
+        try {
+            ModulesFile modulesFile = prism.parseModelFile(modelFile);
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        } catch (PrismLangException e) {
+            return false;
+        }
+        return true;
     }
 }
 

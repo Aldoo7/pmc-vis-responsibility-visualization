@@ -24,6 +24,8 @@ public class PRISMServerConfiguration extends Configuration {
 
     private String frontendUrl = "http://localhost:3000";
 
+    private String editorUrl = "http://localhost:3001";
+
     @Valid
     @NotNull
     private JerseyClientConfiguration jerseyClient = new JerseyClientConfiguration();
@@ -108,8 +110,18 @@ public class PRISMServerConfiguration extends Configuration {
     }
 
     @JsonProperty
+    public String getEditorUrl() {
+        return editorUrl;
+    }
+
+    @JsonProperty
     public void setFrontendUrl(String frontendUrl) {
         this.frontendUrl = frontendUrl;
+    }
+
+    @JsonProperty
+    public void setEditorUrl(String editorUrl) {
+        this.editorUrl = editorUrl;
     }
 
 }
