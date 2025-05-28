@@ -2,6 +2,7 @@ import { setPane } from '../../utils/controls.js';
 import { colorList } from '../../utils/utils.js';
 import { CONSTANTS } from '../../utils/names.js';
 import makeCtxMenu from './ctx-menu.js';
+import { BACKEND } from '../../main/main.js';
 
 const MIN_FLEX_GROW = 0.005;
 const MIN_SIZE = 10;
@@ -665,7 +666,7 @@ document
           formValues.name ||= uuidv4();
           redirectName = formValues.name;
           return fetch(
-            `http://localhost:8080/${formValues.name}/create-project`,
+            `${BACKEND}/${formValues.name}/create-project`,
             {
               method: 'POST',
               body: formData,

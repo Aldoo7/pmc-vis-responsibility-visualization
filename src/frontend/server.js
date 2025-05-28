@@ -2,6 +2,7 @@ import express from 'express';
 import sprightly from 'sprightly';
 import { v4 as uuidv4 } from 'uuid';
 import { createRequire } from 'module';
+import { hostname } from 'node:os';
 import { createServer } from 'node:http';
 import { Server } from 'socket.io';
 
@@ -11,6 +12,8 @@ const upload = require('express-fileupload');
 
 const MODE = process.env.MODE || 'demo';
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || hostname;
+const BACKEND = process.env.BACKEND || `http://${HOST}:8080`;
 console.log('Environment: ' + MODE);
 
 const app = express();
@@ -26,6 +29,10 @@ app.use(upload());
 
 const title = 'pmc-vis';
 const titleOverview = 'overview';
+
+app.get('/backend', (_, res) => {
+  res.send({ url: BACKEND });
+});
 
 // pages
 app.get('/', (req, res) => {
@@ -51,10 +58,16 @@ function renderMain(req, res) {
   });
 }
 
-// 141.76.67.176
-server.listen(PORT, () => {
-  console.log(`Server is listening on port http://localhost:${PORT}`);
-});
+if (HOST === 'localhost') {
+  server.listen(PORT, () => {
+    console.log(`Server is listening on port http://localhost:${PORT}`);
+  });
+} else {
+  // 141.76.67.176
+  server.listen(PORT, HOST, () => {
+    console.log(`Server is listening on port http://${HOST}:${PORT}`);
+  });
+}
 
 // listening on the connection event for incoming sockets
 io.on('connection', (socket) => {

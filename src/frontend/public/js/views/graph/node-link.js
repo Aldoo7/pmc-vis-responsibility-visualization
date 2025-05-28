@@ -1,4 +1,4 @@
-import { info } from '../../main/main.js';
+import { info, BACKEND } from '../../main/main.js';
 import {
   colors,
   stylesheet,
@@ -24,7 +24,6 @@ import {
   hideAllTippies,
   setPane,
   PROJECT,
-  BACKEND,
 } from '../../utils/controls.js';
 import { parallelCoords } from '../attributes/parallel-coords.js';
 import { ndl_to_pcp } from '../format.js';
@@ -106,7 +105,7 @@ async function renewInfo(cy) {
     const ids = nodes.open.join('&id=');
     const idus = nodes.closed.join('&idu=');
 
-    const call = `${BACKEND}${PROJECT}/reset?${
+    const call = `${BACKEND}/${PROJECT}/reset?${
       ids.length > 0 ? '&id=' + ids : ''}${
       idus.length > 0 ? '&idu=' + idus : ''}`;
 
@@ -135,12 +134,7 @@ async function renewInfo(cy) {
 async function expandGraph(cy, nodes, onLayoutStopFn) {
   if (!nodes.length) return;
 
-  const res = await fetch(
-    BACKEND
-      + PROJECT
-      + '/outgoing?id='
-      + nodes.map(n => n.data().id).join('&id='),
-  );
+  const res = await fetch(`${BACKEND}/${PROJECT}/outgoing?id=${nodes.map(n => n.data().id).join('&id=')}`);
   const data = await res.json();
 
   function finalizeExpand(cy, data) {
@@ -416,12 +410,7 @@ function spawnGraphOnNewPane(cy, nodes) {
 async function fetchAndSpawn(cy, nodes) {
   if (!nodes.length) return;
 
-  const res = await fetch(
-    BACKEND
-      + PROJECT
-      + '/outgoing?id='
-      + nodes.map((n) => n.id).join('&id='),
-  );
+  const res = await fetch(`${BACKEND}/${PROJECT}/outgoing?id=${nodes.map((n) => n.id).join('&id=')}`);
   const data = await res.json();
 
   const nodesIds = data.nodes

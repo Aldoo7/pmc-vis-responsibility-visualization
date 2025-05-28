@@ -1,8 +1,10 @@
 import { spawnPane, getPanes } from '../views/panes/panes.js';
 import { params } from '../views/graph/layout-options/elk.js';
 import { spawnGraph } from '../views/graph/node-link.js';
-import { BACKEND, PROJECT } from '../utils/controls.js';
+import { PROJECT } from '../utils/controls.js';
 import { CONSTANTS } from '../utils/names.js';
+
+let BACKEND = '';
 
 const info = {
   details: {},
@@ -62,30 +64,34 @@ if (ww && numberOfPanes) {
   numberOfPanes.value = Math.floor(ww / 200);
 }
 
-Promise.all([
-  fetch(BACKEND + PROJECT + '/status').then(r => r.json()), fetch(BACKEND + PROJECT + '/initial').then(r => r.json()),
-  // fetch(BACKEND + PROJECT).then((res) => res.json()), // requests entire dataset
-]).then((promises) => {
-  const newInfo = promises[0].info;
-  setInfo(newInfo);
-  const data = promises[1];
-  const nodesIds = data.nodes
-    .map((node) => node.id)
-    .filter((id) => !id.startsWith('t'));
+fetch('/backend').then(res => res.json()).then(res => {
+  console.log(res);
+  BACKEND = res.url;
+  Promise.all([
+    fetch(`${BACKEND}/${PROJECT}/status`).then(r => r.json()), fetch(`${BACKEND}/${PROJECT}/initial`).then(r => r.json()),
+    // fetch(BACKEND + PROJECT).then((res) => res.json()), // requests entire dataset
+  ]).then((promises) => {
+    const newInfo = promises[0].info;
+    setInfo(newInfo);
+    const data = promises[1];
+    const nodesIds = data.nodes
+      .map((node) => node.id)
+      .filter((id) => !id.startsWith('t'));
 
-  info.initial = `#${nodesIds.join(', #')}`;
+    info.initial = `#${nodesIds.join(', #')}`;
 
-  if (document.getElementById('project-id')) {
-    document.getElementById('project-id').innerHTML = info.id;
-  }
+    if (document.getElementById('project-id')) {
+      document.getElementById('project-id').innerHTML = info.id;
+    }
 
-  const firstPaneId = 'pane-0';
-  const pane = spawnPane(
-    { id: firstPaneId },
-    nodesIds,
-  );
+    const firstPaneId = 'pane-0';
+    const pane = spawnPane(
+      { id: firstPaneId },
+      nodesIds,
+    );
 
-  spawnGraph(pane, data, params);
+    spawnGraph(pane, data, params);
+  });
 });
 
 addEventListener('linked-selection', e => {
@@ -99,4 +105,4 @@ addEventListener('linked-selection', e => {
   }
 }, true);
 
-export { info, setInfo };
+export { info, setInfo, BACKEND };

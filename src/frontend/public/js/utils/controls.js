@@ -1,4 +1,4 @@
-import { info, setInfo } from '../main/main.js';
+import { info, setInfo, BACKEND } from '../main/main.js';
 import { getPanes } from '../views/panes/panes.js';
 import { h, t } from './utils.js';
 
@@ -25,7 +25,6 @@ const $overview_config = $('#overview-config');
 const url = new URL(window.location.href);
 const params = new URLSearchParams(url.search);
 const PROJECT = params.get('id') || 0;
-const BACKEND = 'http://localhost:8080/';
 
 let pane = null;
 let tippies = {};
@@ -407,7 +406,7 @@ function updatePropsValues() {
 }
 
 async function status() {
-  const status = await fetch(`http://localhost:8080/${PROJECT}/status`, {
+  const status = await fetch(`${BACKEND}/${PROJECT}/status`, {
     method: 'GET',
   });
   const data = await status.json();
@@ -422,7 +421,7 @@ async function triggerModelCheckProperty(e, propType, props) {
   });
 
   fetch(
-    `http://localhost:8080/${PROJECT}/check?property=${props.join(
+    `${BACKEND}/${PROJECT}/check?property=${props.join(
       '&property=',
     )}`,
     { method: 'GET' },
@@ -441,7 +440,7 @@ async function triggerModelCheckProperty(e, propType, props) {
 }
 
 async function clear() {
-  const request = await fetch(`http://localhost:8080/${PROJECT}/clear`, {
+  const request = await fetch(`${BACKEND}/${PROJECT}/clear`, {
     method: 'GET',
   });
   const response = await request.json();
@@ -863,5 +862,5 @@ function makeOverviewSettings() {
 }
 
 export {
-  makeTippy, hideAllTippies, setPane, PROJECT, BACKEND,
+  makeTippy, hideAllTippies, setPane, PROJECT,
 };
