@@ -9,6 +9,9 @@ import prism.server.TaskManager;
 
 import javax.ws.rs.core.Response;
 import java.io.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -103,7 +106,8 @@ public abstract class Resource {
     }
 
     protected void loadProject(File file){
-        if (file.isDirectory()){
+        File projectModel = new File(String.format("%s/%s/%s", rootDir, file.getName(), Namespace.PROJECT_MODEL));
+        if (file.isDirectory() && projectModel.isFile()){
             try {
                 String projectID = file.getName();
                 createStyleFile(projectID);
@@ -111,6 +115,7 @@ public abstract class Resource {
             } catch (Exception e) {
                 System.out.println(e);
             }
+
         }
     }
 }

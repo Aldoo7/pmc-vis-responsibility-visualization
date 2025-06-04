@@ -39,6 +39,8 @@ public abstract class Property implements Namespace {
 
     protected Scheduler scheduler = null;
 
+    protected double maximum = 0.0;
+
     public Property(Project project, int id, PropertiesFile propertiesFile, parser.ast.Property prismProperty){
         this.project = project;
         this.id = id;
@@ -49,6 +51,7 @@ public abstract class Property implements Namespace {
         Map<String, VariableInfo> info = (Map<String, VariableInfo>) project.getInfo().getStateEntry(OUTPUT_RESULTS);
 
         if (project.getDatabase().question(String.format("SELECT name FROM pragma_table_info('%s') WHERE name = '%s'", project.getStateTableName(), this.getPropertyCollumn()))) {
+            this.newMaximum();
             alreadyChecked = true;
             info.put(this.name, this.getPropertyInfo());
         }else{
@@ -59,8 +62,15 @@ public abstract class Property implements Namespace {
     }
 
     protected VariableInfo getPropertyInfo(){
-        Optional<Double> out = project.getDatabase().executeLookupQuery(String.format("SELECT MAX(%s) FROM %s", this.getPropertyCollumn(), project.getStateTableName()), Double.class);
-        return new VariableInfo(this.name, VariableInfo.Type.TYPE_NUMBER, 0, Math.ceil(out.orElse(0.0)));
+        return new VariableInfo(this.name, VariableInfo.Type.TYPE_NUMBER, 0, maximum);
+    }
+
+    protected void newMaximum(){
+        Optional<Double> out = project.getDatabase().executeLookupQuery(String.format("SELECT MAX(CAST(%s as REAL)) FROM %s", this.getPropertyCollumn(), project.getStateTableName()), Double.class);
+        if (out.isPresent()){
+            this.maximum = Math.ceil(out.get());
+        }
+
     }
 
     public static Property createProperty(Project project, int id, PropertiesFile propertiesFile, parser.ast.Property prismProperty){

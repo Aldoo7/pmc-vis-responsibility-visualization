@@ -140,6 +140,8 @@ public class TaskResource extends Resource {
             @FormDataParam("file") FormDataContentDisposition modelDetail
     ) {
 
+        refreshProject(projectID);
+
         String output = "";
 
         //Create Project folder for a new Project
@@ -155,46 +157,37 @@ public class TaskResource extends Resource {
 
         //Check whether we overwrite the model file. Remove Project and delete file if this is the case.
         File modelFile = new File(uploadModel);
-        if(modelFile.exists()) {
-            try {
-                //Write new File
-                try {
-                    final String uploadModelTemp = String.format("%s/%s/temp_", rootDir, projectID) + Namespace.PROJECT_MODEL;
-                    writeToFile(modelInputStream, uploadModelTemp);
+        boolean newProject = modelFile.exists();
 
-                    File tempFile = new File(uploadModelTemp);
+        try {
+            //Write new File
+            final String uploadModelTemp = String.format("%s/%s/temp_", rootDir, projectID) + Namespace.PROJECT_MODEL;
+            writeToFile(modelInputStream, uploadModelTemp);
 
-                    if(!tasks.checkParse(tempFile, tasks.getProject(projectID).debug)){
-                        tempFile.delete();
-                        return error("File could not be parsed");
-                    }
-                    modelFile.delete();
-                    Files.move(tempFile.toPath(), modelFile.toPath());
+            File tempFile = new File(uploadModelTemp);
 
-                    output += String.format("Model File uploaded to %s\n", uploadModel);
-                } catch (IOException e) {
-                    return error(e);
-                }
-                tasks.resetProject(projectID);
-            } catch (Exception e) {
-                return error(e);
+            String parsingMessage = tasks.checkParse(tempFile, configuration.getDebug());
+
+            if(parsingMessage != null){
+                System.out.println("parse Failed");
+                tempFile.delete();
+                return error("File could not be parsed: \n" + parsingMessage);
             }
-        }else{
-            //Write File
-            try {
-                writeToFile(modelInputStream, uploadModel);
-                output += String.format("Model File uploaded to %s\n", uploadModel);
-            } catch (IOException e) {
-                return error(e);
+            if (!newProject){
+                modelFile.delete();
             }
+            Files.move(tempFile.toPath(), modelFile.toPath());
 
-            try {
+            output += String.format("Model File uploaded to %s\n", uploadModel);
+
+            if(newProject){
                 tasks.createProject(projectID, environment, configuration);
-            } catch (Exception e) {
-                return error(e);
+            }else{
+                tasks.resetProject(projectID);
             }
+        } catch (Exception e) {
+            return error(e);
         }
-
         return Response.ok(output).build();
     }
 
@@ -210,6 +203,9 @@ public class TaskResource extends Resource {
             @FormDataParam("file") InputStream propInputStream,
             @FormDataParam("file") FormDataContentDisposition propDetail
     ) {
+
+        refreshProject(projectID);
+
         if (!new File(String.format("%s/%s", rootDir, projectID)).exists()){
             return Response.status(Response.Status.FORBIDDEN).entity("Project does not exist. Please upload a model first.").build();
         }

@@ -231,16 +231,16 @@ public class TaskManager implements Executor, Managed {
         return currentTasks;
     }
 
-    public boolean checkParse(File modelFile, boolean debug) {
+    public String checkParse(File modelFile, boolean debug) {
         Prism prism = debug ? new Prism(new PrismPrintStreamLog(System.out)) : new Prism(new PrismDevNullLog());
         try {
             ModulesFile modulesFile = prism.parseModelFile(modelFile);
         } catch (FileNotFoundException e) {
             throw new RuntimeException(e);
         } catch (PrismLangException e) {
-            return false;
+            return e.getMessage();
         }
-        return true;
+        return null;
     }
 }
 

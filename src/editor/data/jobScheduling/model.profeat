@@ -1,0 +1,96 @@
+
+const int num_jobs = 3;
+const int num_machine = 3;
+const int max_load = 4;
+
+formula r_id(m,j) = num_jobs * m + j;
+
+root feature
+    all of job[num_jobs], machine[num_machine], timer, reward;
+endfeature
+
+feature job
+  modules job_impl;
+endfeature
+
+module job_impl
+  load: [0..max_load] init 0;
+
+  for i in [0..num_machine-1]
+    [run[r_id(i, id)]] load <= machine[i].power -> (load'=0);
+  endfor
+
+  [generate] (load=0) -> for i in [1..max_load] {(1/(max_load)) : (load'= i)} ;
+  [reset] true ->  (load'=0);
+endmodule
+
+formula open_jobs = for j in [0..num_jobs-1] {((active(job[j]) & job[j].load > 0)? 1 : 0) + ...};
+formula open_load = for j in [0..num_jobs-1] {((active(job[j]) & job[j].load > 0)? job[j].load : 0) + ...};
+
+formula job_possible(i) = (job[i].load > 0) & for m in [0..num_machine-1] {(!machine[m].used & (job[i].load <= machine[m].power)) | ...};
+formula jobs_possible = for j in [0..num_jobs-1] {job_possible(j) | ...};
+
+feature machine
+  modules machine_impl;
+endfeature
+
+module machine_impl
+  power: [1..max_load];
+  used: bool init false;
+
+  for i in [0..num_jobs-1]
+    [run[r_id(id, i)]] !used -> (used'=true);
+  endfor
+  [reset] true -> (used'=false);
+endmodule
+
+formula power_cost = for m in [0..num_machine-1] {((active(machine[m]) & machine[m].used)?machine[m].power : 0) + ...};
+
+feature timer
+  modules timer_impl;
+endfeature
+
+module timer_impl
+  phase: [0..2] init 0;
+  time: [0..3] init 0;
+  block_end: [0..1];
+
+  [generate] (phase=0) -> (phase'=1);
+
+  for i in [0..num_machine-1]
+    for j in [0..num_jobs-1]
+      [run[r_id(i, j)]] (phase=1) -> true;
+    endfor
+  endfor
+
+  [end]   (phase=1) & (block_end=0 | !jobs_possible) -> (phase'=2);
+  [reset] (phase=2) & (time<3) -> (phase'=0) & (time'=time+1);
+  [over] (phase=2) & (time=3) -> true;
+endmodule
+
+label "failed" = (timer.phase=2) & (open_jobs>0);
+label "success" = (timer.phase=2) & (open_jobs=0);
+
+label "end" = (timer.phase=2) & (timer.time=3);
+
+feature reward
+  all of violations, loads, cost;
+endfeature
+
+feature violations
+  rewards "violations"
+    [end] true: open_jobs;
+  endrewards
+endfeature
+
+feature loads
+  rewards "loads"
+    [end] true: open_load;
+  endrewards
+endfeature
+
+feature cost
+  rewards "cost"
+    [end] true : power_cost;
+  endrewards
+endfeature

@@ -177,10 +177,17 @@ class ConnectionItem extends vscode.TreeItem {
                 method: 'POST',
                 body: data // This is your file object
             }).then(
-                success => console.log(success) // Handle the success response object
-            ).catch(
-                error => vscode.window.showErrorMessage("Failed to Connect to PMC-Vis.\nIs the backend running?\n\n" + error) // Handle the error response object
-            );
+                async (response) => {
+                    if (response.ok) {
+                        //vscode.window.showInformationMessage(response.statusText) // Handle the success response object
+                        console.log("Uploaded", this.label)
+                    } else {
+                        const t = await response.text();
+                        throw new Error(`Error: ${t}`);
+                    }
+                }).catch(
+                    error => { vscode.window.showErrorMessage(error.message) } // Handle the error response object
+                );
         }
     }
 

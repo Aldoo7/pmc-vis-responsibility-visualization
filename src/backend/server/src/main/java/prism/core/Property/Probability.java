@@ -179,6 +179,7 @@ public class Probability extends Property{
             Criteria criteria = new CriteriaSort(this.getPropertyCollumn(), minimum ? CriteriaSort.Direction.ASC: CriteriaSort.Direction.DESC);
             this.scheduler = Scheduler.createScheduler(this.project, this.getName(), this.id, Collections.singletonList(criteria));
             project.addScheduler(scheduler);
+            this.newMaximum();
             alreadyChecked = true;
 
             return this.getPropertyInfo();
