@@ -19,7 +19,8 @@ let _variables = null;
 //RegExps
 const constantRegExp = /^\s*const\s+(int|bool)\s+(\w+)\s*=\s*(.+?)\s*;$/
 const formulaRegExp = /^\s*formula\s+(\w+)\s*=\s*(.+?)\s*;$/
-const variableRegExp = /^\s*(\w+)\s*:\s*\[\s*(\w+)\s*\.\.\s*(\w+)\s*\](\s*init\s+(\w+))?\s*;$/
+const variableRegExp = /^(?:\s*global)?\s*(\w+)\s*:\s*(?:(?:\[\s*(\w+)\s*\.\.\s*(\w+)\s*\])|(?:bool))(?:\s*init\s+(?:\w+))?\s*;$/
+const renameRegExp = /(\w+)\s*=\s*(\w+)/
 
 class DocumentSemanticTokensProvider {
     async provideDocumentSemanticTokens(document) {
@@ -43,7 +44,7 @@ class DocumentSemanticTokensProvider {
 
         //gather all declerations
         for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
+            const line = lines[i].trim();
             const matched_c = line.match(constantRegExp)
             if (matched_c != null) {
                 constants.push(matched_c[2]);
@@ -59,7 +60,7 @@ class DocumentSemanticTokensProvider {
 
         //gather all declerations
         for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
+            const line = lines[i].trim();
             const matched_f = line.match(formulaRegExp)
             if (matched_f != null) {
                 formulas.push(matched_f[1]);
@@ -75,13 +76,57 @@ class DocumentSemanticTokensProvider {
 
         //gather all declerations
         for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
+            const line = lines[i].trim();
             const matched_v = line.match(variableRegExp)
             if (matched_v != null) {
                 variables.push(matched_v[1]);
             }
         }
         return variables;
+    }
+
+    _parseRenameBlock(text) {
+
+        const match = text.match(/module\s+\w+\s*=\s*\w+\s*\[([^\]]*?)\]/);
+
+        if (match == null) {
+            return []
+        }
+
+        const interior = match[1].replace(/(\r\n|\n|\r)/gm, "").trim()
+        const rest = text.replace(match[0], "")
+        let blocks = [interior].concat(this._parseRenameBlock(rest));
+        return blocks;
+    }
+
+    _parseRenamings(text, constants, formulas, variables) {
+        const renameArea = this._parseRenameBlock(text)
+
+        //gather all declerations
+        for (let i = 0; i < renameArea.length; i++) {
+            const fields = renameArea[i].split(/,/);
+            for (let j = 0; j < fields.length; j++) {
+                const field = fields[j];
+                const matched_r = field.match(renameRegExp)
+                if (matched_r != null) {
+                    const existingField = matched_r[1]
+                    const newField = matched_r[2]
+                    if (variables.includes(existingField)) {
+                        variables.push(newField);
+                        continue;
+                    }
+                    if (formulas.includes(existingField)) {
+                        formulas.push(newField);
+                        continue;
+                    }
+                    if (constants.includes(existingField)) {
+                        constants.push(newField);
+                        continue;
+                    }
+                }
+            }
+        }
+        return [constants, formulas, variables];
     }
 
     _encodeTokenType(tokenType) {
@@ -110,8 +155,15 @@ class DocumentSemanticTokensProvider {
 
     _initializeDocument(document) {
 
+        const text = document.getText();
+
         //Read all constant declarations and save them globally
-        const constants = this._parseConstants(document.getText());
+        const init_constants = this._parseConstants(text);
+        const init_formulas = this._parseFormulas(text);
+        const init_variables = this._parseVariables(text);
+
+        const [constants, formulas, variables] = this._parseRenamings(text, init_constants, init_formulas, init_variables)
+
         if (constants.length > 0) {
             _constants = new RegExp(`\\b(${constants.join("|")})\\b`, 'g');
         } else {
@@ -119,7 +171,7 @@ class DocumentSemanticTokensProvider {
         }
 
         //Read all function declarations and save them globally
-        const formulas = this._parseFormulas(document.getText());
+
         if (formulas.length > 0) {
             _formulas = new RegExp(`\\b(${formulas.join("|")})\\b`, 'g');
         } else {
@@ -127,7 +179,7 @@ class DocumentSemanticTokensProvider {
         }
 
         //Read all variable declarations and save them globally
-        const variables = this._parseVariables(document.getText());
+
         if (variables.length > 0) {
             _variables = new RegExp(`\\b(${variables.join("|")})\\b`, 'g');
         } else {
