@@ -104,15 +104,15 @@ module battery
   [run_1_3] !battery_enabled -> true;
 
   [run_2_1] battery_enabled & (load1 > power2) & (load1 <= (power2 + charge)) -> (charge'=max((charge-(load1-power2)), 0));
-  [run_2_1] battery_enabled & !((load1 <= power2) | (load1 > (power2 + charge))) -> true;
+  [run_2_1] battery_enabled & ((load1 <= power2) | (load1 > (power2 + charge))) -> true;
   [run_2_1] !battery_enabled -> true;
 
   [run_2_2] battery_enabled & (load2 > power2) & (load2 <= (power2 + charge)) -> (charge'=max((charge-(load2-power2)), 0));
-  [run_2_2] battery_enabled & !((load2 <= power2) | (load2 > (power2 + charge))) -> true;
+  [run_2_2] battery_enabled & ((load2 <= power2) | (load2 > (power2 + charge))) -> true;
   [run_2_2] !battery_enabled -> true;
 
   [run_2_3] battery_enabled & (load3 > power2) & (load3 <= (power2 + charge)) -> (charge'=max((charge-(load3-power2)), 0));
-  [run_2_3] battery_enabled & !((load3 <= power2) | (load3 > (power2 + charge))) -> true;
+  [run_2_3] battery_enabled & ((load3 <= power2) | (load3 > (power2 + charge))) -> true;
   [run_2_3] !battery_enabled -> true;
   
   [run_3_1] battery_enabled & (load1 > power3) & (load1 <= (power3 + charge)) -> (charge'=max((charge-(load1-power3)), 0));
