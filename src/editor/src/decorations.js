@@ -76,13 +76,11 @@ const varDecoration = vscode.window.createTextEditorDecorationType({
     borderStyle: 'solid',
     light: {
         // this color will be used in light color themes
-        borderColor: grey,
-        backgroundColor: grey
+        borderColor: grey
     },
     dark: {
         // this color will be used in dark color themes
-        borderColor: grey,
-        backgroundColor: grey
+        borderColor: grey
     }
 });
 
