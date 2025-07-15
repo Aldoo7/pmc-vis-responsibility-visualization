@@ -1,5 +1,5 @@
 .cursor-area {
-  opacity: 0.5;
+  opacity: .3;
   fill: var(--pcp-bubble-cursor-color);
 }
 
@@ -10,11 +10,6 @@
 path.highlighted-path {
   stroke: var(--pcp-hover);
   stroke-width: var(--pcp-hover-width);
-}
-
-.brush .extent {
-  fill-opacity: .3;
-  stroke: var(--pcp-bubble-cursor-color);
 }
 
 .axis line,
@@ -51,3 +46,8 @@ path.highlighted-path {
   opacity: 0.5;
 }
 
+.brush > .selection {
+  fill: #4887b9;
+  stroke: none;
+  fill-opacity: .5
+}

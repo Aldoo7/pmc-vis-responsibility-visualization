@@ -15,7 +15,7 @@ const colors = {
   DUAL_SELECTION: '#a4c35d',
 
   EDGE_COLOR: '#dadada',
-  HL_EDGE_COLOR: '#b8b8b8',
+  HL_EDGE_COLOR: '#d6730f',
   EDGE_LABEL_COLOR: '#b3b3b3',
 };
 
@@ -50,6 +50,13 @@ const stylesheet = [
       'selection-box-color': colors.SELECTED_NODE_COLOR,
       'selection-box-border-color': '#8BB0D0',
       'selection-box-opacity': '0.5',
+      'active-bg-opacity': 0,
+    },
+  },
+  {
+    selector: 'node',
+    style: {
+      'overlay-opacity': 0,
     },
   },
   {
@@ -142,6 +149,9 @@ const stylesheet = [
       'line-style': 'dashed',
       'line-dash-pattern': [6, 3],
       'line-dash-offset': 24,
+      'text-outline-color': 'white',
+      'text-outline-opacity': 1,
+      'text-outline-width': '1px',
     },
   },
   {
