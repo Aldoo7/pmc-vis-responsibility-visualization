@@ -1614,11 +1614,13 @@ function keyboardShortcuts(cy, e) {
   // ctrl+z: undo
   if (e.keyCode === 90 && modifier) {
     cy.vars['ur'].value.undo();
+    cy.nodes().filter(d => d.data()._selected).select();
   }
 
   // ctrl+y: redo
   if (e.keyCode === 89 && modifier) {
     cy.vars['ur'].value.redo();
+    cy.nodes().filter(d => d.data()._selected).select();
   }
 
   // ctrl+a: select all nodes

@@ -426,5 +426,8 @@ nav {
       line-height: calc(var(--nav-height) + 5px);
     }
   }
+}
 
+.to-do {
+  display: none;
 }

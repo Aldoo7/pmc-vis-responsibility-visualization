@@ -64,8 +64,8 @@ if (ww && numberOfPanes) {
   numberOfPanes.value = Math.floor(ww / 200);
 }
 
-if (import.meta.env.VITE_HIDE_TODOS) {
-  document.querySelectorAll('.to-do').forEach(el => el.remove());
+if (import.meta.env.VITE_HIDE_TODOS !== 'true') {
+  document.querySelectorAll('.to-do').forEach(el => el.classList.remove('to-do'));
 }
 
 Promise.all([
