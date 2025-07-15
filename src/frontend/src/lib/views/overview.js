@@ -3,7 +3,7 @@ import { io } from 'socket.io-client';
 import { overviewStylesheet } from '../style/views/cy-style.js';
 import { h, t } from '../utils/utils.js';
 import { params } from './graph/layout-options/elk.js';
-import { cytoscape } from './graph/init-cyto.js';
+import { cytoscape } from './graph/improt-cytoscape.js';
 
 var isInitialized = false;
 

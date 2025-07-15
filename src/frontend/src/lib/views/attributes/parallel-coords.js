@@ -8,7 +8,7 @@ import makeCtxMenu from './ctx-menu.js';
 import {
   frequencies, histogram, violin,
 } from './axis.js';
-import * as d3 from 'd3';
+import d3 from '../imports/import-d3.js';
 import { _ } from 'lodash';
 
 function parallelCoords(pane, data, metadata) {
@@ -67,7 +67,7 @@ function parallelCoords(pane, data, metadata) {
 
   function draw(pane, data) {
     function drawForeground(d, count = false) {
-      foreground.strokeStyle = getComputedStyle(div).getPropertyValue(d.color);
+      foreground.strokeStyle = getComputedStyle(div).getPropertyValue(d._color);
       path(d, foreground, count);
     }
 
@@ -127,11 +127,15 @@ function parallelCoords(pane, data, metadata) {
     }
 
     // applies effect over duration
-    function transition(g) {
+    function animate(g) {
       return g.transition().duration(500);
     }
 
     function checkIfActive(point) {
+      if (!selections.size && !point._selected) {
+        return false;
+      }
+
       return Array.from(selections).every(([key, [min, max]]) => {
         const val = metadata.pld[key].type === 'number'
           ? point[key]
@@ -558,7 +562,7 @@ function parallelCoords(pane, data, metadata) {
           })
           .on('end', (_, d) => {
             delete dragging[d];
-            transition(d3.select(`#${pane.id}_axis_${d}`)).attr(
+            animate(d3.selectAll(`#${pane.id}_axis_${d}`)).attr(
               'transform',
               resp.trans[orient] + resp.scale(d) + ')',
             );
@@ -779,11 +783,9 @@ function parallelCoords(pane, data, metadata) {
         },
       ],
     });
+
     drawBrushed();
     updateCountStrings();
-    dispatchEvent(
-      events.LINKED_SELECTION(pane.id, publicFunctions.getSelection()),
-    );
   }
 
   draw(pane, data);

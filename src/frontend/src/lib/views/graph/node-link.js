@@ -1,6 +1,6 @@
 import { io } from 'socket.io-client';
 import { _ } from 'lodash';
-import Swal from 'sweetalert2'
+import Swal from 'sweetalert2';
 
 import { info, BACKEND } from '../../main/main.js';
 import {
@@ -33,7 +33,7 @@ import { parallelCoords } from '../attributes/parallel-coords.js';
 import { ndl_to_pcp } from '../format.js';
 import { CONSTANTS } from '../../utils/names.js';
 import events from '../../utils/events.js';
-import { cytoscape } from './init-cyto.js';
+import { cytoscape } from '../imports/import-cytoscape.js';
 
 const THROTTLE_DEBOUNCE_DELAY = 100;
 var iteration = 0;
@@ -343,7 +343,6 @@ function spawnGraph(pane, data, params, vars = {}) {
     cy.endBatch();
 
     initControls(cy);
-
     spawnPCP(cy);
     dispatchEvent(events.GLOBAL_PROPAGATE);
     return cy;
@@ -574,13 +573,14 @@ function getPreviousInPath(cy, sourceNodeId) {
 function spawnPCP(cy) {
   const m = cy.vars['mode'].value;
   const selector = m === 's+t' ? '' : '.' + m;
-  const s = cy.$(`node${selector}:selected`).map(n => n.data());
 
   const { pl, pld } = ndl_to_pcp(
     {
-      nodes: s.length > 0 ? s
-        : console.warn('tried to spawn PCP without any selection, using full nodeset')
-        || cy.$(`node${selector}`).map(n => n.data()),
+      nodes: cy.$(`node${selector}`).map(n => {
+        const d = n.data();
+        d._selected = n.selected();
+        return d;
+      }),
     },
     cy.vars['details'].value,
   );
@@ -624,7 +624,6 @@ function bindListeners(cy) {
   unbindListeners(cy);
   cy.edges().unselectify();
 
-  // new listeners
   cy.on('tap', (e) => {
     if (e.target === cy) {
       setPane(cy.paneId);
@@ -657,14 +656,7 @@ function bindListeners(cy) {
   });
 
   cy.on('boxselect tapselect tapunselect', _.debounce(() => {
-    // automatically syncs node selection to the PCP
-    const nodes = cy.$('node:selected');
-    if (
-      nodes.length > 0 // needed for tapunselect
-      && cy.vars['fullSync'].value
-    ) {
-      spawnPCP(cy);
-    }
+    spawnPCP(cy);
   }, THROTTLE_DEBOUNCE_DELAY));
 
   cy.on('box', (e) => {

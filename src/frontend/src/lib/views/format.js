@@ -6,7 +6,8 @@ function ndl_to_pcp(data, prop) {
   returnable.pl = data.nodes.map((d) => {
     const polyline = {
       id: d.id,
-      color: d.type === 's' ? '--pcp-primary' : '--pcp-secondary',
+      _color: d.type === 's' ? '--pcp-primary' : '--pcp-secondary',
+      _selected: d._selected,
     };
 
     Object.keys(prop).forEach((p) => {

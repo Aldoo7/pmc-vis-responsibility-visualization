@@ -9,4 +9,4 @@ How to run:
 Development: 
 - we're moving towards a static website (no server).
 - currently, only cross-tab communication (`socket.io`) needs a server (see `vite.config.ts`). 
-- all src are in `/src`, but the html is at `./` (see `index.html`, `/overview`)
+- the code is in `/src`, but the html is at `./` (see `index.html`, `/overview`).
