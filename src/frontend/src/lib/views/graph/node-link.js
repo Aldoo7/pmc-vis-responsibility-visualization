@@ -697,6 +697,9 @@ function bindListeners(cy) {
     }
 
     if (e.originalEvent.shiftKey) {
+      n.unselectify();
+      cy.pendingSelectify = true;
+
       const g = n.data();
       const $links = [];
       const details = cy.vars['details'].value;
@@ -1802,8 +1805,8 @@ function setPublicVars(cy, preset) {
       value: '><',
       fn: updateBoundsIndicator,
     },
-    'pcp-refine': { // violin plots
-      value: false,
+    'pcp-refine': { // brushes overwrite selections
+      value: true,
       fn: (cy, prop) => togglePCPFlag(cy, prop, 'pcp-refine'),
     },
     'pcp-vs': { // violin plots

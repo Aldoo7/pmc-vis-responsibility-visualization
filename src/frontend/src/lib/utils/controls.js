@@ -121,6 +121,8 @@ function makeTippy(node, html, id) {
   if (tippies[id]) {
     tippies[id].hide();
     tippies[id].destroy();
+    delete tippies[id];
+    return;
   }
 
   const t = tippy(node.popperRef(), {
