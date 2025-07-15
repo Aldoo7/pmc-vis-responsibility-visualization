@@ -810,7 +810,7 @@ function setUpdateState(cy) {
   }
 }
 
-function updateDetailsToShow(cy, { update }) {
+function updateDetailsToShow(cy, { update } = {}) {
   const props = {};
   const details = structuredClone(info.details);
 

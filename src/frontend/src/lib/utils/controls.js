@@ -462,6 +462,7 @@ async function clear() {
   if (response.content.startsWith(CONSTANTS.MESSAGES.cleared_starts_with)) {
     const state = await status();
     setInfo(state.info);
+    pane.cy.vars['details'].fn(pane.cy);
     setPane(pane.id, { force: true });
   }
 
