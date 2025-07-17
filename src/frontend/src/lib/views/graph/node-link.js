@@ -582,12 +582,14 @@ function getPreviousInPath(cy, sourceNodeId) {
 function spawnPCP(cy) {
   const m = cy.vars['mode'].value;
   const selector = m === 's+t' ? '' : '.' + m;
+  let selected = 0;
 
   const { pl, pld } = ndl_to_pcp(
     {
       nodes: cy.$(`node${selector}`).map(n => {
         const d = n.data();
         d._selected = n.selected();
+        if (d._selected) selected += 1;
         return d;
       }),
     },
@@ -606,6 +608,7 @@ function spawnPCP(cy) {
       booleans: props.filter(k => pld[k].type === 'boolean'),
       numbers: props.filter(k => pld[k].type === 'number'),
       pld,
+      preselected: selected,
     },
   );
 
@@ -907,13 +910,13 @@ function selectBasedOnAP(cy, e, ap) {
 }
 
 function mark(cy, selection) {
-  const node = cy.$('#' + selection.join(', #'));
-  node.addClass('marked');
+  const nodes = cy.$('#' + selection.join(', #'));
+  nodes.addClass('marked');
 }
 
 function unmark(cy, selection) {
-  const node = cy.$('#' + selection.join(', #'));
-  node.removeClass('marked');
+  const nodes = cy.$('#' + selection.join(', #'));
+  nodes.removeClass('marked');
 }
 
 async function importCy(cy) {
@@ -1840,7 +1843,7 @@ function setPublicVars(cy, preset) {
     update: {
       value: CONSTANTS.STATUS.ready,
       fn: async () => {
-        renewInfo(cy);
+        await renewInfo(cy);
         updateDetailsToShow(cy, { update: cy.vars['details'].value });
         setUpdateState(cy);
       },

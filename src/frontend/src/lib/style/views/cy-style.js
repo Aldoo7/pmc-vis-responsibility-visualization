@@ -81,15 +81,15 @@ const stylesheet = [
       'border-width': outlines.width,
       'border-color': colors.NODE_COLOR,
       'text-outline-opacity': 0,
-      'bounds-expansion': '20px',
     },
   },
   {
     selector: 'node.s.marked',
     style: {
-      'background-image': '/style/icons/badge-green.svg',
+      'background-image': '/src/lib/style/icons/badge-green.svg',
       'background-image-containment': 'over',
       'background-clip': 'none',
+      'bounds-expansion': '11',
       'background-height': badges.height,
       'background-width': badges.width,
       'background-position-x': badges.x,
@@ -99,6 +99,7 @@ const stylesheet = [
   {
     selector: 'node.s.marked:selected',
     style: {
+      'bounds-expansion': '12',
       'background-position-y': badges.y_s,
     },
   },

@@ -89,10 +89,7 @@ async function setPane(paneId, { make = false, force = false } = {}) {
     document.onkeydown = (e) => pane.cy.vars['ur'].fn(pane.cy, e);
     document.getElementById('selected-pane').innerHTML = paneId;
     document.getElementById(pane.id).classList.add('active-pane');
-    if (
-      info.updating
-      && pane.cy.vars['update'].value === CONSTANTS.STATUS.missing
-    ) {
+    if (info.updating) {
       await pane.cy.vars['update'].fn();
     }
 

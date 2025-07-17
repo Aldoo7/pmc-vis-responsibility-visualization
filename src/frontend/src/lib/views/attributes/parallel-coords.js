@@ -134,7 +134,7 @@ function parallelCoords(pane, data, metadata) {
     function checkIfActive(point) {
       const refine = !pane.cy.vars['pcp-refine'].value;
       if (refine) {
-        if (!point._selected) {
+        if (metadata.preselected !== 0 && !point._selected) {
           return false;
         }
       } else if (!selections.size && !point._selected) {
