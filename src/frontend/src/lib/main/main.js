@@ -56,6 +56,10 @@ function setInfo(newInfo) {
       }
     }
   });
+
+  Object.values(getPanes()).forEach(pane => {
+    pane.cy.vars['update'].fn(pane.cy);
+  });
 }
 
 const ww = window.innerWidth;

@@ -55,9 +55,13 @@ public class Transition implements Node{
         }
     }
 
+    private boolean viewsInactive() { 
+        return views == null || views.isEmpty();
+    }
+
     @Override
     public String getId() {
-        return (views == null) ? String.format("t%s", id) : String.format("t%s_%s", String.join("_", views), id);
+        return viewsInactive() ? String.format("t%s", id) : String.format("t%s_%s", String.join("_", views), id);
     }
 
     @Override
@@ -116,10 +120,7 @@ public class Transition implements Node{
 
     @JsonIgnore
     private String viewForm(String id){
-        if (views == null || views.isEmpty()){
-            return id;
-        }
-        return String.format("%s_%s", String.join("_", views), id);
+        return viewsInactive() ? id : String.format("%s_%s", String.join("_", views), id);
     }
 
     @JsonIgnore

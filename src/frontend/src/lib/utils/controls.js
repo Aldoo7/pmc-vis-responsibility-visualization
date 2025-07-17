@@ -56,7 +56,7 @@ $('#config-toggle')?.addEventListener('click', () => {
 // panes and settings rely heavily on this function to work
 // this function is called by every interaction to ensure changes happen to the correct pane
 // therefore, be careful when introducing expensive operations here.
-function setPane(paneId, { make = false, force = false } = {}) {
+async function setPane(paneId, { make = false, force = false } = {}) {
   const panes = getPanes();
 
   if (panes[paneId]) {
@@ -93,8 +93,9 @@ function setPane(paneId, { make = false, force = false } = {}) {
       info.updating
       && pane.cy.vars['update'].value === CONSTANTS.STATUS.missing
     ) {
-      pane.cy.vars['update'].fn();
+      await pane.cy.vars['update'].fn();
     }
+
     createControllers(pane.cy.params);
 
     socket.emit('active pane', paneId);
@@ -462,7 +463,6 @@ async function clear() {
   if (response.content.startsWith(CONSTANTS.MESSAGES.cleared_starts_with)) {
     const state = await status();
     setInfo(state.info);
-    pane.cy.vars['details'].fn(pane.cy);
     setPane(pane.id, { force: true });
   }
 

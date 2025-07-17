@@ -77,10 +77,12 @@ function setStyles(cy) {
   cy.edges()
     .removeClass('scheduler')
     .filter((n) => {
-      const source = n.data().source;
-      const target = n.data().target;
+      const data = n.data();
+
+      const source = data.source;
       if (source && source.startsWith('t')) {
         const node = cy.elementMapper.nodes.get(source);
+
         if (node && node.data.scheduler) {
           const nodeSchedulerValue = node.data.scheduler[cy.vars['scheduler'].value];
           return nodeSchedulerValue > 0;
@@ -89,6 +91,7 @@ function setStyles(cy) {
         return false;
       }
 
+      const target = data.target;
       if (target && target.startsWith('t')) {
         const node = cy.elementMapper.nodes.get(target);
         if (node && node.data.scheduler) {
@@ -130,8 +133,12 @@ async function renewInfo(cy) {
 
   cy.nodes().forEach(n => {
     const id = n.data().id;
-    cy.elementMapper.nodes.set(id, n);
-    if (mapper[id]) n.data('details', mapper[id].details);
+
+    if (!mapper[id]) console.error('/reset returned unexisiting node');
+    if (mapper[id].details) n.data('details', mapper[id].details);
+    if (mapper[id].scheduler) n.data('scheduler', mapper[id].scheduler);
+
+    cy.elementMapper.nodes.set(id, { data: n.data() });
   });
 }
 
@@ -630,6 +637,12 @@ function bindListeners(cy) {
     if (e.target === cy) {
       setPane(cy.paneId);
       hideAllTippies();
+
+      // ensure that selections don't go away when clicking the background once
+      cy.nodes().unselectify();
+      cy.pendingSelectify = true;
+    } else {
+      selectifyByMode(cy);
     }
   });
 
@@ -647,9 +660,10 @@ function bindListeners(cy) {
     }
   });
 
-  cy.on('tap', 'edge', () => {
+  cy.on('tap', 'edge', (e) => {
     setPane(cy.paneId);
     hideAllTippies();
+    console.log(e.target.data());
   });
 
   cy.on('zoom pan', () => {
@@ -671,16 +685,6 @@ function bindListeners(cy) {
     };
   });
 
-  // ensure that selections don't go away when clicking the background once
-  cy.on('tap', (e) => {
-    if (e.target === cy) { // background
-      cy.nodes().unselectify();
-      cy.pendingSelectify = true;
-    } else {
-      selectifyByMode(cy);
-    }
-  });
-
   // re-enable selections after the previous check happened
   cy.on('dbltap mousemove', () => {
     cy.pendingSelectify &&= (selectifyByMode(cy) && false);
@@ -693,6 +697,7 @@ function bindListeners(cy) {
   cy.on('tap', 'node', (e) => {
     const n = e.target;
     setPane(cy.paneId);
+    console.log(n.data());
 
     if (!e.originalEvent.shiftKey) {
       hideAllTippies();
@@ -1834,7 +1839,7 @@ function setPublicVars(cy, preset) {
     },
     update: {
       value: CONSTANTS.STATUS.ready,
-      fn: () => {
+      fn: async () => {
         renewInfo(cy);
         updateDetailsToShow(cy, { update: cy.vars['details'].value });
         setUpdateState(cy);
