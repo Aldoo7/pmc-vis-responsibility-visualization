@@ -28,7 +28,7 @@ public class PRISMServerConfiguration extends Configuration {
 
     private int socketPort = 8082;
 
-    private String socketHost = "localhost";
+    private String socketHost = "0.0.0.0";
 
     @Valid
     @NotNull
