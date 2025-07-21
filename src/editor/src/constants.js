@@ -1,3 +1,3 @@
-const ADRESS = "localhost"
+const ADDRESS = "localhost"
 
-module.exports = { ADRESS }
+module.exports = { ADDRESS }

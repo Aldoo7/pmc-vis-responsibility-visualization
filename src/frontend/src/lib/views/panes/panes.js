@@ -1,4 +1,3 @@
-import { io } from 'socket.io-client';
 import { v4 as uuidv4 } from 'uuid';
 import Swal from 'sweetalert2/dist/sweetalert2.all.min.js';
 
@@ -7,11 +6,10 @@ import { colorList } from '../../utils/utils.js';
 import { CONSTANTS } from '../../utils/names.js';
 import makeCtxMenu from './ctx-menu.js';
 import { BACKEND } from '../../main/main.js';
+import { socket } from '../imports/import-socket.js';
 
 const MIN_FLEX_GROW = 0.005;
 const MIN_SIZE = 10;
-const socket = io();
-
 const panes = {}; // governs the pane-based exploration
 const tracker = {}; // keeps track of already seen nodes, marks, etc.
 

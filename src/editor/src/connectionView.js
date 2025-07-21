@@ -26,7 +26,7 @@ class ConnectionViewProvider {
     }
 
     async addExistingProjects() {
-        await fetch(`http://${constants.ADRESS}:8080/0/projects`, {
+        await fetch(`http://${constants.ADDRESS}:8080/0/projects`, {
             method: 'GET'
         }).then(
             result => result.json()
@@ -202,7 +202,7 @@ class ConnectionItem extends vscode.TreeItem {
         const oldChildren = this._children;
         this._children = [];
         if (this.contextValue == "Project") {
-            await fetch(`http://${constants.ADRESS}:8080/${this.projectID}/files`, {
+            await fetch(`http://${constants.ADDRESS}:8080/${this.projectID}/files`, {
                 method: 'GET'
             }).then(
                 result => result.json()
@@ -232,7 +232,7 @@ class ConnectionItem extends vscode.TreeItem {
 
             data.append('file', blob, fileName);
 
-            await fetch(`http://${constants.ADRESS}:8080/${this.projectID}/${call}`, { // Your POST endpoint
+            await fetch(`http://${constants.ADDRESS}:8080/${this.projectID}/${call}`, { // Your POST endpoint
                 method: 'POST',
                 body: data // This is your file object
             }).then(
@@ -257,7 +257,7 @@ class ConnectionItem extends vscode.TreeItem {
     async openDocument() {
         if (this.contextValue == "File") {
             if (!this._document) {
-                await fetch(`http://${constants.ADRESS}:8080/${this.projectID}/file:${this._position}`, {
+                await fetch(`http://${constants.ADDRESS}:8080/${this.projectID}/file:${this._position}`, {
                     method: 'GET'
                 }).then(
                     result => result.json()
@@ -268,7 +268,7 @@ class ConnectionItem extends vscode.TreeItem {
                         await vscode.workspace.fs.writeFile(uri, Buffer.from(data['content']));
                         this._document = await vscode.workspace.openTextDocument(uri);
                     }).catch(
-                        error => vscode.window.showErrorMessage(error) // Handle the error response object
+                        error => vscode.window.showErrorMessage(error)
                     );
             }
             await vscode.window.showTextDocument(this._document)
@@ -321,20 +321,20 @@ class ConnectionItem extends vscode.TreeItem {
         const blob = new Blob([fileContent], { type: 'text/plain' });
 
         data.append('file', blob, fileName);
-        await fetch(`http://${constants.ADRESS}:8080/${this.projectID}/${call}`, { // Your POST endpoint
+        await fetch(`http://${constants.ADDRESS}:8080/${this.projectID}/${call}`, {
             method: 'POST',
-            body: data // This is your file object
+            body: data
         }).then(
             async (response) => {
                 if (response.ok) {
-                    //vscode.window.showInformationMessage(response.statusText) // Handle the success response object
+                    //vscode.window.showInformationMessage(response.statusText)
                     console.log("Saved ", this.label)
                 } else {
                     const t = await response.text();
                     throw new Error(`Error: ${t}`);
                 }
             }).catch(
-                error => { vscode.window.showErrorMessage(error.message) } // Handle the error response object
+                error => vscode.window.showErrorMessage(error.message)
             );
     }
 

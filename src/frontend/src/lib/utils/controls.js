@@ -1,4 +1,3 @@
-import { io } from 'socket.io-client';
 import { _ } from 'lodash';
 import tippy from 'tippy.js';
 
@@ -16,8 +15,8 @@ import {
   setMaxIteration,
   unmarkRecurringNodes,
 } from '../views/graph/node-link.js';
+import { socket } from '../views/imports/import-socket.js';
 
-const socket = io();
 const $ = document.querySelector.bind(document);
 const $cy_config = $('#cy-config');
 const $graph_config = $('#graph-config');

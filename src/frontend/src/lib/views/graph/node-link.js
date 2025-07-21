@@ -1,4 +1,3 @@
-import { io } from 'socket.io-client';
 import { _ } from 'lodash';
 import Swal from 'sweetalert2';
 
@@ -34,6 +33,7 @@ import { ndl_to_pcp } from '../format.js';
 import { CONSTANTS } from '../../utils/names.js';
 import events from '../../utils/events.js';
 import { cytoscape } from '../imports/import-cytoscape.js';
+import { socket } from '../imports/import-socket.js';
 
 const THROTTLE_DEBOUNCE_DELAY = 100;
 var iteration = 0;
@@ -43,7 +43,6 @@ const setMaxIteration = (value) => {
   maxIteration = value;
 };
 
-const socket = io();
 let selectedPanesData = {
   selectedPanes: [],
   paneCy: null,

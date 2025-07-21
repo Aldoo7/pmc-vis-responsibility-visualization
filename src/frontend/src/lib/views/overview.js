@@ -1,9 +1,8 @@
-import { io } from 'socket.io-client';
-
 import { overviewStylesheet } from '../style/views/cy-style.js';
 import { h, t } from '../utils/utils.js';
 import { params } from './graph/layout-options/elk.js';
-import { cytoscape } from '../views/imports/import-cytoscape.js';
+import { cytoscape } from './imports/import-cytoscape.js';
+import { socket } from './imports/import-socket.js';
 
 var isInitialized = false;
 
@@ -12,7 +11,7 @@ const $overview_graph_config = $('#overview-graph-config');
 window.addEventListener('load', () => {
   makeOverviewSettings();
 });
-const socket = io();
+
 var cy2 = cytoscape({
   container: document.getElementById('cy-overview'),
   style: overviewStylesheet,

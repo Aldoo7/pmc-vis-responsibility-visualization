@@ -4,7 +4,7 @@ const constants = require("./constants.js");
 class Communication {
 
     constructor() {
-        const address = `http://${constants.ADRESS}:8081`
+        const address = `http://${constants.ADDRESS}:8081`
 
         this._socket = io(address);
 

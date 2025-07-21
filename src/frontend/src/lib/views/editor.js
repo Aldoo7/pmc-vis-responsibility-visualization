@@ -1,7 +1,9 @@
+import { socket } from './imports/import-socket.js';
 let editorSelectionTimeout;
 let connectionTest = true;
 
 function handleEditorSelection(event, cy) {
+  socket.emit('MESSAGE', 'hey backend');
   clearTimeout(editorSelectionTimeout);
   if (connectionTest) {
     editorSelectionTimeout = setTimeout(async () => {
