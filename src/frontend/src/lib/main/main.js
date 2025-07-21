@@ -4,7 +4,7 @@ import { spawnGraph } from '../views/graph/node-link.js';
 import { PROJECT } from '../utils/controls.js';
 import { CONSTANTS } from '../utils/names.js';
 
-let BACKEND = 'http://localhost:8080';
+let BACKEND = import.meta.env.VITE_BACKEND_RESTFUL;
 
 const info = {
   details: {},

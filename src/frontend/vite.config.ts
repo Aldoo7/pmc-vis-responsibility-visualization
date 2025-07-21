@@ -40,7 +40,6 @@ const socketEvents = (io, socket) => {
   });
 }
 
-// https://vite.dev/config/
 export default defineConfig({
   base: './',
   plugins: [vitePluginSocketIO({socketEvents})],
