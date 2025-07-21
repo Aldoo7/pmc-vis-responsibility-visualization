@@ -97,6 +97,8 @@ public interface Namespace {
 
     String TYPE_COMP = "computing";
 
+    String EVENT_STATUS = "MC_STATUS";
+
     static String getLanguage(String filename){
         String language = filename.substring(filename.lastIndexOf(".") + 1);
         switch (language){

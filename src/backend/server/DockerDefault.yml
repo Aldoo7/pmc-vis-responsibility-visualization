@@ -2,12 +2,11 @@ pathTemplate: volume
 debug: false
 frontendUrl: http://host.docker.internal:3000
 editorUrl: http://host.docker.internal:3001
-socketHost: host.docker.internal
 
 logging:
 
   # The default level of all loggers. Can be OFF, ERROR, WARN, INFO, DEBUG, TRACE, or ALL.
-  level: ERROR
+  level: INFO
 
 database:
   # the name of your JDBC driver

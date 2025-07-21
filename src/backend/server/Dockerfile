@@ -38,3 +38,4 @@ RUN sed -i 's/\r$//' bin/run && chmod +x bin/run
 ENTRYPOINT ["bin/run", "server", "DockerDefault.yml"]
 
 EXPOSE 8080
+EXPOSE 8082

@@ -13,7 +13,6 @@ import prism.PrismDevNullLog;
 import prism.PrismLangException;
 import prism.PrismPrintStreamLog;
 import prism.api.Status;
-import prism.core.ModelParser;
 import prism.core.Namespace;
 import prism.core.Project;
 import prism.db.Database;
@@ -36,21 +35,18 @@ public class TaskManager implements Executor, Managed {
 
     public AtomicBoolean refreshing = new AtomicBoolean();
 
-    private final HttpClient httpClient;
     private final SocketServer socketServer;
 
     private final Map<String, Project> activeProjects;
 
-    public TaskManager(HttpClient httpClient, SocketServer socketServer) {
+    public TaskManager(SocketServer socketServer) {
         this.executor = Executors.newSingleThreadExecutor();
-        this.httpClient = httpClient;
         this.socketServer = socketServer;
         this.activeProjects = new HashMap<>();
     }
 
     public TaskManager() {
         this.executor = Executors.newSingleThreadExecutor();
-        this.httpClient = null;
         this.socketServer = null;
         this.activeProjects = new HashMap<>();
     }
@@ -67,6 +63,7 @@ public class TaskManager implements Executor, Managed {
     @Override
     public void stop() throws Exception {
         try {
+            this.socketServer.close();
             this.executor.shutdownNow();
         } catch (Exception e) {
             System.err.println("Error shutting down executor: " + e.getMessage());
@@ -75,10 +72,10 @@ public class TaskManager implements Executor, Managed {
     }
 
     private void sendStatus(String id){
-        if (httpClient != null) {
+        if (socketServer != null) {
             try {
                 Status status = new Status(this.activeProjects.get(id), this.status());
-                httpClient.send(status);
+                socketServer.send(Namespace.EVENT_STATUS, status);
             }catch (Exception e){
                 System.err.println("Error sending status to server: " + e.getMessage());
             }

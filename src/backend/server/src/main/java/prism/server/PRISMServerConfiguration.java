@@ -26,7 +26,7 @@ public class PRISMServerConfiguration extends Configuration {
 
     private String editorUrl = "http://localhost:3001";
 
-    private int socketPort = 8081;
+    private int socketPort = 8082;
 
     private String socketHost = "localhost";
 

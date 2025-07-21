@@ -40,10 +40,9 @@ public class PRISMServerApplication extends Application<PRISMServerConfiguration
 
 		System.out.println("Starting Backend Server");
 
-		HttpClient httpClient = new HttpClient(environment, configuration);
 		SocketServer sockets = new SocketServer(configuration);
 
-		TaskManager activeProjects = new TaskManager(httpClient, sockets);
+		TaskManager activeProjects = new TaskManager(sockets);
 		environment.lifecycle().manage(activeProjects);
 
 		// Enable CORS headers
