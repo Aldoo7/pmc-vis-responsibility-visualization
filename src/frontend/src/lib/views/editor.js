@@ -3,8 +3,7 @@ let editorSelectionTimeout;
 let connectionTest = true;
 
 function handleEditorSelection(event, cy) {
-  socket.emit('Test');
-
+  socket.emit('MESSAGE', 'yo');
   clearTimeout(editorSelectionTimeout);
   if (connectionTest) {
     editorSelectionTimeout = setTimeout(async () => {
