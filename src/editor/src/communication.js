@@ -5,30 +5,29 @@ const constants = require("./constants.js");
 
 class Communication {
 
-    constructor() {
+    constructor(statusBarItem) {
+        this._status = statusBarItem;
+
         const address = `http://${constants.ADDRESS}:8082`
         this._socket = io(address);
 
         console.log("opened socket on " + address)
 
         this._socket.on("connect", () => {
-            vscode.window.showWarningMessage("Socket Connected");
+            this.updateStatusBar("Connected", null)
         })
 
         this._socket.on("disconnect", (reason, details) => {
-            vscode.window.showWarningMessage("Socket Disconnected\n Reason: " + reason);
-        })
-
-        this._socket.on("disconnect", (reason, details) => {
-            vscode.window.showWarningMessage("Socket Disconnected\n Reason: " + reason);
+            //vscode.window.showWarningMessage("Socket Disconnected\n Reason: " + reason);
+            this.updateStatusBar("Disonnected", new vscode.ThemeColor('statusBarItem.errorBackground'))
         })
 
         this._socket.on("connect_error", () => {
-            vscode.window.showWarningMessage("Socket Connection Failed");
+            this.updateStatusBar("Connection Failed", new vscode.ThemeColor('statusBarItem.errorBackground'))
         });
 
         this._socket.on(constants.EVENT_STATUS, (data) => {
-            console.log(data)
+            this.updateStatusBar(data, null)
         })
 
         this._socket.on("MESSAGE", (data) => {
@@ -42,6 +41,16 @@ class Communication {
 
     register(event, handler) {
         this._socket.on(event, handler);
+    }
+
+    updateStatusBar(text, color) {
+        this._status.text = text;
+        this._status.color = color;
+        this._status.show();
+    }
+
+    emptyStatusBar() {
+        this._status.hide();
     }
 }
 

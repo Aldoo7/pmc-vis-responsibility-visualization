@@ -1,6 +1,6 @@
 // The module 'vscode' contains the VS Code extensibility API
 
-import { constants } from 'buffer';
+//import { constants } from 'buffer';
 
 // Import the module and reference it with the alias vscode in your code below
 const vscode = require('vscode');
@@ -14,7 +14,7 @@ const token = require("./tokens.js");
 const { ConnectionViewProvider } = require('./connectionView.js');
 const { VirtualFileSystemProvider } = require('./virtualFile.js');
 const { Communication } = require('./communication.js')
-const { EVENT_STATE } = require('./constants.js')
+const constants = require("./constants.js");
 // const app = express();
 // app.use(cors());
 // app.use(express.json({ limit: '50mb' }));
@@ -55,8 +55,10 @@ function activate(context) {
 	// 	vscode.window.showInformationMessage(message);
 	// 	console.log(message);
 	// })
+	let communicationStatus = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 10);
+	const comm = new Communication(communicationStatus);
 
-	const comm = new Communication();
+	context.subscriptions.push(communicationStatus);
 
 	//Commands for backend communication
 	context.subscriptions.push(vscode.window.registerTreeDataProvider("connectionView", connectionProvider));
@@ -70,7 +72,7 @@ function activate(context) {
 	context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(_ => { resetWorkspace(null) }));
 	context.subscriptions.push(vscode.workspace.onDidChangeTextDocument(event => { resetWorkspace(event.document) }));
 
-	comm.register(EVENT_STATE, update_state)
+	comm.register(constants.EVENT_STATE, update_state);
 
 }
 

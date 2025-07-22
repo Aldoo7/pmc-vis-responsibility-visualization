@@ -42,6 +42,7 @@ class ConnectionViewProvider {
                 return false;
             } // Handle the error response object
         );
+
         this.refresh();
     }
 
@@ -72,7 +73,14 @@ class ConnectionViewProvider {
     }
 
     async refresh() {
-        await Promise.all(this._openProjects.map(async project => await project.refresh()))
+        await vscode.window.withProgress({
+            location: vscode.ProgressLocation.Window,
+            title: "Loading Projects"
+        }, async progress => {
+            return Promise.all(this._openProjects.map(async project => {
+                await project.refresh()
+            }))
+        })
         this._onDidChangeTreeData.fire(undefined);
     }
 
