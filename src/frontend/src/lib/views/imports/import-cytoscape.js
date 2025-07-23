@@ -3,8 +3,8 @@ import cytoscape from 'cytoscape';
 import cola from 'cytoscape-cola';
 cytoscape.use(cola);
 
-import elk from 'cytoscape-elk';
-cytoscape.use(elk);
+// import elk from 'cytoscape-elk';
+// cytoscape.use(elk);
 
 import dagre from 'cytoscape-dagre';
 cytoscape.use(dagre);

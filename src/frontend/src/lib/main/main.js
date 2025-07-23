@@ -1,5 +1,5 @@
 import { spawnPane, getPanes } from '../views/panes/panes.js';
-import { params } from '../views/graph/layout-options/elk.js';
+import { params } from '../views/graph/layout-options/klay.js';
 import { spawnGraph } from '../views/graph/node-link.js';
 import { PROJECT } from '../utils/controls.js';
 import { CONSTANTS } from '../utils/names.js';

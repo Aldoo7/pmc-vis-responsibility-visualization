@@ -35,7 +35,7 @@ const layoutTemplates = {
   cola: { value: 'cola', name: 'Cola', data: _cola },
   klay: { value: 'klay', name: 'Klay', data: _klay },
   dagre: { value: 'dagre', name: 'Dagre', data: _dagre },
-  elk: { value: 'elk', name: 'ELK', data: _elk },
+  // elk: { value: 'elk', name: 'ELK', data: _elk },
 };
 
 const spinningIcon = 'loading spinner icon trigger-check-prop';

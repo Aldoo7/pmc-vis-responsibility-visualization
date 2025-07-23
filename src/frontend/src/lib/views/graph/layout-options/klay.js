@@ -10,8 +10,8 @@ const params = {
 
   klay: {
     direction: 'UNDEFINED',
-    edgeSpacingFactor: 0.5,
-    edgeRouting: 'POLYLINE',
+    edgeSpacingFactor: 0.8,
+    edgeRouting: 'SPLINES',
     compactComponents: false,
     // feedbackEdges: true,
     fixedAlignment: 'NONE',
@@ -42,8 +42,8 @@ const params = {
       label: 'Edge Spacing Factor',
       param: 'klay',
       subParam: 'edgeSpacingFactor',
-      min: 0.00001,
-      step: 0.0002,
+      min: 0.0,
+      step: 0.2,
       max: 5,
       type: 'slider',
     },

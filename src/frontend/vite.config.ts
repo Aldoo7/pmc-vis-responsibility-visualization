@@ -62,7 +62,7 @@ export default defineConfig({
           cola: ['cytoscape-cola'], 
           dagre: ['cytoscape-dagre'], 
           klay: ['cytoscape-klay'],
-          elk: ['cytoscape-elk'],
+          // elk: ['cytoscape-elk'],
           utils: ['cytoscape-layout-utilities'],
         }
       }
