@@ -149,51 +149,59 @@ async function expandGraph(cy, nodes, onLayoutStopFn) {
   const data = await res.json();
 
   function finalizeExpand(cy, data) {
+    const new_nodes = data.nodes
+      .map(d => ({
+        group: 'nodes',
+        data: setNeedsHTML(d),
+        // position: node.position()
+        // WARNING: setting this prop makes nodes immutable, possible bug with cytoscape
+      }))
+      .filter(d => {
+        const accept = !cy.elementMapper.nodes.has(d.data.id);
+        if (accept) {
+          cy.elementMapper.nodes.set(d.data.id, d);
+        }
+        return accept;
+      });
+    const new_edges = data.edges
+      .map(d => ({
+        group: 'edges',
+        data: {
+          id: d.id,
+          label: d.label,
+          source: d.source,
+          target: d.target,
+        },
+      }))
+      .filter(d => {
+        const accept = !cy.elementMapper.edges.has(getEdgeId(d));
+        if (accept) {
+          cy.elementMapper.edges.set(getEdgeId(d), d);
+        }
+        return accept;
+      });
     const elements = {
-      nodes: data.nodes
-        .map(d => ({
-          group: 'nodes',
-          data: setNeedsHTML(d),
-          // position: node.position()
-          // WARNING: setting this prop makes nodes immutable, possible bug with cytoscape
-        }))
-        .filter(d => {
-          const accept = !cy.elementMapper.nodes.has(d.data.id);
-          if (accept) {
-            cy.elementMapper.nodes.set(d.data.id, d);
-          }
-          return accept;
-        }),
-      edges: data.edges
-        .map(d => ({
-          group: 'edges',
-          data: {
-            id: d.id,
-            label: d.label,
-            source: d.source,
-            target: d.target,
-          },
-        }))
-        .filter(d => {
-          const accept = !cy.elementMapper.edges.has(getEdgeId(d));
-          if (accept) {
-            cy.elementMapper.edges.set(getEdgeId(d), d);
-          }
-          return accept;
-        }),
+      nodes: new_nodes,
+      edges: new_edges,
     };
 
     cy.nodes().lock();
     cy.add(elements);
-    if (elements.nodes.length > 0) {
-      cy.$('#' + elements.nodes.map((n) => n.data.id).join(', #')).position(
-        nodes[0].position(),
-      ); // alternatively, cy.nodes().position(node.position())
+    if (new_nodes.length > 0) {
+      cy.$('#' + new_nodes.map((n) => n.data.id).join(', #')).position(
+        nodes[0].position(), // alternatively, cy.nodes().position(node.position())
+      );
     }
     cy.nodes().unlock();
 
     const layout = cy.layout(cy.params);
-    layout.pon('layoutstop').then(onLayoutStopFn);
+    if (new_nodes.length !== 0 && onLayoutStopFn) {
+      // kills batch expansion if there is nothing to expand
+      layout.pon('layoutstop').then(onLayoutStopFn);
+    } else {
+      layout.pon('layoutstop').then(() => getNexts(cy, cy.$('node.s:selected')).select());
+    }
+
     layout.run();
     bindListeners(cy);
     setStyles(cy);
@@ -460,33 +468,34 @@ async function fetchAndSpawn(cy, nodes) {
   spawnGraph(pane, data, structuredClone(cy.params), vars);
 }
 
+function getNexts(cy, sources) {
+  let ids;
+  if (cy.vars['scheduler'].value === '_none_') {
+    // open everything, as there is no decider / DOI / scheduler
+    ids = sources.map(src => getNextInPath(cy, src.data().id).next).flat();
+  } else {
+    // follow only the "best" path according to DOI/scheduler
+    ids = sources.map(src => getNextBestInPath(cy, src.data().id).bestNext);
+  }
+
+  const nexts = cy.nodes('#' + ids.join(', #'));
+  return nexts;
+}
+
 async function expandBestPath(cy, allSources) {
   const sources = allSources.filter(s => !s.data()
     ?.details[CONSTANTS.atomicPropositions][CONSTANTS.ap_end]
     ?.value);
 
-  // open everything, as there is no decider / DOI / scheduler
-  if (cy.vars['scheduler'].value === '_none_') {
-    await expandGraph(cy, sources, () => {
-      const ids = sources.map(src => getNextInPath(cy, src.data().id).next).flat();
-      const nexts = cy.nodes('#' + ids.join(', #'));
-      iteration += 1;
+  await expandGraph(cy, sources, () => {
+    const nexts = getNexts(cy, sources);
+    iteration += 1;
 
-      if (iteration < maxIteration && nexts) {
-        expandBestPath(cy, nexts);
-      }
-    });
-  } else { // follow only the "best" path according to DOI/scheduler
-    await expandGraph(cy, sources, () => {
-      const ids = sources.map(src => getNextBestInPath(cy, src.data().id).bestNext);
-      const nextBests = cy.nodes('#' + ids.join(', #'));
-      iteration += 1;
-
-      if (iteration < maxIteration && nextBests) {
-        expandBestPath(cy, nextBests);
-      }
-    });
-  }
+    if (iteration < maxIteration && nexts) {
+      expandBestPath(cy, nexts);
+    }
+    nexts.select();
+  });
 }
 
 // for a state, returns best next state based on DOI/scheduler
