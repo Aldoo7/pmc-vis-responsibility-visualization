@@ -126,6 +126,7 @@ class Decorator {
 
     register(id) {
         this._projectID = id;
+        this.reloadPanel()
     }
 
     checkRegistration(id) {
@@ -143,15 +144,24 @@ class Decorator {
 
     updateInfo(activeEditor) {
 
-        const state = this._activeState.get(this._projectID).getState();
+        console.log("updateInfo")
 
-        if (!state || !this.matchVars(state)) {
+        let state = this._activeState[this._projectID];
+
+        console.log("activeState:")
+        console.log(state)
+
+        if (!state || !this.matchVars(state.getState())) {
             activeEditor.setDecorations(allowedActionDecoration, []);
             activeEditor.setDecorations(blockedActionDecoration, []);
             activeEditor.setDecorations(partiallyBlockedActionDecoration, []);
             activeEditor.setDecorations(varDecoration, []);
+            console.log("fail")
             return;
         }
+
+        console.log("succeed")
+        state = state.getState();
 
         const document = activeEditor.document;
         const [modules, actions] = this.gatherInformation(document, state);
@@ -204,6 +214,7 @@ class Decorator {
                 blocked.push(decoration);
             }
         }
+
         activeEditor.setDecorations(allowedActionDecoration, allowed);
         activeEditor.setDecorations(blockedActionDecoration, blocked);
         activeEditor.setDecorations(partiallyBlockedActionDecoration, partBlocked);
@@ -221,6 +232,7 @@ class Decorator {
                 varDeco.push(decoration);
             }
         }
+
         for (const [formulaReg, definition] of this._formulaDef) {
             const formEval = this.evaluate(this.fillExpression(definition), state);
             while ((match = formulaReg.exec(document.getText()))) {
@@ -246,6 +258,7 @@ class Decorator {
             }
         }
         activeEditor.setDecorations(varDecoration, varDeco);
+        console.log("new Decoration")
     }
 
     //Gathers all action guards in the document
@@ -364,6 +377,7 @@ class Decorator {
             }
             i = i + 1;
         }
+
         return [modules, enabledActionsGlobal];
     }
 
@@ -378,8 +392,12 @@ class Decorator {
                 expression = expression.replaceAll(key, function (token) { t = false; return value; });
             }
         }
-        for (const [key, value] of this._constantDef) {
-            expression = expression.replaceAll(key, value);
+        t = false
+        while (!t) {
+            t = true
+            for (const [key, value] of this._constantDef) {
+                expression = expression.replaceAll(key, function (token) { t = false; return value; });
+            }
         }
         return expression;
     }
@@ -502,7 +520,7 @@ class Decorator {
         if (element) {
             return element._children;
         } else {
-            return currentStateObjects();
+            return this.currentStates();
         }
     }
 
@@ -521,8 +539,9 @@ class Decorator {
             if (this._activeState[this._projectID]) {
                 this._activeState[this._projectID].deactivate();
             }
-            this._activeState[this._projectID] = item.activate();
+            this._activeState[this._projectID] = item;
             this.reloadPanel();
+            this.refreshPage();
         }
     }
 
@@ -533,9 +552,9 @@ class Decorator {
         if (item.getParent()) {
             this.unselectState(item.getParent());
         } else {
-            this._activeState[this._projectID].deactivate();
             this._activeState[this._projectID] = null;
             this.reloadPanel();
+            this.refreshPage();
         }
     }
 
@@ -543,31 +562,48 @@ class Decorator {
         this._onDidChangeTreeData.fire(undefined);
     }
 
+    refreshPage() {
+        const activeEditor = vscode.window.activeTextEditor;
+
+        if (activeEditor) {
+            this.updateInfo(activeEditor);
+        }
+    }
+
     currentStates() {
         if (this._projectID == null) {
             return [];
         }
 
-        return
+        return this._states[this._projectID];
     }
 
     updateStates(states, id) {
-        this._states.set(id, states);
+        if (!states) {
+            states = [];
+        }
+        this._states[id] = [];
+        this._count = 0;
+        states.forEach(element => {
+            const si = new StateItem(element.id, this._count++, null, element);
+            this._states[id].push(si);
+            this.parseStateData(element, si);
+        });
+        if (this._states[id].length > 0) {
+            this._activeState[id] = this._states[id][0].activate();
+        } else {
+            this._activeState[id] = null;
+        }
+        this.reloadPanel()
     }
 
-    parseStateDataToTree(data, si) {
-        const s1 = new StateItem("type", this._count++, si)
-        s1.add_child(new StateItem(data.type, this._count++, s1));
-        si.add_child(s1);
-
-        const s2 = new StateItem("variables", this._count++, si)
+    parseStateData(data, si) {
         for (let key in data.variables) {
-            const sx = new StateItem(key, this._count++, s2);
             const value = `${data.variables[key]}`;
-            sx.add_child(new StateItem(value, this._count++, sx));
-            s2.add_child(sx);
+            const sx = new StateItem(key + " : " + value, this._count++, si);
+            //sx.add_child(new StateItem(value, this._count++, sx));
+            si.add_child(sx);
         }
-        si.add_child(s2);
     }
 
 }
@@ -585,7 +621,7 @@ class StateItem extends vscode.TreeItem {
             this.contextValue = "Child";
         } else {
             this.contextValue = "State";
-            this.iconPath = inactive;
+            this.checkboxState = vscode.TreeItemCheckboxState.Unchecked;
         }
     }
 
@@ -603,12 +639,12 @@ class StateItem extends vscode.TreeItem {
     }
 
     activate() {
-        this.iconPath = active;
+        this.checkboxState = vscode.TreeItemCheckboxState.Checked;
         return this;
     }
 
     deactivate() {
-        this.iconPath = inactive;
+        this.checkboxState = vscode.TreeItemCheckboxState.Unchecked;
     }
 }
 

@@ -6,9 +6,9 @@ const constants = require("./constants.js");
 
 class ConnectionViewProvider {
 
-    constructor() {
+    constructor(decorator) {
         this._openProjects = [];
-        this._decorator = new decorations.Decorator();
+        this._decorator = decorator;
 
         this._onDidChangeTreeData = new vscode.EventEmitter();
         this.onDidChangeTreeData = this._onDidChangeTreeData.event;
@@ -96,6 +96,7 @@ class ConnectionViewProvider {
                 if (document.languageId == "mdp" && document.uri.scheme == "virtual") {
                     const project = document.uri.path.split("/")[1];
 
+                    console.log("register " + project)
                     this._decorator.register(project);
                     this._decorator.parseDocument(activeEditor);
                     this._decorator.updateInfo(activeEditor);
@@ -111,7 +112,8 @@ class ConnectionViewProvider {
 
         if (activeEditor) {
             const document = activeEditor.document;
-            if (document.languageId == "mdp" && document.uri.scheme == "virtual" && id == this._decorator._projectID) {
+            if (document.languageId == "mdp" && document.uri.scheme == "virtual" && this._decorator.checkRegistration(id)) {
+                console.log(id)
                 this._decorator.updateInfo(activeEditor);
             }
         }

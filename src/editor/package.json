@@ -72,6 +72,10 @@
         {
           "id": "connectionView",
           "name": "Projects"
+        },
+        {
+          "id": "stateView",
+          "name": "States"
         }
       ]
     },
@@ -115,15 +119,18 @@
       "view/title": [
         {
           "command": "connectionView.connect",
-          "group": "navigation"
+          "group": "navigation",
+          "when": "view == connectionView"
         },
         {
           "command": "connectionView.reset",
-          "group": "navigation"
+          "group": "navigation",
+          "when": "view == connectionView"
         },
         {
           "command": "connectionView.fill",
-          "group": "navigation"
+          "group": "navigation",
+          "when": "view == connectionView"
         }
       ],
       "view/item/context": [
@@ -148,6 +155,10 @@
       {
         "view": "connectionView",
         "contents": "Connect to a PMC-Vis Project.\n[Select Project](command:connectionView.connect)"
+      },
+      {
+        "view": "stateView",
+        "contents": "No selected states"
       }
     ]
   },

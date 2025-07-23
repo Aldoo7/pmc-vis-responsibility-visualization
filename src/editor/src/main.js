@@ -15,6 +15,7 @@ const { ConnectionViewProvider } = require('./connectionView.js');
 const { VirtualFileSystemProvider } = require('./virtualFile.js');
 const { Communication } = require('./communication.js')
 const constants = require("./constants.js");
+const decorations = require("./decorations.js");
 
 let connectionProvider;
 
@@ -33,7 +34,23 @@ function activate(context) {
 	// @ts-ignore
 	context.subscriptions.push(vscode.workspace.registerFileSystemProvider(VirtualFileSystemProvider.uri(), fileSystemProvider, { isCaseSensitive: true }))
 
-	connectionProvider = new ConnectionViewProvider();
+	const decorator = new decorations.Decorator();
+
+	const stateView = vscode.window.createTreeView("stateView", { treeDataProvider: decorator });
+
+	stateView.onDidChangeCheckboxState(event => {
+		event.items.forEach(item => {
+			if (item[1] == vscode.TreeItemCheckboxState.Checked) {
+				console.log(item[0]._label + " checked");
+				decorator.selectState(item[0])
+			} else {
+				console.log(item[0]._label + " unchecked");
+				decorator.unselectState(item[0])
+			}
+		})
+	})
+
+	connectionProvider = new ConnectionViewProvider(decorator);
 	fileSystemProvider.watchSave(connectionProvider);
 	connectionProvider.addExistingProjects();
 
@@ -44,7 +61,7 @@ function activate(context) {
 
 	//Commands for backend communication
 	context.subscriptions.push(vscode.window.registerTreeDataProvider("connectionView", connectionProvider));
-	context.subscriptions.push(vscode.window.registerTreeDataProvider("stateView", stateProvider));
+	context.subscriptions.push(stateView);
 	context.subscriptions.push(vscode.commands.registerCommand('connectionView.connect', () => connectionProvider.addProject()))
 	context.subscriptions.push(vscode.commands.registerCommand('connectionView.reset', () => connectionProvider.removeProjects()))
 	context.subscriptions.push(vscode.commands.registerCommand('connectionView.fill', () => connectionProvider.addExistingProjects()))
@@ -66,8 +83,11 @@ function resetWorkspace(document) {
 }
 
 function update_state(data) {
+	console.log("updating States");
 	const states = filterState(data.states)
+	console.log("parsed States")
 	connectionProvider.updateState(data.id, states)
+	console.log("end")
 }
 
 // async function connectToPMCVis() {

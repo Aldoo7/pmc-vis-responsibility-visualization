@@ -743,7 +743,7 @@ public class Project implements Namespace{
         }
         String stateID = stateIDs.stream().map(s -> "'" + s + "'").collect(Collectors.joining(","));
         List<Transition> transitions = database.executeCollectionQuery(String.format("SELECT * FROM %s WHERE %s IN (%s)", TABLE_TRANS, ENTRY_T_OUT, stateID), new TransitionMapper(this));
-        System.out.println(transitions.size());
+        //System.out.println(transitions.size());
         Set<String> statesOfInterest = new HashSet<>();
         for (Transition t : transitions) {
             statesOfInterest.add(t.getSource());
