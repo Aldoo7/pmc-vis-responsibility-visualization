@@ -62,6 +62,7 @@ function activate(context) {
 
 	//Commands for backend communication
 	context.subscriptions.push(vscode.window.registerTreeDataProvider("connectionView", connectionProvider));
+	context.subscriptions.push(vscode.window.registerTreeDataProvider("stateView", stateProvider));
 	context.subscriptions.push(vscode.commands.registerCommand('connectionView.connect', () => connectionProvider.addProject()))
 	context.subscriptions.push(vscode.commands.registerCommand('connectionView.reset', () => connectionProvider.removeProjects()))
 	context.subscriptions.push(vscode.commands.registerCommand('connectionView.fill', () => connectionProvider.addExistingProjects()))

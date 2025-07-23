@@ -3,6 +3,7 @@ package prism.server;
 import com.corundumstudio.socketio.*;
 import io.dropwizard.lifecycle.Managed;
 
+import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 
 public class SocketServer implements AutoCloseable {
@@ -11,6 +12,8 @@ public class SocketServer implements AutoCloseable {
 
     private final String EVENT_STATE_SELECTED = "STATE_SELECTED";
 
+    private boolean excludeSender = true;
+
     public SocketServer(PRISMServerConfiguration configuration)  {
         Configuration config = new Configuration();
         config.setPort(configuration.getSocketPort());
@@ -18,7 +21,7 @@ public class SocketServer implements AutoCloseable {
 
         server = new SocketIOServer(config);
 
-        boolean excludeSender = true;
+
 
         server.addConnectListener(
                 (client) -> {
@@ -44,20 +47,22 @@ public class SocketServer implements AutoCloseable {
                     }
                 });
 
-        server.addEventListener(EVENT_STATE_SELECTED, Object.class,
-                (client, data, ackRequest) -> {
-                    //print the data
-                    System.out.println("Client said: " + data.toString());
-                    if(excludeSender){
-                        //socket.broadcast("event", data)
-                        server.getBroadcastOperations().sendEvent(EVENT_STATE_SELECTED, client, data);
-                    }else{
-                        //server.emit("event", data)
-                        server.getBroadcastOperations().sendEvent(EVENT_STATE_SELECTED, data);
-                    }
-                });
+        this.addEventBroadcast(EVENT_STATE_SELECTED);
 
         server.start();
+    }
+
+    public void addEventBroadcast(String event) {
+        server.addEventListener(event, Object.class,
+                (client, data, ackRequest) -> {
+                    if(this.excludeSender){
+                        //socket.broadcast("event", data)
+                        server.getBroadcastOperations().sendEvent(event, client, data);
+                    }else{
+                        //server.emit("event", data)
+                        server.getBroadcastOperations().sendEvent(event, data);
+                    }
+                });
     }
 
     @Override

@@ -18,6 +18,11 @@ const renameRegExp = /(\w+)\s*=\s*(\w+)/
 const actionRegExp = /\[(.*)\]\s*(.*)\s*->(.*?);/gm
 const moduleRegExp = /module\s+(\w*)(?:\s*=\s*(\w+))?(.*?)endmodule/gms
 
+//Standard Icons
+const inactive = new vscode.ThemeIcon("issues");
+const active = new vscode.ThemeIcon("issue-closed");
+
+//Decoration Design
 const allowedActionDecoration = vscode.window.createTextEditorDecorationType({
     borderWidth: '1px',
     borderStyle: 'solid',
@@ -94,8 +99,12 @@ class Decorator {
         this._formulaLoc = new Map();
         this._variableLoc = new Map();
 
-        this._state = new Map();
+        this._states = new Map();
+        this._activeState = new Map();
         this._projectID = null;
+
+        this._onDidChangeTreeData = new vscode.EventEmitter();
+        this.onDidChangeTreeData = this._onDidChangeTreeData.event;
     }
 
     parseDocument(activeEditor) {
@@ -132,19 +141,9 @@ class Decorator {
         return true;
     }
 
-    updateStates(states, id) {
-        if (states.length == 1) {
-            this._state.set(id, states[0]);
-        }
-        if (states.length > 1) {
-            this._state.set(id, states[0]);
-            vscode.window.showInformationMessage("More then one state selected, highlighting a random one");
-        }
-    }
-
     updateInfo(activeEditor) {
 
-        const state = this._state.get(this._projectID);
+        const state = this._activeState.get(this._projectID).getState();
 
         if (!state || !this.matchVars(state)) {
             activeEditor.setDecorations(allowedActionDecoration, []);
@@ -497,6 +496,119 @@ class Decorator {
             }
         }
         return;
+    }
+
+    getChildren(element) {
+        if (element) {
+            return element._children;
+        } else {
+            return currentStateObjects();
+        }
+    }
+
+    getTreeItem(element) {
+        return element;
+    }
+
+    getParent(element) {
+        return element.getParent();
+    }
+
+    selectState(item) {
+        if (item.getParent()) {
+            this.selectState(item.getParent());
+        } else {
+            if (this._activeState[this._projectID]) {
+                this._activeState[this._projectID].deactivate();
+            }
+            this._activeState[this._projectID] = item.activate();
+            this.reloadPanel();
+        }
+    }
+
+    unselectState(item) {
+        if (!this._activeState) {
+            return;
+        }
+        if (item.getParent()) {
+            this.unselectState(item.getParent());
+        } else {
+            this._activeState[this._projectID].deactivate();
+            this._activeState[this._projectID] = null;
+            this.reloadPanel();
+        }
+    }
+
+    reloadPanel() {
+        this._onDidChangeTreeData.fire(undefined);
+    }
+
+    currentStates() {
+        if (this._projectID == null) {
+            return [];
+        }
+
+        return
+    }
+
+    updateStates(states, id) {
+        this._states.set(id, states);
+    }
+
+    parseStateDataToTree(data, si) {
+        const s1 = new StateItem("type", this._count++, si)
+        s1.add_child(new StateItem(data.type, this._count++, s1));
+        si.add_child(s1);
+
+        const s2 = new StateItem("variables", this._count++, si)
+        for (let key in data.variables) {
+            const sx = new StateItem(key, this._count++, s2);
+            const value = `${data.variables[key]}`;
+            sx.add_child(new StateItem(value, this._count++, sx));
+            s2.add_child(sx);
+        }
+        si.add_child(s2);
+    }
+
+}
+
+class StateItem extends vscode.TreeItem {
+    constructor(label, number, parent, state = null) {
+        super(label, vscode.TreeItemCollapsibleState.None);
+        this._label = label;
+        this._number = number;
+        this._children = [];
+        this._parent = parent;
+        this._state = state;
+
+        if (parent) {
+            this.contextValue = "Child";
+        } else {
+            this.contextValue = "State";
+            this.iconPath = inactive;
+        }
+    }
+
+    add_child(child) {
+        this.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
+        this._children.push(child);
+    }
+
+    getParent() {
+        return this._parent;
+    }
+
+    getState() {
+        return this._state;
+    }
+
+    activate() {
+        this.iconPath = active;
+        return this;
+    }
+
+    deactivate() {
+        this.iconPath = inactive;
     }
 }
 

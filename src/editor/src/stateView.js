@@ -1,58 +1,25 @@
 const vscode = require('vscode');
 
 //Decorations in TextEditor
-const decorations = require("./decorations.js");
+const connectionView = require("./connectionView.js");
+
 
 const inactive = new vscode.ThemeIcon("issues");
 const active = new vscode.ThemeIcon("issue-closed");
 
 class StateProvider {
-    constructor(activeEditor) {
-        this.activeEditor = activeEditor;
-        if (activeEditor) {
-            this.deco = new decorations.Decorator(activeEditor.document.getText());
-        }
+    constructor() {
         this._onDidChangeTreeData = new vscode.EventEmitter();
         this.onDidChangeTreeData = this._onDidChangeTreeData.event;
 
+        //vscode.commands.executeCommand('setContext', 'stateView.connected', false);
+
         this.rememberIDs = new Map();
-        this.projectID = null;
-        vscode.commands.executeCommand('setContext', 'stateView.connected', false);
-        console.log("logged");
-        this.refresh([]);
-    }
-
-    reconstruct(activeEditor) {
-        this.activeEditor = activeEditor;
-        if (activeEditor) {
-            this.deco = new decorations.Decorator(activeEditor.document.getText());
-        }
-        this.projectID = null;
-        vscode.commands.executeCommand('setContext', 'stateView.connected', false);
-
-        //if (this.rememberIDs.has(activeEditor.document.fileName)){
-        //    this.projectID = this.rememberIDs.get(activeEditor.document.fileName);
-        //}
-        console.log("relogged");
         this.refresh([]);
     }
 
     reload() {
-        if (this.deco) {
-            this.deco.updateInfo(this.getActiveState(), this.activeEditor);
-        }
         this._onDidChangeTreeData.fire(undefined);
-    }
-
-    register(id) {
-        this.projectID = id;
-        vscode.commands.executeCommand('setContext', 'stateView.connected', true);
-        vscode.window.showInformationMessage(`Linked to selections made in Project ${id}\n Please select a state to start`);
-        //this.rememberIDs.set(this.activeEditor.document.fileName, id);
-    }
-
-    checkRegistration(id) {
-        return this.projectID === id;
     }
 
     refresh(data) {
