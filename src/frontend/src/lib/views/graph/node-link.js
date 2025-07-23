@@ -286,6 +286,8 @@ const initHTML = _.debounce((cy) =>{
   }
 
   cy.nodeHtmlLabel([
+    // this is extremely costly:
+    // notable lag after ~100 nodes are on a pane, even if only a few nodes have html
     {
       query: 'node[needsHTML = "true"].s',
       tpl(data) {
@@ -298,7 +300,7 @@ const initHTML = _.debounce((cy) =>{
         return apsfn(cy, data, 45);
       },
     },
-  ], { enablePointerEvents: true });
+  ], { enablePointerEvents: false });
 }, 50);
 
 // inits cy with graph data on a pane
@@ -1517,7 +1519,7 @@ function ctxmenu(cy) {
         content: 'Fit to view',
         tooltipText: 'fit to pane',
         coreAsWell: true,
-        onClickFunction: () => cy.fit(),
+        onClickFunction: () => cy.fit(undefined, 30),
         hasTrailingDivider: false,
       },
       {
