@@ -43,6 +43,11 @@ public class TaskManager implements Executor, Managed {
         this.executor = Executors.newSingleThreadExecutor();
         this.socketServer = socketServer;
         this.activeProjects = new HashMap<>();
+
+        this.socketServer.addEventListener(Namespace.EVENT_STATUS, String.class, (client, data, ackRequest) -> {
+            Status status = new Status(this.activeProjects.get((String) data), this.status());
+            ackRequest.sendAckData(status);
+        });
     }
 
     public TaskManager() {

@@ -1,6 +1,7 @@
 package prism.server;
 
 import com.corundumstudio.socketio.*;
+import com.corundumstudio.socketio.listener.DataListener;
 import io.dropwizard.lifecycle.Managed;
 
 import java.util.concurrent.Callable;
@@ -63,6 +64,10 @@ public class SocketServer implements AutoCloseable {
                         server.getBroadcastOperations().sendEvent(event, data);
                     }
                 });
+    }
+
+    public void addEventListener(String event, Class objectClass, DataListener listener) {
+        server.addEventListener(event, objectClass, listener);
     }
 
     @Override
