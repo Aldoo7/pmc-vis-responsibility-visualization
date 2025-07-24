@@ -5,7 +5,7 @@ import { info, setInfo, BACKEND } from '../main/main.js';
 import { getPanes } from '../views/panes/panes.js';
 import { h, t } from './utils.js';
 
-import { params as _elk } from '../views/graph/layout-options/elk.js';
+// import { params as _elk } from '../views/graph/layout-options/elk.js';
 import { params as _dagre } from '../views/graph/layout-options/dagre.js';
 import { params as _klay } from '../views/graph/layout-options/klay.js';
 import { params as _cola } from '../views/graph/layout-options/cola.js';
@@ -30,6 +30,7 @@ const PROJECT = params.get('id') || 0;
 
 let pane = null;
 let tippies = {};
+let opened = {};
 
 const layoutTemplates = {
   cola: { value: 'cola', name: 'Cola', data: _cola },
@@ -146,6 +147,12 @@ function hideAllTippies() {
 
 // determines which layout values will be used (default cola-params.js)
 function createControllers(params) {
+  Array.from(document.getElementsByTagName('details'))
+    .filter(d => d.id)
+    .forEach(d => {
+      opened[d.id] = d.open;
+    });
+
   // props
   $props_config.innerHTML = '';
 
@@ -542,7 +549,11 @@ function makeDetailCheckboxes() {
       if (!info.types[k].includes(mode)) return;
     }
 
-    const $option_label = h('details', { class: 'ui accordion', id: `details-${k}` }, [
+    const id = `details-${k}`;
+    const $option_label = h('details', {
+      id,
+      class: 'ui accordion',
+    }, [
       h('summary', { class: 'title', style: 'display:flex' }, [
         h('i', { class: 'dropdown icon left' }, []),
         $input_div,
@@ -550,6 +561,10 @@ function makeDetailCheckboxes() {
       ]),
       h('div', { class: 'content' }, [...makeDetailPropsCheckboxes(options[k], k)]),
     ]);
+
+    if (opened[id]) {
+      $option_label.open = true;
+    }
 
     $param.appendChild($option_label);
   });
@@ -589,7 +604,10 @@ function makeDetailPropsCheckboxes(options, propType) {
 
     let $input_div = h('div', {}, [$toggle, h('label', { for: `checkbox-${propType}-${propName}` })]);
 
-    if (options.metadata[propName].status !== CONSTANTS.STATUS.ready) {
+    if (
+      propType === CONSTANTS.results
+      && options.metadata[propName].status !== CONSTANTS.STATUS.ready
+    ) {
       const computing = options.metadata[propName].status === CONSTANTS.STATUS.computing;
       $input_div = h('i', {
         class: computing ? spinningIcon : triggerIcon,
