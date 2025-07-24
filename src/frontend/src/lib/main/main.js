@@ -3,6 +3,7 @@ import { params } from '../views/graph/layout-options/klay.js';
 import { spawnGraph } from '../views/graph/node-link.js';
 import { PROJECT } from '../utils/controls.js';
 import { CONSTANTS } from '../utils/names.js';
+import { socket } from '../views/imports/import-socket.js';
 
 let BACKEND = import.meta.env.VITE_BACKEND_RESTFUL;
 
@@ -72,32 +73,6 @@ if (import.meta.env.VITE_HIDE_TODOS !== 'true') {
   document.querySelectorAll('.to-do').forEach(el => el.classList.remove('to-do'));
 }
 
-Promise.all([
-  fetch(`${BACKEND}/${PROJECT}/status`).then(r => r.json()), fetch(`${BACKEND}/${PROJECT}/initial`).then(r => r.json()),
-  // fetch(BACKEND + PROJECT).then((res) => res.json()), // requests entire dataset
-]).then((promises) => {
-  const newInfo = promises[0].info;
-  setInfo(newInfo);
-  const data = promises[1];
-  const nodesIds = data.nodes
-    .map((node) => node.id)
-    .filter((id) => !id.startsWith('t'));
-
-  info.initial = `#${nodesIds.join(', #')}`;
-
-  if (document.getElementById('project-id')) {
-    document.getElementById('project-id').innerHTML = info.id;
-  }
-
-  const firstPaneId = 'pane-0';
-  const pane = spawnPane(
-    { id: firstPaneId },
-    nodesIds,
-  );
-
-  spawnGraph(pane, data, params);
-});
-
 addEventListener('linked-selection', e => {
   const selection = e.detail.selection;
   const panes = getPanes();
@@ -108,5 +83,48 @@ addEventListener('linked-selection', e => {
     panes[e.detail.pane].cy.$(strSelection).select();
   }
 }, true);
+
+const interval = setInterval(async () => {
+  if (socket.connected) {
+    clearInterval(interval);
+    start();
+  } else {
+    console.log('waiting for socket...');
+  }
+}, 50);
+
+document.getElementById('test').addEventListener('click', () => {
+  console.log('testo');
+  start();
+});
+
+async function start() {
+  const data = await socket.emitWithAck('MC_STATUS', PROJECT);
+  setInfo(data.info);
+
+  Promise.all([
+    fetch(`${BACKEND}/${PROJECT}/initial`).then(r => r.json()),
+    // fetch(BACKEND + PROJECT).then((res) => res.json()), // requests entire dataset
+  ]).then((promises) => {
+    const data = promises[0];
+    const nodesIds = data.nodes
+      .map((node) => node.id)
+      .filter((id) => !id.startsWith('t'));
+
+    info.initial = `#${nodesIds.join(', #')}`;
+
+    if (document.getElementById('project-id')) {
+      document.getElementById('project-id').innerHTML = info.id;
+    }
+
+    const firstPaneId = 'pane-0';
+    const pane = spawnPane(
+      { id: firstPaneId },
+      nodesIds,
+    );
+
+    spawnGraph(pane, data, params);
+  });
+}
 
 export { info, setInfo, BACKEND };

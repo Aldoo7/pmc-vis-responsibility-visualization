@@ -809,7 +809,6 @@ function setSelectMode(cy, mode) {
   cy.endBatch();
 }
 
-// if there are properties 'missing', an update is 'missing'.
 function setUpdateState(cy) {
   const props = cy.vars['details'].value[CONSTANTS.results].metadata;
   let decided = false;
