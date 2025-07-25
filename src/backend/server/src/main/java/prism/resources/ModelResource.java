@@ -5,7 +5,6 @@ import io.dropwizard.setup.Environment;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import prism.api.Message;
-import prism.core.Project;
 import prism.core.View.ViewType;
 import prism.server.PRISMServerConfiguration;
 import prism.server.TaskManager;

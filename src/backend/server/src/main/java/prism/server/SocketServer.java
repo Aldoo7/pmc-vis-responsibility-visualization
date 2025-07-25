@@ -3,12 +3,16 @@ package prism.server;
 import com.corundumstudio.socketio.*;
 import com.corundumstudio.socketio.listener.DataListener;
 import io.dropwizard.lifecycle.Managed;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.BindException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 
 public class SocketServer implements AutoCloseable {
+
+    private static final Logger logger = LoggerFactory.getLogger(SocketIOServer.class);;
 
     private SocketIOServer server;
 
@@ -27,19 +31,19 @@ public class SocketServer implements AutoCloseable {
 
         server.addConnectListener(
                 (client) -> {
-                    System.out.println("Client has Connected!");
+                    logger.info("Client has Connected!");
                 });
 
         server.addDisconnectListener(
                 (client) -> {
-                    System.out.println("Client has Disconnected!");
+                    logger.info("Client has Disconnected!");
                 });
 
         //Equivalent to server.on()
         server.addEventListener("MESSAGE", Object.class,
                 (client, data, ackRequest) -> {
                     //print the data
-                    System.out.println("Client said: " + data.toString());
+                    logger.info("Client said: " + data.toString());
                     if(excludeSender){
                         //socket.broadcast("event", data)
                         server.getBroadcastOperations().sendEvent("MESSAGE", client, data);
@@ -76,12 +80,14 @@ public class SocketServer implements AutoCloseable {
 
     public void open() throws InterruptedException {
         boolean connected = false;
+        int waittime = 3000;
         while(!connected)
         try{
             this.server.start();
             connected = true;
         }catch (Exception e){
-            Thread.sleep(1000);
+            logger.info(String.format("retrying connection in %s miliseconds", waittime));
+            Thread.sleep(waittime);
             connected = false;
         }
 

@@ -16,6 +16,7 @@ import prism.api.Status;
 import prism.core.Namespace;
 import prism.core.Project;
 import prism.db.Database;
+import prism.resources.Resource;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -29,6 +30,9 @@ public class TaskManager implements Executor, Managed {
 
     private static final Logger logger = LoggerFactory.getLogger(TaskManager.class);
 
+    private final Environment environment;
+    private final PRISMServerConfiguration configuration;
+
     private final Queue<Task> tasks = new ArrayDeque<>();
     private ExecutorService executor;
     private Task active;
@@ -39,17 +43,25 @@ public class TaskManager implements Executor, Managed {
 
     private final Map<String, Project> activeProjects;
 
-    public TaskManager(SocketServer socketServer) {
+    public TaskManager(Environment environment, PRISMServerConfiguration configuration) {
+        this.environment = environment;
+        this.configuration = configuration;
         this.executor = Executors.newSingleThreadExecutor();
-        this.socketServer = socketServer;
+        this.socketServer =  new SocketServer(configuration);
         this.activeProjects = new HashMap<>();
 
         this.socketServer.addEventListener(Namespace.EVENT_STATUS, String.class, (client, data, ackRequest) -> {
             String id = (String) data;
             if (this.activeProjects.get(id) == null){
-                
-                socketServer.send(Namespace.EVENT_STATUS, new Status());
-                return;
+
+                try{
+                    this.loadProject(id);
+                    System.out.println("loaded?");
+                }catch(FileNotFoundException e){
+                    System.out.println(e.getMessage());
+                    socketServer.send(Namespace.EVENT_STATUS, new Status());
+                    return;
+                }
             }
             Status status = new Status(this.activeProjects.get(id), this.status());
             ackRequest.sendAckData(status);
@@ -57,6 +69,8 @@ public class TaskManager implements Executor, Managed {
     }
 
     public TaskManager() {
+        this.environment = null;
+        this.configuration = null;
         this.executor = Executors.newSingleThreadExecutor();
         this.socketServer = null;
         this.activeProjects = new HashMap<>();
@@ -119,19 +133,19 @@ public class TaskManager implements Executor, Managed {
         activeProjects.put(project.getID(), project);
     }
 
-    public void createProject(String id, Environment environment, PRISMServerConfiguration config) throws Exception {
+    public void createProject(String id) throws Exception {
         logger.info("Creating project {}\n", id);
 
-        String databaseURL = String.format("jdbc:sqlite:%s/%s/%s", config.getPathTemplate(), id, Namespace.DATABASE_FILE);
+        String databaseURL = String.format("jdbc:sqlite:%s/%s/%s", configuration.getPathTemplate(), id, Namespace.DATABASE_FILE);
 
         final JdbiFactory factory = new JdbiFactory();
-        DataSourceFactory dbfactory = config.getDataSourceFactory();
+        DataSourceFactory dbfactory = configuration.getDataSourceFactory();
         dbfactory.setUrl(databaseURL);
 
         final Jdbi jdbi = factory.build(environment, dbfactory, id);
-        Database database = new Database(jdbi, config.getDebug());
+        Database database = new Database(jdbi, configuration.getDebug());
 
-        Project newProject = new Project(id, config.getPathTemplate(), this, database, config);
+        Project newProject = new Project(id, configuration.getPathTemplate(), this, database, configuration);
         this.addProject(newProject);
     }
 
@@ -274,6 +288,10 @@ public class TaskManager implements Executor, Managed {
             return e.getMessage();
         }
         return null;
+    }
+
+    protected void loadProject(String projectID) throws FileNotFoundException {
+        Resource.loadProject(this, projectID, configuration);
     }
 }
 

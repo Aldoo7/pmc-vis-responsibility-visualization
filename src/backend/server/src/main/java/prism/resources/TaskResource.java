@@ -120,7 +120,7 @@ public class TaskResource extends Resource {
         }
 
         try {
-            tasks.createProject(projectID, environment, configuration);
+            tasks.createProject(projectID);
         } catch (Exception e) {
             return error(e);
         }
@@ -182,7 +182,7 @@ public class TaskResource extends Resource {
             output += String.format("Model File uploaded to %s\n", uploadModel);
 
             if(newProject){
-                tasks.createProject(projectID, environment, configuration);
+                tasks.createProject(projectID);
             }else{
                 tasks.resetProject(projectID);
             }

@@ -79,6 +79,15 @@ public abstract class Resource {
         }
     }
 
+    protected static void createStyleFile(String projectID, String rootDir) throws IOException {
+        File style = new File(String.format("%s/%s/", rootDir, projectID) + Namespace.STYLE_FILE);
+        if (style.createNewFile()){
+            try(FileWriter w = new FileWriter(style)){
+                w.write(Namespace.DEFAULT_STYLE);
+            }
+        }
+    }
+
     protected void refreshProject(String projectID){
         while (tasks.refreshing.getAndSet(true)){
             try {
@@ -99,7 +108,6 @@ public abstract class Resource {
         tasks.refreshing.set(false);
     }
 
-
     protected void loadProject(String projectID){
         File projectdir = new File(String.format("%s/%s", rootDir, projectID));
         loadProject(projectdir);
@@ -111,10 +119,26 @@ public abstract class Resource {
             try {
                 String projectID = file.getName();
                 createStyleFile(projectID);
-                tasks.createProject(projectID, environment, configuration);
+                tasks.createProject(projectID);
             } catch (Exception e) {
                 System.out.println(e);
             }
+        }
+    }
+
+    public static void loadProject(TaskManager tasks, String projectID, PRISMServerConfiguration configuration) throws FileNotFoundException {
+        String rootDir = configuration.getPathTemplate();
+        File file = new File(String.format("%s/%s", rootDir, projectID));
+        File projectModel = new File(String.format("%s/%s", file, Namespace.PROJECT_MODEL));
+        if (file.isDirectory() && projectModel.isFile()){
+            try {
+                createStyleFile(projectID, rootDir);
+                tasks.createProject(projectID);
+            } catch (Exception e) {
+                System.out.println(e);
+            }
+        }else{
+            throw new FileNotFoundException("No Project found at " + file.getAbsoluteFile());
         }
     }
 }
