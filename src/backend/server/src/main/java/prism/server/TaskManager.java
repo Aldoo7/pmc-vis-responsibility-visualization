@@ -59,6 +59,15 @@ public class TaskManager implements Executor, Managed {
     @Override
     public void start() throws Exception {
         this.executor = Executors.newSingleThreadExecutor();
+        this.socketServer.open();
+        if (active != null) {
+            logger.info("Executing task {}\n", active.name());
+            executor.execute(active);
+        }
+    }
+
+    public void startAgain() throws Exception {
+        this.executor = Executors.newSingleThreadExecutor();
         if (active != null) {
             logger.info("Executing task {}\n", active.name());
             executor.execute(active);
@@ -71,7 +80,16 @@ public class TaskManager implements Executor, Managed {
             this.socketServer.close();
             this.executor.shutdownNow();
         } catch (Exception e) {
-            System.err.println("Error shutting down executor: " + e.getMessage());
+            System.err.println("Error shutting down: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    public void stopTemp() throws Exception {
+        try {
+            this.executor.shutdownNow();
+        } catch (Exception e) {
+            System.err.println("Error shutting down: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -116,7 +134,7 @@ public class TaskManager implements Executor, Managed {
     }
 
     private void interruptTasks(String projectID) throws Exception {
-        this.stop();
+        this.stopTemp();
         List<Task> toRemove = new ArrayList<>();
         for(Task task : tasks){
             if (task.projectID().equals(projectID)){
@@ -127,7 +145,7 @@ public class TaskManager implements Executor, Managed {
         if (active != null && active.projectID().equals(projectID)){
             active = tasks.poll();
         }
-        this.start();
+        this.startAgain();
     }
 
     public void removeProject(String projectID) throws Exception {

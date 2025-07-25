@@ -4,6 +4,7 @@ import com.corundumstudio.socketio.*;
 import com.corundumstudio.socketio.listener.DataListener;
 import io.dropwizard.lifecycle.Managed;
 
+import java.net.BindException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 
@@ -49,8 +50,6 @@ public class SocketServer implements AutoCloseable {
                 });
 
         this.addEventBroadcast(EVENT_STATE_SELECTED);
-
-        server.start();
     }
 
     public void addEventBroadcast(String event) {
@@ -73,6 +72,19 @@ public class SocketServer implements AutoCloseable {
     @Override
     public void close() throws Exception {
         this.server.stop();
+    }
+
+    public void open() throws InterruptedException {
+        boolean connected = false;
+        while(!connected)
+        try{
+            this.server.start();
+            connected = true;
+        }catch (Exception e){
+            Thread.sleep(1000);
+            connected = false;
+        }
+
     }
 
     public void send(String event, Object data) {
