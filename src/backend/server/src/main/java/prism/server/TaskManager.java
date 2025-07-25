@@ -45,7 +45,13 @@ public class TaskManager implements Executor, Managed {
         this.activeProjects = new HashMap<>();
 
         this.socketServer.addEventListener(Namespace.EVENT_STATUS, String.class, (client, data, ackRequest) -> {
-            Status status = new Status(this.activeProjects.get((String) data), this.status());
+            String id = (String) data;
+            if (this.activeProjects.get(id) == null){
+                
+                socketServer.send(Namespace.EVENT_STATUS, new Status());
+                return;
+            }
+            Status status = new Status(this.activeProjects.get(id), this.status());
             ackRequest.sendAckData(status);
         });
     }
@@ -97,6 +103,10 @@ public class TaskManager implements Executor, Managed {
     private void sendStatus(String id){
         if (socketServer != null) {
             try {
+                if (this.activeProjects.get(id) == null){
+                    socketServer.send(Namespace.EVENT_STATUS, new Status());
+                    return;
+                }
                 Status status = new Status(this.activeProjects.get(id), this.status());
                 socketServer.send(Namespace.EVENT_STATUS, status);
             }catch (Exception e){

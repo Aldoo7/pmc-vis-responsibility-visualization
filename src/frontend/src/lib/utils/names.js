@@ -5,7 +5,7 @@ const CONSTANTS = {
 
   ap_init: 'init',
   ap_deadlock: 'deadlock',
-  ap_end: 'finished',
+  ap_end: 'success',
 
   metadata: 'metadata',
 
@@ -72,10 +72,10 @@ const CONSTANTS = {
     },
     // ctrl+e: select end states
     ap_end: {
-      type: 'End State',
-      name: 'Select End States',
+      type: 'Success State',
+      name: 'Select Success States',
       icon: 'fa-solid fa-flag-checkered',
-      description: 'Selects end states on the current pane, if any exist. This is based on the atomic proposition "finished".',
+      description: 'Selects success states on the current pane, if any exist. This is based on the atomic proposition "success".',
       keyboard: 'Ctrl+E',
     },
 

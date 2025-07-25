@@ -145,10 +145,14 @@ public class Project implements Namespace{
         }
         APs.put(LABEL_DEAD,  deadlock);
 
+        System.out.println(labelStyles);
+
         for (int i = 0; i < modulesFile.getNumLabels(); i++){
             String name = modulesFile.getLabelName(i);
+            System.out.println(name);
             AP ap;
             if (labelStyles.containsKey(name)){
+                System.out.println(labelStyles.get(name));
                 ap = new AP(labelStyles.get(name),true);
             }else{
                 String shortName = name.substring(0, 1);
