@@ -762,6 +762,8 @@ function bindListeners(cy) {
       && n.classes().filter(c => c === 's').length > 0
     ) {
       spawnGraphOnNewPane(cy, [n.data()]);
+    } else if (e.originalEvent.shiftKey) {
+      expandBestPath(cy, [n]);
     } else {
       expandGraph(cy, [n]);
     }
@@ -1639,6 +1641,7 @@ function selectAll(cy) {
 function keyboardShortcuts(cy, e) {
   cy.keyboard = e;
   const modifier = (e.ctrlKey || e.altKey);
+  const shift = e.shiftKey;
 
   selectifyByMode(cy);
 
@@ -1743,6 +1746,8 @@ function keyboardShortcuts(cy, e) {
   if (e.key === 'Enter' || e.keyCode === 13) {
     if (modifier) {
       spawnGraphOnNewPane(cy, cy.$('node.s:selected').map(n => n.data()));
+    } else if (shift) {
+      expandBestPath(cy, cy.$('node.s:selected'));
     } else {
       expandGraph(cy, cy.$('node.s:selected'));
     }
