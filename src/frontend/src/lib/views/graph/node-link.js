@@ -703,7 +703,7 @@ function bindListeners(cy) {
     cy.pendingSelectify &&= (selectifyByMode(cy) && false);
   });
 
-  cy.on('select boxselect', 'node.s', (e) => {
+  cy.on('select unselect', (e) => {
     handleEditorSelection(e, cy);
   });
 

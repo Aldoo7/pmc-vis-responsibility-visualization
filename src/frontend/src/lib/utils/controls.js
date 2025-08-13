@@ -10,6 +10,7 @@ import { params as _dagre } from '../views/graph/layout-options/dagre.js';
 import { params as _klay } from '../views/graph/layout-options/klay.js';
 import { params as _cola } from '../views/graph/layout-options/cola.js';
 import { CONSTANTS } from './names.js';
+import { handleEditorSelection } from '../views/editor.js';
 import {
   markRecurringNodes,
   setMaxIteration,
@@ -96,6 +97,7 @@ async function setPane(paneId, { make = false, force = false } = {}) {
     createControllers(pane.cy.params);
 
     socket.emit('active pane', paneId);
+    handleEditorSelection(undefined, pane.cy);
     return pane.cy;
   } else {
     console.error('Attempted to activate a non-existing pane.');
