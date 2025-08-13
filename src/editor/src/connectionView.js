@@ -180,6 +180,7 @@ class ConnectionItem extends vscode.TreeItem {
         super(label, vscode.TreeItemCollapsibleState.None);
         this._children = [];
         this._document = undefined;
+        this._saving = true;
 
         if (parent) {
             this.contextValue = "File"
@@ -276,9 +277,11 @@ class ConnectionItem extends vscode.TreeItem {
                     // @ts-ignore
                     async data => {
                         const uri = vscode.Uri.parse(`virtual:/${this.projectID}/${data['name']}`);
+                        this._saving = false;
                         await vscode.workspace.fs.writeFile(uri, Buffer.from(data['content']));
                         this._document = await vscode.workspace.openTextDocument(uri);
                         this.resourceUri = uri;
+                        this._saving = true;
                     }).catch(
                         error => vscode.window.showErrorMessage(error)
                     );
@@ -314,9 +317,10 @@ class ConnectionItem extends vscode.TreeItem {
     }
 
     async onSave(content) {
-        if (await vscode.window.showInformationMessage("Are you sure you want to save a new file? This will rebuild the model.", "Yes", "No") == "No") {
-            return
-        }
+        if (this._saving)
+            if (await vscode.window.showInformationMessage("Are you sure you want to save a new file? This will rebuild the model.", "Yes", "No") == "No") {
+                return
+            }
         let call;
         switch (String(this._document.languageId)) {
             case "mdp":

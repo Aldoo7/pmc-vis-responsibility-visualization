@@ -66,7 +66,7 @@ class VirtualFileSystemProvider {
         throw vscode.FileSystemError.FileNotFound();
     }
 
-    writeFile(uri, content, options = { create: true, overwrite: true }) {
+    writeFile(uri, content, options = { create: true, overwrite: true, triggerSave: true, writePermission: true }) {
         const basename = path.posix.basename(uri.path);
         const parent = this._lookupParentDirectory(uri);
         let entry = parent.entries.get(basename);
@@ -81,7 +81,6 @@ class VirtualFileSystemProvider {
         }
         if (!entry) {
             entry = new File(basename);
-            entry.permissions = { Readonly: 1 };
             parent.entries.set(basename, entry);
             this._fireSoon({ type: vscode.FileChangeType.Created, uri });
         }
@@ -92,7 +91,6 @@ class VirtualFileSystemProvider {
         if (this._saveWatcher) {
             this._saveWatcher.onSave(uri, content);
         }
-
 
         this._fireSoon({ type: vscode.FileChangeType.Changed, uri });
     }
