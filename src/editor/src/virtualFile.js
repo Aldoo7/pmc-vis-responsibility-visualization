@@ -56,14 +56,17 @@ class VirtualFileSystemProvider {
     // --- manage file contents
 
     readFile(uri) {
+
         const data = this._lookupAsFile(uri, false).data;
         if (data) {
+
             return data;
         }
+
         throw vscode.FileSystemError.FileNotFound();
     }
 
-    writeFile(uri, content, options = { create: true, overwrite: true, triggerSave: true }) {
+    writeFile(uri, content, options = { create: true, overwrite: true }) {
         const basename = path.posix.basename(uri.path);
         const parent = this._lookupParentDirectory(uri);
         let entry = parent.entries.get(basename);
@@ -78,6 +81,7 @@ class VirtualFileSystemProvider {
         }
         if (!entry) {
             entry = new File(basename);
+            entry.permissions = { Readonly: 1 };
             parent.entries.set(basename, entry);
             this._fireSoon({ type: vscode.FileChangeType.Created, uri });
         }
@@ -96,7 +100,6 @@ class VirtualFileSystemProvider {
     // --- manage files/folders
 
     rename(oldUri, newUri, options) {
-
         if (!options.overwrite && this._lookup(newUri, true)) {
             throw vscode.FileSystemError.FileExists(newUri);
         }
@@ -159,7 +162,7 @@ class VirtualFileSystemProvider {
                 if (!silent) {
                     throw vscode.FileSystemError.FileNotFound(uri);
                 } else {
-                    return undefined;
+                    return undefined
                 }
             }
             entry = child;
@@ -175,7 +178,7 @@ class VirtualFileSystemProvider {
         throw vscode.FileSystemError.FileNotADirectory(uri);
     }
 
-    _lookupAsFile(uri, silent) {
+    _lookupAsFile(uri, silent, def = false) {
         const entry = this._lookup(uri, silent);
         if (entry instanceof File) {
             return entry;
