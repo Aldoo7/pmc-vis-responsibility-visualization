@@ -1,0 +1,4 @@
+// Property: Process 1 should not become leader with probability > 0.4
+// In fair election with 3 processes, each should have ~0.33 probability
+// Buggy version gives P1 advantage
+Pmax=? [ F "p1_leader" ]

@@ -1,0 +1,54 @@
+model_id: two_dice_prob_error
+description: "Biased probability in die1 state transition"
+
+bug_location:
+  module: die1
+  state_condition: "s1=3"
+  line_number: 16
+  component: transition_probabilities
+  specific_element: "s1=3 outgoing transition"
+
+bug_type: incorrect_probability
+severity: medium
+
+expected_behavior: "Fair 0.5/0.5 probability split for deciding vs looping"
+actual_behavior: "Biased 0.7/0.3 probability (70% loop back, 30% decide)"
+
+property_violated: 'Pmax=? [ F "die1_decided" & !("die2_decided") ]'
+property_type: probabilistic_reachability
+
+correct_model_result: "~0.5"
+buggy_model_result: ">0.5"
+
+repair_action: "Change line 16: [] s1=3 -> 0.5 : (s1'=1) + 0.5 : (s1'=7) & (d1'=1);"
+
+# Expected responsibility ranking (for evaluation)
+expected_top_components:
+  - name: module_die1
+    rank: 1
+    expected_responsibility: [0.8, 1.0]
+    rationale: "Contains the buggy transition"
+  
+  - name: variable_s1
+    rank: 2
+    expected_responsibility: [0.7, 0.9]
+    rationale: "State variable involved in bug"
+  
+  - name: variable_d1
+    rank: 3
+    expected_responsibility: [0.3, 0.5]
+    rationale: "Affected by bug but not root cause"
+
+expected_low_components:
+  - name: module_die2
+    expected_responsibility: [0.1, 0.3]
+    rationale: "Unaffected symmetric copy"
+
+# Evaluation criteria
+evaluation:
+  precision_at_1: "module_die1 should be rank 1"
+  precision_at_3: "module_die1 and variable_s1 in top-3"
+  asymmetry_detection: "die1 responsibility >> die2 responsibility"
+  
+debugging_difficulty: easy
+representative_of: probability_errors

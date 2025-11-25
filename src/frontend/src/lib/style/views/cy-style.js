@@ -17,6 +17,11 @@ const colors = {
   EDGE_COLOR: '#dadada',
   HL_EDGE_COLOR: '#d6730f',
   EDGE_LABEL_COLOR: '#b3b3b3',
+  
+  // Responsibility colors
+  RESP_HIGH: '#c74444',
+  RESP_MEDIUM: '#e87d1e',
+  RESP_LOW: '#5ca65c',
 };
 
 const outlines = {
@@ -161,6 +166,64 @@ const stylesheet = [
       'line-color': colors.HL_EDGE_COLOR,
       'target-arrow-color': colors.HL_EDGE_COLOR,
       'line-style': 'solid',
+    },
+  },
+  // Responsibility visualization styles
+  {
+    selector: 'node.s.resp-high',
+    style: {
+      'background-color': '#c74444',
+      'border-color': '#c74444',
+      'background-opacity': 1,
+    },
+  },
+  {
+    selector: 'node.s.resp-medium',
+    style: {
+      'background-color': '#e87d1e',
+      'border-color': '#e87d1e',
+      'background-opacity': 1,
+    },
+  },
+  {
+    selector: 'node.s.resp-low',
+    style: {
+      'background-color': '#5ca65c',
+      'border-color': '#5ca65c',
+      'background-opacity': 1,
+    },
+  },
+  {
+    selector: 'node.s.resp-winning',
+    style: {
+      'border-width': '4px',
+    },
+  },
+  {
+    selector: 'node.s.resp-trace',
+    style: {
+      'border-style': 'double',
+    },
+  },
+  {
+    selector: 'node.s.resp-high[[outdegree > 0]]',
+    style: {
+      'background-opacity': 0,
+      'border-color': '#c74444',
+    },
+  },
+  {
+    selector: 'node.s.resp-medium[[outdegree > 0]]',
+    style: {
+      'background-opacity': 0,
+      'border-color': '#e87d1e',
+    },
+  },
+  {
+    selector: 'node.s.resp-low[[outdegree > 0]]',
+    style: {
+      'background-opacity': 0,
+      'border-color': '#5ca65c',
     },
   },
 ];

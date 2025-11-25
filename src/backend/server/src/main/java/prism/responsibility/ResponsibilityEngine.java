@@ -163,7 +163,6 @@ public class ResponsibilityEngine {
     
     /**
      * Real computation - calls external tool
-     * TODO: Implement in Week 3
      */
     private ResponsibilityOutput computeReal(String modelFile, String property, int level) throws Exception {
         logger.info("Computing real responsibility for {} at level {}", modelFile, level);
@@ -598,7 +597,6 @@ public class ResponsibilityEngine {
     public void terminate() {
         if (!isMockMode) {
             logger.info("Terminating responsibility tool process");
-            // TODO: Implement process cleanup in Week 3
         }
     }
 }

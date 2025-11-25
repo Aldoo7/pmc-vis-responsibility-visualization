@@ -56,94 +56,165 @@
 
   <div id="config" class="config ui padded grid">
     <div class="ui column">
-      <h3 class="label label-info">Legend </h3>
-      <div style="display:flex">
-        <div style="float:right">  
+      <!-- RESPONSIBILITY ANALYSIS SECTION - First -->
+      <h3 class="label label-info">Responsibility Analysis</h3>
+      
+      <div class="param">
+        <p class="label inline label-info">Mode</p>
+        <select id="resp-mode" class="ui dropdown">
+          <option value="optimistic">Optimistic</option>
+          <option value="pessimistic">Pessimistic</option>
+        </select>
+        <small style="color:#888">Optimistic: states can cooperate | Pessimistic: worst-case individual blame</small>
+      </div>
+
+      <div class="param">
+        <p class="label inline label-info">Power Index</p>
+        <select id="resp-power-index" class="ui dropdown">
+          <option value="shapley" selected>Shapley Value</option>
+          <option value="banzhaf">Banzhaf Index</option>
+          <option value="custom">Custom</option>
+        </select>
+        <small style="color:#888">Method for computing responsibility values</small>
+      </div>
+
+      <div class="buttons param">
+        <button class="ui button" id="resp-start">
+          <i class="fa-solid fa-play"></i> Start
+        </button>
+        <button class="ui button" id="resp-cancel" disabled>
+          <i class="fa-solid fa-stop"></i> Cancel
+        </button>
+        <button class="ui button" id="resp-clear">
+          <i class="fa-solid fa-eraser"></i> Clear
+        </button>
+      </div>
+
+      <div id="resp-status" class="param" style="display: none;">
+        <p class="label inline label-info">Status: <span id="resp-status-text">Ready</span></p>
+      </div>
+
+      <!-- CRITICAL SUSPECTS (RED NODES) PANEL -->
+      <details class="param" style="border:2px solid #e74c3c; border-radius:8px; padding:10px; margin:12px 0; background:#fff5f5" open>
+        <summary style="cursor:pointer; font-weight:bold; color:#e74c3c; user-select:none; font-size:1.05em">
+          🔴 Critical Suspects (<span id="red-nodes-count">0</span> red nodes)
+        </summary>
+        <div id="red-nodes-container" style="max-height:160px; overflow-y:auto; margin-top:10px">
+          <ul id="red-nodes-list" style="list-style:none; padding:0; margin:0; font-size:0.9em">
+            <li style="color:#888; padding:6px; font-style:italic">No high-responsibility nodes yet</li>
+          </ul>
+        </div>
+      </details>
+
+      <!-- COMPONENT RESPONSIBILITY PANEL -->
+      <div class="ui divider"></div>
+      <h4 class="label label-info">Component responsibility</h4>
+      <div class="param">
+        <small id="comp-hint" style="color:#888">Aggregated from state responsibilities (heuristic); click Start to refresh</small>
+      </div>
+      <div id="component-resp-container" class="param" style="max-height:220px; overflow:auto; border:1px solid #eee; border-radius:6px">
+        <table id="component-resp-table" class="ui very basic compact table" style="width:100%;">
+          <thead>
+            <tr>
+              <th style="width:55%">Component</th>
+              <th style="width:15%; text-align:right">Value</th>
+              <th style="width:30%">Scale</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="3" style="color:#888; text-align:center">No data yet</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="ui divider"></div>
+
+      <!-- LEGEND SECTION - Second -->
+      <h3 class="label label-info">Legend</h3>
+      <div style="display:flex; gap:15px; flex-wrap:wrap">
+        <div style="flex:1; min-width:120px">  
           <b>Nodes</b>
-          <div style="display:flex">
+          <div style="display:flex; align-items:center; margin:4px 0">
             <span class="legend-node unvisited"></span>
-            <p class="legend-p">State (collapsed) </p>
+            <p class="legend-p">State (collapsed)</p>
           </div>
-          <div style="display:flex">
+          <div style="display:flex; align-items:center; margin:4px 0">
             <span class="legend-node visited"></span>
-            <p class="legend-p">State (expanded) </p>
+            <p class="legend-p">State (expanded)</p>
           </div>
-          <div style="display:flex">
+          <div style="display:flex; align-items:center; margin:4px 0">
             <span class="legend-node actions"></span>
             <p class="legend-p">Action</p>
           </div>
+
+          <div style="margin-top:10px">
+            <b>Selections</b>
+            <div style="display:flex; align-items:center; margin:4px 0">
+              <span class="legend-node states-selected"></span>
+              <p class="legend-p">States</p>
+            </div>
+            <div style="display:flex; align-items:center; margin:4px 0">
+              <span class="legend-node actions-selected"></span>
+              <p class="legend-p">Actions</p>
+            </div>
+          </div>
         </div>
 
-        <div style="margin-left:15px">
-          <b>Selections</b>
-          <div style="display:flex">
-            <span class="legend-node states-selected"></span>
-            <p class="legend-p">States</p>
+        <div style="flex:1; min-width:120px">
+          <b>Responsibility</b>
+          <div style="display:flex; align-items:center; margin:4px 0">
+            <span class="legend-node resp-high"></span>
+            <p class="legend-p">High (&gt;70%)</p>
           </div>
-          <div style="display:flex">
-            <span class="legend-node actions-selected"></span>
-            <p class="legend-p">Actions</p>
+          <div style="display:flex; align-items:center; margin:4px 0">
+            <span class="legend-node resp-medium"></span>
+            <p class="legend-p">Medium (&gt;40%)</p>
           </div>
+          <div style="display:flex; align-items:center; margin:4px 0">
+            <span class="legend-node resp-low"></span>
+            <p class="legend-p">Low (≤40%)</p>
+          </div>
+
         </div>
       </div>
-      <br>
-      <div>
+
+      <div style="margin-top:10px">
         <b>Edges</b>
-        <div style="display:flex">
+        <div style="display:flex; align-items:center; margin:4px 0">
           <span class="legend-edge chosen-edge"></span>
           <p class="legend-p">Recommended path(s)</p>
         </div>
-        <div style="display:flex">
+        <div style="display:flex; align-items:center; margin:4px 0">
           <span class="legend-edge not-chosen-edge"></span>
           <p class="legend-p">Other path(s)</p>
         </div>
       </div>
 
-      <div id="info-box">
+      <div class="ui divider"></div>
 
-      </div>
+      <!-- GENERAL SETTINGS SECTION - Third -->
+      <h3 class="label label-info">General Settings</h3>
 
       <div class="param">
-        <p class="label inline label-info">Max # of panes</p> </br>
+        <p class="label inline label-info">Max # of panes</p>
         <input type="number" name="numberOfPanes" id="numberOfPanes" value="5" min="1">
       </div>
 
       <div class="param">
-        <p class="label inline label-info">Max # of nodes per pane</p> </br>
+        <p class="label inline label-info">Max # of nodes per pane</p>
         <input type="number" name="nodesPerPane" id="nodesPerPane" value="1000" min="100">
       </div>
 
-      <div class="ui negative message to-do">
-        <i class="close icon"></i>
-        <div class="header">
-          TODO: Missing / potential controls: 
-        </div>  
-        <ul class="list">
-          <li>buttons to pan/zoom/maximize/minimize/remove panes (in the graph part of the pane)</li>
-          <li>choose what happens to destroyed panes (save in db, save in file, forget) </li>
-          <li>toggle replace alert (popup / modals) with less obtrusive messages (like this one) </li>
-        </ul> 
-      </div>
+      <div id="info-box"></div>
 
       <div class="ui divider"></div>
 
-      <h3 class="label label-info cy-config">Model Settings</h3>
-      
-      <div class="ui negative message to-do">
-        <i class="close icon"></i>
-        <div class="header">
-          TODO: Missing / potential controls: 
-        </div>  
-        <ul class="list">
-          <li>[MUST] select: lens / level-of-detail / abstraction </li>
-        </ul>
-      </div>
+      <!-- MODEL SETTINGS SECTION - Fourth -->
+      <h3 class="label label-info">Model Settings</h3>
       
       <div id="props-config">
         <!-- layout specific options are appended here-->
       </div>
-    
-      <div class="ui divider"></div>
 
       <h3 class="label label-info">Node-link Diagram </h3>
       

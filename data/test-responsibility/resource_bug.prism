@@ -1,0 +1,23 @@
+// Resource Allocation Bug - Missing Capacity Check  
+// Bug: System can allocate more resources than available
+// Expected: Violates resource capacity constraint
+
+mdp
+
+const int MAX_RESOURCES = 3;
+
+module allocator
+    allocated : [0..5] init 0; // Can overflow to 5 due to bug
+    requests : [0..10] init 0;
+    
+    // BUG: Should check "allocated < MAX_RESOURCES" not "allocated <= MAX_RESOURCES"
+    [allocate] allocated <= MAX_RESOURCES & requests < 10 -> 
+        (allocated'=allocated+1) & (requests'=requests+1);
+    
+    [deallocate] allocated > 0 -> (allocated'=allocated-1);
+    
+    [idle] true -> true;
+endmodule
+
+label "error" = (allocated > MAX_RESOURCES);
+label "safe" = (allocated <= MAX_RESOURCES);

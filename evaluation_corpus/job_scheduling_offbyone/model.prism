@@ -1,0 +1,35 @@
+// Buggy Job Scheduling - Off-by-One Error
+// Bug: Scheduler uses wrong comparison (>= instead of >) allowing queue overflow
+// Expected: Violates queue capacity constraint
+
+mdp
+
+const int MAX_QUEUE = 3; // Maximum jobs in queue
+
+module scheduler
+	queue : [0..4] init 0; // Jobs in queue (can overflow to 4 due to bug)
+	completed : [0..10] init 0; // Completed jobs
+	
+	// Arriving job - BUG: Should be "queue < MAX_QUEUE" not "queue <= MAX_QUEUE"
+	// This allows 4 jobs in a 3-capacity queue
+	[arrive] queue <= MAX_QUEUE -> 0.7 : (queue'=queue+1) + 0.3 : true; // BUGGY GUARD
+	
+	// Process job
+	[process] queue > 0 -> (queue'=queue-1) & (completed'=completed+1);
+	
+	// Idle when queue empty
+	[idle] queue = 0 -> true;
+endmodule
+
+// Job generator
+module jobs
+	generated : [0..10] init 0;
+	
+	[arrive] generated < 10 -> (generated'=generated+1);
+	[idle] true -> true;
+endmodule
+
+label "overflow" = (queue > MAX_QUEUE);
+label "error" = (queue > MAX_QUEUE); // Alias for responsibility tool
+label "valid_state" = (queue <= MAX_QUEUE);
+label "finished" = (generated = 10);

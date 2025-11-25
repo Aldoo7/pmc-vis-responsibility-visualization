@@ -13,7 +13,16 @@ function getActiveProjectId() {
 }
 
 // Initialize responsibility controls
+// Track if controls have been initialized to prevent duplicate event listeners
+let controlsInitialized = false;
+
 export function initResponsibilityControls() {
+  // Only initialize once to prevent duplicate event listeners
+  if (controlsInitialized) {
+    return;
+  }
+  controlsInitialized = true;
+
   const startBtn = document.getElementById('resp-start');
   const cancelBtn = document.getElementById('resp-cancel');
   const clearBtn = document.getElementById('resp-clear');

@@ -1,0 +1,5 @@
+// Properties for Bounded Retransmission Protocol (BRP)
+// Error state: sender enters error state (s=5)
+
+// Can the error state be reached?
+P=? [ F "sbad" ]

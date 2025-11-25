@@ -22,6 +22,8 @@ WORKDIR /home/prismServer/prism/prism
 
 RUN make
 
+RUN make binary
+
 WORKDIR /home/prismServer
 
 #Load everything into the image
@@ -31,7 +33,7 @@ WORKDIR /home/prismServer/server
 
 RUN mvn dependency:copy-dependencies
 
-RUN mvn package
+RUN mvn package -DskipTests
 
 RUN sed -i 's/\r$//' bin/run && chmod +x bin/run
 

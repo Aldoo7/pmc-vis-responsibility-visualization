@@ -24,3 +24,19 @@ backend/server/.idea
 Artifact
 
 artifact-import-export/*.tar
+.notes/
+
+# Build artifacts and libraries
+*.class
+src/backend/server/lib/
+src/backend/server/target/
+src/backend/server/volume/
+src/backend/server/classpath.txt
+src/backend/server/pom.xml.dev-backup
+src/backend/prism
+
+# Startup scripts (local)
+start_*.sh
+
+# Test files
+TestLibrary.java

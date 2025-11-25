@@ -17,31 +17,16 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Invokes the external Rust responsibility tool (actor-based responsibility) and
- * converts its output into {@link ResponsibilityOutput}.
- *
- * Design goals:
- *  - Pure adapter: no domain logic beyond parsing and mapping.
- *  - Resilient to different output formats (JSON preferred; fallback line-based).
- *  - Non-blocking friendly (currently synchronous; can be wrapped async later).
- *
- * Expected CLI (assumptions – will be refined once README is inspected):
- *   responsibility_tool \
- *     --model <model.prism> \
- *     --property "Pmax=?[F error]" \
- *     --mode optimistic|pessimistic \
- *     --index shapley|banzhaf \
- *     --level <int> \
- *     --output <path/to/output.json>
- *
- * If the tool supports -h we will introspect supported flags; until then we construct
- * a conservative argument list and rely on environment configuration.
+ * Adapter for the bw-responsibility tool (Rust-based actor responsibility computation).
+ * Invokes the external binary and parses its output into ResponsibilityOutput format.
+ * 
+ * @see <a href="https://zenodo.org/records/13738447">Actor-Based Responsibility Tool</a>
  */
 public class RustResponsibilityInvoker {
 
     private static final Logger logger = LoggerFactory.getLogger(RustResponsibilityInvoker.class);
     private final ObjectMapper mapper = new ObjectMapper();
-    private final String binaryPath; // absolute path to compiled Rust binary
+    private final String binaryPath;
 
     public RustResponsibilityInvoker(String binaryPath) {
         this.binaryPath = binaryPath;
@@ -50,11 +35,11 @@ public class RustResponsibilityInvoker {
     /**
      * Execute the external tool and parse the result.
      * @param modelFile PRISM model path
-     * @param property Property string (may be optional if tool derives internally)
-     * @param mode optimistic|pessimistic
-     * @param index shapley|banzhaf|custom
-     * @param level refinement level (adapter passes through – tool may ignore)
-     * @param overrideTrace optional explicit counterexample trace
+     * @param property (ignored for current Rust tool; responsibility is driven by -b bad label)
+     * @param mode optimistic|pessimistic (maps to -v o | -v p)
+     * @param index shapley|banzhaf|count (maps to -m)
+     * @param level refinement level (>0 enables refinement engine via -a)
+     * @param overrideTrace optional explicit counterexample trace (requires -c support if implemented)
      * @return ResponsibilityOutput mapped from tool output
      * @throws Exception on execution or parsing errors
      */
@@ -65,11 +50,19 @@ public class RustResponsibilityInvoker {
                                      int level,
                                      List<String> overrideTrace) throws Exception {
         long start = System.currentTimeMillis();
+        
+        // Convert model file to absolute path to avoid issues with working directory
+        Path modelPath = java.nio.file.Paths.get(modelFile).toAbsolutePath();
+        if (!Files.exists(modelPath)) {
+            throw new Exception("Model file does not exist: " + modelPath);
+        }
+        String absoluteModelFile = modelPath.toString();
+        
         Path workDir = Files.createTempDirectory("resp_tool_");
         Path outFile = workDir.resolve("responsibility.json");
         Path altFile = workDir.resolve("responsibility.txt");
 
-        List<String> cmd = buildCommand(modelFile, property, mode, index, level, outFile, altFile, overrideTrace);
+        List<String> cmd = buildCommand(absoluteModelFile, property, mode, index, level, outFile, altFile, overrideTrace);
         logger.info("Invoking responsibility tool: {}", String.join(" ", cmd));
 
         ProcessBuilder pb = new ProcessBuilder(cmd);
@@ -130,40 +123,75 @@ public class RustResponsibilityInvoker {
                                       List<String> overrideTrace) {
         List<String> cmd = new ArrayList<>();
         cmd.add(binaryPath);
-        // Assumed flags – adapt once README verified
-        cmd.add("--model");
+        // Real CLI flags (captured from tool --help)
+        // -p prism model, -b bad label, -m metric, -g grouped mode, -v responsibility version, -f output file
+        cmd.add("-p");
         cmd.add(modelFile);
-        if (property != null && !property.isBlank()) {
-            cmd.add("--property");
-            cmd.add(property);
-        }
-        if (mode != null) {
-            cmd.add("--mode");
-            cmd.add(mode);
-        }
-        if (index != null) {
-            cmd.add("--index");
-            cmd.add(index);
-        }
-        cmd.add("--level");
-        cmd.add(String.valueOf(level));
-        // Preferred JSON output file
-        cmd.add("--output");
-        cmd.add(outFile.toString());
-        // Fallback plain text output (if tool supports separate flag – placeholder)
-        // cmd.add("--txt-output"); cmd.add(altFile.toString()); // uncomment if supported
 
+        // Bad label: must be present in the model; allow override via env RESP_BAD_LABEL (default: "error")
+        String badLabel = System.getenv().getOrDefault("RESP_BAD_LABEL", "error");
+        cmd.add("-b");
+        cmd.add(badLabel);
+
+        // Metric (index)
+        String metric = (index == null || index.isBlank()) ? "shapley" : index.toLowerCase();
+        cmd.add("-m");
+        cmd.add(metric);
+
+        // Grouping mode (default individual); env RESP_GROUPING overrides
+        String grouping = System.getenv().getOrDefault("RESP_GROUPING", "individual");
+        cmd.add("-g");
+        cmd.add(grouping);
+
+        // Responsibility version (-v o | -v p)
+        String version = "p"; // pessimistic default per help text
+        if (mode != null) {
+            if (mode.toLowerCase().startsWith("o")) version = "o"; // optimistic
+            else if (mode.toLowerCase().startsWith("p")) version = "p"; // pessimistic
+        }
+        cmd.add("-v");
+        cmd.add(version);
+
+        // Refinement: enable -a if level > 0 (simple heuristic mapping)
+        if (level > 0) {
+            cmd.add("-a");
+        }
+
+        // Thread count override (optional) via RESP_THREADS
+        String threads = System.getenv("RESP_THREADS");
+        if (threads != null && !threads.isBlank()) {
+            cmd.add("-j");
+            cmd.add(threads.trim());
+        }
+
+        // Output file (JSON or plain text produced by tool; we expect numeric lines or a simple format)
+        cmd.add("-f");
+        cmd.add(outFile.toString());
+
+        // Optional: pass explicit PRISM path and Java home if provided via env
+        String prismPath = System.getenv("RESP_PRISM_PATH");
+        if (prismPath != null && !prismPath.isBlank()) {
+            cmd.add("--prism-path");
+            cmd.add(prismPath.trim());
+        }
+        String prismJava = System.getenv("RESP_PRISM_JAVA");
+        if (prismJava != null && !prismJava.isBlank()) {
+            cmd.add("--prism-java");
+            cmd.add(prismJava.trim());
+        }
+
+        // Counterexample trace (requires -c file); supply if overrideTrace given
         if (overrideTrace != null && !overrideTrace.isEmpty()) {
-            // Provide explicit trace via a temp file if tool accepts --trace-file flag
             try {
-                Path traceFile = Files.createTempFile("trace_", ".txt");
+                Path traceFile = Files.createTempFile("trace_", ".ce");
                 Files.write(traceFile, overrideTrace, StandardCharsets.UTF_8);
-                cmd.add("--trace-file");
+                cmd.add("-c");
                 cmd.add(traceFile.toString());
             } catch (IOException e) {
                 logger.warn("Failed to create temporary trace file: {}", e.getMessage());
             }
         }
+
         return cmd;
     }
 
@@ -280,11 +308,26 @@ public class RustResponsibilityInvoker {
      */
     private Map<String, Double> parseLineFormat(List<String> lines) {
         Map<String, Double> stateResp = new LinkedHashMap<>();
-    Pattern p = Pattern.compile("^(?<id>[A-Za-z0-9_\\-\\.]+)\\s+(?<val>[0-9]*\\.?[0-9]+(?:[eE][+\\-]?[0-9]+)?)$");
+        // Pattern for simple format: "ID VALUE"
+        Pattern p = Pattern.compile("^(?<id>[A-Za-z0-9_\\-\\.]+)\\s+(?<val>[0-9]*\\.?[0-9]+(?:[eE][+\\-]?[0-9]+)?)$");
+        // Pattern for Rust tool format: "(ID): (state description): VALUE"
+        Pattern rustPattern = Pattern.compile("^\\((?<id>\\d+)\\):.*:\\s*(?<val>[0-9]*\\.?[0-9]+(?:[eE][+\\-]?[0-9]+)?)\\s*$");
         for (String line : lines) {
             if (line == null) continue;
             String trimmed = line.trim();
             if (trimmed.isEmpty() || trimmed.startsWith("#")) continue;
+            // Try Rust format first
+            Matcher rustMatcher = rustPattern.matcher(trimmed);
+            if (rustMatcher.find()) {
+                String id = rustMatcher.group("id");
+                try {
+                    double v = Double.parseDouble(rustMatcher.group("val"));
+                    stateResp.put(id, v);
+                } catch (NumberFormatException ignore) {
+                }
+                continue;
+            }
+            // Fall back to simple format
             Matcher m = p.matcher(trimmed);
             if (m.find()) {
                 String id = m.group("id");

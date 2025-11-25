@@ -1,0 +1,20 @@
+// Simple deterministic MDP for testing responsibility analysis
+// Bug: Process can reach error state through bad transition
+
+mdp
+
+module process
+    state : [0..3] init 0; // 0=start, 1=choice, 2=good, 3=error
+    
+    [begin] state=0 -> (state'=1); // start
+    
+    // BUG: This action leads to error
+    [bad_choice] state=1 -> (state'=3); // choose badly -> error
+    
+    [good_choice] state=1 -> (state'=2); // choose well -> good
+    
+    [reset] state=2 -> (state'=0); // reset from good
+endmodule
+
+label "error" = (state=3);
+label "good" = (state=2);

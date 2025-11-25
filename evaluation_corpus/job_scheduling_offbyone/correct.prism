@@ -1,0 +1,28 @@
+// Correct Job Scheduling - Proper Bounds Checking
+// Fix: Use strict inequality to prevent overflow
+
+mdp
+
+const int MAX_QUEUE = 3;
+
+module scheduler
+	queue : [0..4] init 0;
+	completed : [0..10] init 0;
+	
+	// FIXED: Correct guard uses "queue < MAX_QUEUE"
+	[arrive] queue < MAX_QUEUE -> 0.7 : (queue'=queue+1) + 0.3 : true;
+	
+	[process] queue > 0 -> (queue'=queue-1) & (completed'=completed+1);
+	[idle] queue = 0 -> true;
+endmodule
+
+module jobs
+	generated : [0..10] init 0;
+	
+	[arrive] generated < 10 -> (generated'=generated+1);
+	[idle] true -> true;
+endmodule
+
+label "overflow" = (queue > MAX_QUEUE);
+label "valid_state" = (queue <= MAX_QUEUE);
+label "finished" = (generated = 10);

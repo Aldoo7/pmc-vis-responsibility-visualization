@@ -1,0 +1,41 @@
+mdp
+
+label "sbad" = window_type=3;
+label "error" = window_type=3; // for PMCVis compatibility
+
+module Window
+    window_type: [0..3]; // 0: empty, 1: rock-proof glass, 2: normal glass, 3: broken
+
+    [install_window] (window_type=0) -> (window_type'=chosen_glass);
+
+    [ada_throws] (window_type=1) -> true;
+    [ada_throws] (window_type=2) -> (window_type'=3);
+
+    [julia_throws] (window_type=1) -> true;
+    [julia_throws] (window_type=2) -> (window_type'=3);
+endmodule
+
+module Rebeca
+    chosen_glass: [0..2] init 0; // 1: Rock-proof glass, 2: Normal glass
+
+    [] (chosen_glass=0) -> (chosen_glass'=1);
+    [] (chosen_glass=0) -> (chosen_glass'=2);
+
+    [install_window] (chosen_glass>0) -> true;
+endmodule
+
+module Ada
+    ada_state: [0..2] init 0; // 0: initial, 1: wants to throw, 2: does not want to throw
+
+    [] (ada_state=0) -> (ada_state'=1);
+    [] (ada_state=0) -> (ada_state'=2);
+    [ada_throws] (ada_state=1) -> (ada_state'=2);
+endmodule
+
+module Julia
+    julia_state: [0..2] init 0; // 0: initial, 1: wants to throw, 2: does not want to throw
+
+    [] (julia_state=0) -> (julia_state'=1);
+    [] (julia_state=0) -> (julia_state'=2);
+    [julia_throws] (julia_state=1) -> (julia_state'=2);
+endmodule

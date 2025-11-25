@@ -1,0 +1,17 @@
+mdp
+
+label "sbad" = counter!=60&steps=20;
+label "error" = counter!=60&steps=20; // for PMCVis compatibility
+
+module PuzzleBox
+	counter: [0..61] init 0;
+	steps: [0..21] init 0;
+
+	[button1] (counter+2<=61) -> (counter'=counter+2) & (steps'=min(21, steps+1));
+	[button2] (counter*6+1<=61)-> (counter'=counter*6+1) & (steps'=min(21, steps+1));
+	[button3] (counter*counter<=61) -> (counter'=counter*counter) & (steps'=min(21, steps+1));
+
+	[button1] (counter+2>61) -> (counter'=61) & (steps'=min(21, steps+1));
+	[button2] (counter*6+1>61) -> (counter'=61) & (steps'=min(21, steps+1));
+	[button3] (counter*counter>61) -> (counter'=61) & (steps'=min(21, steps+1));
+endmodule

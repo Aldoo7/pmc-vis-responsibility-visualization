@@ -106,6 +106,204 @@ function setStyles(cy) {
   cy.endBatch();
 }
 
+// updates responsibility values and styling for nodes
+function updateResponsibility(cy, data) {
+  console.log('📊 updateResponsibility called with', Object.keys(data.stateResponsibility || {}).length, 'states');
+  
+  // Debug: show what nodes are actually in the graph
+  const graphNodes = cy.$('node.s').map(n => n.id());
+  console.log('📊 Graph has', graphNodes.length, 'state nodes:', graphNodes.slice(0, 10));
+  console.log('📊 Backend sent state IDs:', Object.keys(data.stateResponsibility || {}).slice(0, 10));
+  
+  // Build mapping: state name -> graph node ID
+  // Graph nodes have both id (database ID) and name (PRISM state string)
+  const stateNameToGraphId = {};
+  cy.$('node.s').forEach(node => {
+    const name = node.data('name');
+    const id = node.id();
+    if (name) {
+      stateNameToGraphId[name] = id;
+    }
+  });
+  console.log('📊 Built name->ID mapping with', Object.keys(stateNameToGraphId).length, 'entries');
+  console.log('📊 Sample graph node:', cy.$('node.s').first().data());
+  
+  cy.startBatch();
+  
+  // Clear existing responsibility classes
+  cy.$('node.s').removeClass('resp-high resp-medium resp-low');
+  
+  // Update state responsibilities
+  if (data.stateResponsibility) {
+    let updatedCount = 0;
+    const entries = [];
+    Object.entries(data.stateResponsibility).forEach(([prismId, value]) => {
+      // Map PRISM numeric ID -> state name -> graph node ID
+      let graphNodeId = prismId; // default: try direct match first
+
+      if (data.stateIdToName && data.stateIdToName[prismId]) {
+        const stateName = data.stateIdToName[prismId];
+        if (stateNameToGraphId[stateName]) {
+          graphNodeId = stateNameToGraphId[stateName];
+          console.log('📊 Mapped PRISM ID', prismId, '→ name', stateName, '→ graph ID', graphNodeId);
+        } else {
+          console.warn('📊 State name not found in graph:', stateName);
+        }
+      } else {
+        // Fallback mappings when backend didn't send name mapping
+        // 1) If PRISM id equals node name
+        if (stateNameToGraphId[prismId]) {
+          graphNodeId = stateNameToGraphId[prismId];
+          console.log('📊 Fallback direct: PRISM ID', prismId, '→ graph ID', graphNodeId);
+        } else if (stateNameToGraphId['s' + prismId]) {
+          // 2) Some graphs prefix state names with 's'
+          graphNodeId = stateNameToGraphId['s' + prismId];
+          console.log('📊 Fallback prefixed: PRISM ID', prismId, '→ graph ID', graphNodeId);
+        } else {
+          console.warn('📊 No mapping found for PRISM ID', prismId, '(tried direct and s-prefixed)');
+        }
+      }
+
+      const node = cy.$('#' + graphNodeId);
+      if (node.length > 0) {
+        updatedCount++;
+        entries.push({ node, value: Number(value) || 0 });
+      } else {
+        console.warn('📊 Node not found in graph for ID:', graphNodeId);
+      }
+    });
+
+    // Quantile-based coloring: distribute colors among positive-responsibility nodes
+    console.log('📊 All responsibility entries:', entries.map(e => ({ id: e.node.id(), value: e.value })));
+    const positives = entries.filter(e => e.value > 0).sort((a, b) => b.value - a.value);
+    const n = positives.length;
+    console.log('📊 Positive values count:', n, positives.map(e => ({ id: e.node.id(), value: e.value })));
+    
+    // Store responsibility and clear old classes
+    entries.forEach(({ node, value }) => {
+      node.data('responsibility', value);
+      node.removeClass('resp-high resp-medium resp-low');
+    });
+
+    if (n > 0) {
+      // Top ~30% → high (red), next ~40% → medium (orange), rest → low (green)
+      const highCutoff = Math.max(1, Math.ceil(n * 0.3));
+      const medCutoff = Math.max(highCutoff + 1, Math.ceil(n * 0.7));
+      
+      positives.forEach((e, idx) => {
+        if (idx < highCutoff) {
+          e.node.addClass('resp-high');
+        } else if (idx < medCutoff) {
+          e.node.addClass('resp-medium');
+        } else {
+          e.node.addClass('resp-low');
+        }
+      });
+      
+      console.log(`📊 Colored ${n} nodes: ${highCutoff} high, ${medCutoff - highCutoff} med, ${n - medCutoff} low`);
+      
+      // Populate red-nodes panel with high-responsibility (red) nodes
+      updateRedNodesPanel(positives.slice(0, highCutoff));
+    } else {
+      console.warn('📊 No positive responsibility values to color');
+      updateRedNodesPanel([]);
+    }
+
+    console.log('📊 Updated', updatedCount, 'nodes out of', Object.keys(data.stateResponsibility).length, 'states');
+    if (updatedCount === 0) {
+      console.warn('📊 WARNING: No nodes were updated! State ID mismatch detected.');
+      console.warn('📊 Try matching first graph node:', graphNodes[0], 'with backend states');
+    }
+  }
+  
+  cy.endBatch();
+  
+  // Update tooltips with responsibility info (value only)
+  cy.$('node.s').forEach(node => {
+    const respValue = node.data('responsibility');
+    if (respValue && respValue > 0) {
+      const tooltipContent = `Responsibility: ${(respValue * 100).toFixed(2)}%`;
+      node.data('responsibilityTooltip', tooltipContent);
+    } else {
+      node.removeData('responsibilityTooltip');
+    }
+  });
+}
+
+// Update red-nodes panel with critical suspects
+function updateRedNodesPanel(redNodes) {
+  const countEl = document.getElementById('red-nodes-count');
+  const listEl = document.getElementById('red-nodes-list');
+  
+  if (!countEl || !listEl) return;
+  
+  countEl.textContent = redNodes.length;
+  
+  if (redNodes.length === 0) {
+    listEl.innerHTML = '<li style="color:#888; padding:6px; font-style:italic">No high-responsibility nodes yet</li>';
+    return;
+  }
+  
+  // Build list items
+  const items = redNodes.map((entry, idx) => {
+    const node = entry.node;
+    const value = entry.value;
+    const nodeId = node.id();
+    const nodeName = node.data('name') || nodeId;
+    
+    return `
+      <li class="red-node-item" data-node-id="${nodeId}" style="
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        padding:6px 8px;
+        margin:3px 0;
+        background:#ffe5e5;
+        border-left:3px solid #e74c3c;
+        border-radius:4px;
+        cursor:pointer;
+        transition:background 0.2s;
+      " onmouseover="this.style.background='#ffd0d0'" onmouseout="this.style.background='#ffe5e5'">
+        <span style="font-weight:500; color:#c0392b">
+          <span style="font-size:0.85em; color:#999">#${idx + 1}</span>
+          ${nodeName}
+        </span>
+        <span style="background:#e74c3c; color:white; padding:2px 8px; border-radius:12px; font-size:0.85em; font-weight:bold">
+          ${(value * 100).toFixed(1)}%
+        </span>
+      </li>
+    `;
+  }).join('');
+  
+  listEl.innerHTML = items;
+  
+  // Add click handlers to highlight node in graph
+  listEl.querySelectorAll('.red-node-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const nodeId = item.getAttribute('data-node-id');
+      highlightNodeInAllPanes(nodeId);
+    });
+  });
+}
+
+// Highlight a node across all panes
+function highlightNodeInAllPanes(nodeId) {
+  const panes = getPanes();
+  Object.values(panes).forEach(pane => {
+    if (pane.cy) {
+      const node = pane.cy.$('#' + nodeId);
+      if (node.length > 0) {
+        // Center on node and select it
+        pane.cy.nodes().unselect();
+        node.select();
+        pane.cy.center(node);
+        pane.cy.fit(node, 100);
+        console.log('📍 Highlighted node', nodeId, 'in pane', pane.id);
+      }
+    }
+  });
+}
+
 // queries and updates info on present graph
 async function renewInfo(cy) {
   async function getSameGraph(nodes) {
@@ -1798,6 +1996,36 @@ socket.on('overview nodes selected', (data) => {
       paneCy,
     };
   }
+});
+
+// Responsibility visualization integration
+socket.on('responsibility:result', (data) => {
+  console.log('📊 Received responsibility:result', data);
+  if (data && data.stateResponsibility) {
+    const panes = getPanes();
+    console.log('📊 Updating', Object.keys(panes).length, 'panes');
+    Object.values(panes).forEach(pane => {
+      if (pane.cy) {
+        console.log('📊 Updating pane', pane.id, 'with', Object.keys(data.stateResponsibility).length, 'states');
+        updateResponsibility(pane.cy, data);
+      }
+    });
+  } else {
+    console.warn('📊 No stateResponsibility data in result');
+  }
+});
+
+socket.on('responsibility:status', (data) => {
+  console.log('📊 Responsibility status:', data);
+});
+
+socket.on('responsibility:error', (data) => {
+  console.error('📊 Responsibility error:', data);
+  Swal.fire({
+    title: 'Responsibility Analysis Error',
+    text: data.message || 'An error occurred during responsibility analysis',
+    icon: 'error',
+  });
 });
 
 // cy.vars stores the settings of the application

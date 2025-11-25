@@ -273,6 +273,30 @@ summary>.trigger-check-prop {
   background-color: var(--state-color);
 }
 
+.resp-high {
+  background-color: #c74444;
+}
+
+.resp-medium {
+  background-color: #e87d1e;
+}
+
+.resp-low {
+  background-color: #5ca65c;
+}
+
+.legend-badge {
+  display: inline-block;
+  background-color: #555;
+  color: white;
+  font-weight: bold;
+  font-size: 10px;
+  padding: 2px 5px;
+  border-radius: 3px;
+  margin-right: 5px;
+  margin-top: 2px;
+}
+
 .chosen-edge {
   border: none;
   background-color: var(--action-color);

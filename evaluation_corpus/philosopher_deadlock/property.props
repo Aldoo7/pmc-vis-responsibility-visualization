@@ -1,0 +1,3 @@
+// Property: Verify deadlock is not reachable
+// In buggy version, this should be violated
+Pmax=? [ F "deadlock" ]
