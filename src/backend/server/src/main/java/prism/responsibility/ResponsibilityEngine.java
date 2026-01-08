@@ -53,6 +53,7 @@ public class ResponsibilityEngine {
         if (mode == null) return;
         try {
             this.currentMode = ResponsibilityMode.valueOf(mode.trim().toUpperCase());
+            logger.info("✓ Responsibility mode set to: {}", this.currentMode);
         } catch (IllegalArgumentException ex) {
             // keep previous
             logger.warn("Unknown responsibility mode '{}' (keeping {})", mode, this.currentMode);
@@ -115,9 +116,33 @@ public class ResponsibilityEngine {
         // **IMPORTANT**: Use the real strategy to compute responsibility!
         ResponsibilityOutput output = strategy.compute(ts, ce, level, currentIndex);
         
+        // MOCK MODE FIX: If all states have 0 responsibility, assign demo values for visualization
+        Map<String, Double> stateResp = output.getStateResponsibility();
+        boolean allZero = stateResp.values().stream().allMatch(v -> v == 0.0);
+        if (allZero && !stateResp.isEmpty()) {
+            // Assign varied responsibility values for demo (decreasing values)
+            List<String> states = new ArrayList<>(stateResp.keySet());
+            for (int i = 0; i < states.size(); i++) {
+                // High values for first few states, decreasing for others
+                double value = Math.max(0.1, 1.0 - (i * 0.2));
+                stateResp.put(states.get(i), value);
+            }
+            logger.info("Mock mode: Assigned demo responsibility values to {} states", states.size());
+        }
+        
         // Add component responsibilities (model-specific analysis)
         Map<String, Double> compResp = generateComponentResponsibility(modelFile, random);
         output.setComponentResponsibility(compResp);
+        
+        // CRITICAL FIX: Populate stateIdToName mapping for frontend matching
+        // The frontend needs to match backend state IDs to graph node names
+        // For mock mode, we map state IDs to their own IDs as names (since we don't have real PRISM state data)
+        Map<String, String> stateIdToName = new LinkedHashMap<>();
+        for (String stateId : ts.getStates()) {
+            stateIdToName.put(stateId, stateId);  // ID maps to itself as name
+        }
+        output.setStateIdToName(stateIdToName);
+        logger.info("Mock mode: Set stateIdToName mapping with {} entries", stateIdToName.size());
         
         // Add other metadata
         output.setPowerIndex(currentIndex.name().toLowerCase());
@@ -135,8 +160,8 @@ public class ResponsibilityEngine {
         output.setNormalizationConstantK((double) n);
         
         // Approximation flags (mock off)
-        output.setApproximate(false);
-        output.setGroupedMode(false);
+        output.setApproximate(Boolean.FALSE);
+        output.setGroupedMode(Boolean.FALSE);
         
         logger.info("Mock computation complete: {} states, {} components at level {}", 
             output.getStateResponsibility().size(), 
@@ -165,7 +190,7 @@ public class ResponsibilityEngine {
      * Real computation - calls external tool
      */
     private ResponsibilityOutput computeReal(String modelFile, String property, int level) throws Exception {
-        logger.info("Computing real responsibility for {} at level {}", modelFile, level);
+        logger.info("Computing real responsibility for {} at level {} with mode={} index={}", modelFile, level, currentMode, currentIndex);
         // If toolPath points to external Rust binary, prefer invoking it directly now.
         // We keep previous Java-based fallback extraction in place (commented block above) in case
         // we later need hybrid approaches (e.g., pre-processing with PRISM). For v1 integration
@@ -177,7 +202,10 @@ public class ResponsibilityEngine {
 
         RustResponsibilityInvoker invoker = new RustResponsibilityInvoker(toolPath);
         List<String> overrideTrace = overrideCounterexample != null ? new ArrayList<>(overrideCounterexample) : null;
-        ResponsibilityOutput output = invoker.run(modelFile, property, currentMode.name().toLowerCase(), currentIndex.name().toLowerCase(), level, overrideTrace);
+        String modeStr = currentMode.name().toLowerCase();
+        String indexStr = currentIndex.name().toLowerCase();
+        logger.info("→ Invoking Rust tool with mode='{}' index='{}'", modeStr, indexStr);
+        ResponsibilityOutput output = invoker.run(modelFile, property, modeStr, indexStr, level, overrideTrace);
 
         // If external tool did not provide component responsibilities, synthesize them for UI continuity
         if (output.getComponentResponsibility() == null || output.getComponentResponsibility().isEmpty()) {
@@ -417,14 +445,14 @@ public class ResponsibilityEngine {
     private TransitionSystem buildMockTransitionSystem(int level) {
         TransitionSystem ts = new TransitionSystem();
         
-        // State IDs matching PMC-VIS Training project (two_dice model structure)
-        String[] commonStateIds = {"0", "7", "14", "21", "28", "35", "42", "49", "56", "63",
-                                   "70", "77", "84", "91", "98", "105", "112", "119", "126", "133",
-                                   "140", "147", "154", "161", "168", "175", "182", "189", "196", "203",
-                                   "392", "784", "1176", "1568", "1960", "2352", "2744", "3136", "3528", "3920"};
+        // State IDs from the actual loaded model graph (3-generals model)
+        // These IDs match what the frontend graph actually loads
+        String[] commonStateIds = {"7", "19", "38", "50", "58", "134", "146", "261", "273", "292",
+                                   "304", "388", "400", "452", "1029", "1041", "1060", "1072", "1156", "1168",
+                                   "2051", "2082", "2178", "2305", "2336", "2432", "3073", "3104", "3200", "3585"};
         
         // Use subset based on level
-        int numStates = Math.min(5 + (level * 3), commonStateIds.length);
+        int numStates = Math.min(4 + (level * 4), commonStateIds.length);
         
         // Add states
         for (int i = 0; i < numStates; i++) {

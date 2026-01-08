@@ -6,7 +6,11 @@ RUN useradd -ms /bin/bash prismServer
 #Load dependencies
 
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt update && apt install -y gcc build-essential cmake default-jdk git bc zsh maven && rm -rf /var/lib/apt/lists/*
+RUN apt update && apt install -y gcc build-essential cmake default-jdk git bc zsh maven curl && rm -rf /var/lib/apt/lists/*
+
+# Install Rust for building bw-responsibility
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
 
 #build prism
 
@@ -23,6 +27,13 @@ WORKDIR /home/prismServer/prism/prism
 RUN make
 
 RUN make binary
+
+# Build bw-responsibility tool from Zenodo
+WORKDIR /home/prismServer
+RUN git clone https://github.com/convince-project/actor-based-responsibility.git
+WORKDIR /home/prismServer/actor-based-responsibility
+RUN /root/.cargo/bin/cargo build --release
+RUN cp target/release/bw-responsibility /usr/local/bin/bw-responsibility
 
 WORKDIR /home/prismServer
 

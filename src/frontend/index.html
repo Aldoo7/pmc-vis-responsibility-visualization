@@ -106,6 +106,35 @@
         </div>
       </details>
 
+      <!-- STATE RESPONSIBILITY TABLE -->
+      <div class="ui divider"></div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
+        <h4 class="label label-info" style="margin:0">State Responsibility (Top 10)</h4>
+        <button id="copy-state-resp-btn" class="ui mini button" style="padding:6px 12px; font-size:0.85em" title="Copy state values to clipboard">
+          📋 Copy
+        </button>
+      </div>
+      <div class="param">
+        <small id="state-hint" style="color:#888">
+          Individual state responsibility values for comparison.<br>
+          <span style="color:#ff8c00">💡 Tip: Only states visible in the graph can be colored. Click nodes to expand and see more states.</span>
+        </small>
+      </div>
+      <div id="state-resp-container" class="param" style="max-height:300px; overflow:auto; border:1px solid #eee; border-radius:6px">
+        <table id="state-resp-table" class="ui very basic compact table" style="width:100%; font-family:monospace; font-size:0.85em">
+          <thead>
+            <tr>
+              <th style="width:30%">State</th>
+              <th style="width:40%; text-align:right">Value</th>
+              <th style="width:30%; text-align:right">%</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="3" style="color:#888; text-align:center">No data yet</td></tr>
+          </tbody>
+        </table>
+      </div>
+
       <!-- COMPONENT RESPONSIBILITY PANEL -->
       <div class="ui divider"></div>
       <h4 class="label label-info">Component responsibility</h4>

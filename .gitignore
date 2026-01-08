@@ -40,3 +40,14 @@ start_*.sh
 
 # Test files
 TestLibrary.java
+
+# PRISM generated files
+**/*_results.sta
+**/*_results.tra
+**/*_results.lab
+**/*_results.srew
+**/*_results.trew
+**/*_results.all
+
+# Temporary files
+**/pmc-vis/

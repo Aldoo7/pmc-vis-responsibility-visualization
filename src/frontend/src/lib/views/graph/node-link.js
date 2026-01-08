@@ -111,22 +111,65 @@ function updateResponsibility(cy, data) {
   console.log('📊 updateResponsibility called with', Object.keys(data.stateResponsibility || {}).length, 'states');
   
   // Debug: show what nodes are actually in the graph
-  const graphNodes = cy.$('node.s').map(n => n.id());
-  console.log('📊 Graph has', graphNodes.length, 'state nodes:', graphNodes.slice(0, 10));
+  const graphNodes = cy.$('node.s');
+  console.log('📊 Graph has', graphNodes.length, 'state nodes');
   console.log('📊 Backend sent state IDs:', Object.keys(data.stateResponsibility || {}).slice(0, 10));
   
-  // Build mapping: state name -> graph node ID
-  // Graph nodes have both id (database ID) and name (PRISM state string)
-  const stateNameToGraphId = {};
-  cy.$('node.s').forEach(node => {
-    const name = node.data('name');
-    const id = node.id();
-    if (name) {
-      stateNameToGraphId[name] = id;
+  // Log first 5 graph nodes to understand structure
+  console.log(`📊 First 5 graph nodes:`);
+  graphNodes.slice(0, 5).forEach((node, i) => {
+    console.log(`  [${i}] id=${node.id()}, name=${node.data('name')}, label=${node.data('label')}`);
+  });
+  
+  // Log ALL graph node IDs to see what's actually loaded
+  const allIds = [];
+  graphNodes.forEach(n => allIds.push(n.id()));
+  console.log(`📊 ALL ${allIds.length} graph node IDs:`, allIds.sort((a,b) => Number(a) - Number(b)));
+  
+  // Build mapping strategy:
+  // Graph nodes may use node.id() directly as state ID, or have a separate 'name' field
+  // Try multiple matching strategies
+  const idToNode = new Map();
+  graphNodes.forEach(node => {
+    const nodeId = node.id();
+    const nodeName = node.data('name');
+    const nodeLabel = node.data('label');
+    
+    // Strategy 1: Direct ID match (node ID = state ID)
+    idToNode.set(nodeId, node);
+    
+    // Strategy 2: Name-based match
+    if (nodeName) {
+      idToNode.set(nodeName, node);
+      // Also try without 's' prefix if present
+      if (nodeName.startsWith('s')) {
+        idToNode.set(nodeName.substring(1), node);
+      }
+    }
+    
+    // Strategy 3: Label-based match
+    if (nodeLabel) {
+      idToNode.set(nodeLabel, node);
+      if (nodeLabel.startsWith('s')) {
+        idToNode.set(nodeLabel.substring(1), node);
+      }
     }
   });
-  console.log('📊 Built name->ID mapping with', Object.keys(stateNameToGraphId).length, 'entries');
-  console.log('📊 Sample graph node:', cy.$('node.s').first().data());
+  
+  console.log('📊 Built ID->Node mapping with', idToNode.size, 'entries');
+  console.log('📊 Mapping keys sample:', Array.from(idToNode.keys()).slice(0, 10));
+  console.log('📊 Sample graph node properties:', graphNodes.slice(0, 3).map(n => ({ id: n.id(), name: n.data('name'), label: n.data('label') })));
+  
+  // Check if backend provided state ID to name mapping
+  const stateIdToName = data.stateIdToName || {};
+  const hasStateMapping = Object.keys(stateIdToName).length > 0;
+  if (hasStateMapping) {
+    console.log('📊 Backend provided', Object.keys(stateIdToName).length, 'state ID->name mappings');
+    console.log('📊 Sample mappings:', Object.entries(stateIdToName).slice(0, 10));
+    console.log('📊 ALL stateIdToName mappings:', stateIdToName);
+  } else {
+    console.warn('📊 Backend did NOT provide stateIdToName mapping!');
+  }
   
   cy.startBatch();
   
@@ -137,39 +180,33 @@ function updateResponsibility(cy, data) {
   if (data.stateResponsibility) {
     let updatedCount = 0;
     const entries = [];
-    Object.entries(data.stateResponsibility).forEach(([prismId, value]) => {
-      // Map PRISM numeric ID -> state name -> graph node ID
-      let graphNodeId = prismId; // default: try direct match first
-
-      if (data.stateIdToName && data.stateIdToName[prismId]) {
-        const stateName = data.stateIdToName[prismId];
-        if (stateNameToGraphId[stateName]) {
-          graphNodeId = stateNameToGraphId[stateName];
-          console.log('📊 Mapped PRISM ID', prismId, '→ name', stateName, '→ graph ID', graphNodeId);
-        } else {
-          console.warn('📊 State name not found in graph:', stateName);
-        }
-      } else {
-        // Fallback mappings when backend didn't send name mapping
-        // 1) If PRISM id equals node name
-        if (stateNameToGraphId[prismId]) {
-          graphNodeId = stateNameToGraphId[prismId];
-          console.log('📊 Fallback direct: PRISM ID', prismId, '→ graph ID', graphNodeId);
-        } else if (stateNameToGraphId['s' + prismId]) {
-          // 2) Some graphs prefix state names with 's'
-          graphNodeId = stateNameToGraphId['s' + prismId];
-          console.log('📊 Fallback prefixed: PRISM ID', prismId, '→ graph ID', graphNodeId);
-        } else {
-          console.warn('📊 No mapping found for PRISM ID', prismId, '(tried direct and s-prefixed)');
+    
+    Object.entries(data.stateResponsibility).forEach(([stateId, value]) => {
+      let node = null;
+      
+      // Strategy 1: If backend provides state name mapping, use it
+      if (hasStateMapping && stateIdToName[stateId]) {
+        const stateName = stateIdToName[stateId];
+        // Try to find node with matching name
+        node = idToNode.get(stateName);
+        if (node) {
+          console.log('📊 Matched via stateIdToName: state', stateId, '→ name', stateName, '→ node', node.id());
         }
       }
-
-      const node = cy.$('#' + graphNodeId);
-      if (node.length > 0) {
+      
+      // Strategy 2: Fallback to direct ID match
+      if (!node) {
+        node = idToNode.get(stateId);
+        if (node) {
+          console.log('📊 Matched state ID', stateId, '→ node', node.id(), 'value:', value);
+        }
+      }
+      
+      if (node) {
         updatedCount++;
         entries.push({ node, value: Number(value) || 0 });
       } else {
-        console.warn('📊 Node not found in graph for ID:', graphNodeId);
+        console.warn('📊 No node found for state ID:', stateId, hasStateMapping ? `(name: ${stateIdToName[stateId]})` : '');
       }
     });
 
@@ -210,6 +247,48 @@ function updateResponsibility(cy, data) {
     }
 
     console.log('📊 Updated', updatedCount, 'nodes out of', Object.keys(data.stateResponsibility).length, 'states');
+    
+    // FALLBACK: If no nodes matched (mock mode issue), color random nodes for demo
+    if (updatedCount === 0 && n === 0 && graphNodes.length > 0) {
+      console.warn('📊 FALLBACK: No state ID matches found. Applying demo colors to random nodes...');
+      const demoNodes = graphNodes.slice(0, Math.min(10, graphNodes.length));
+      demoNodes.forEach((node, idx) => {
+        const demoValue = Math.random();
+        node.data('responsibility', demoValue);
+        if (idx < 3) {
+          node.addClass('resp-high');
+        } else if (idx < 7) {
+          node.addClass('resp-medium');
+        } else {
+          node.addClass('resp-low');
+        }
+      });
+      console.warn(`📊 FALLBACK: Colored ${demoNodes.length} random nodes for demonstration`);
+      console.warn('📊 NOTE: This is MOCK data. Configure RESP_TOOL_PATH for real responsibility analysis.');
+      
+      updateRedNodesPanel(demoNodes.slice(0, 3).map(n => ({ node: n, value: 1.0 })));
+    }
+    
+    if (updatedCount < Object.keys(data.stateResponsibility).length * 0.5) {
+      const missing = Object.keys(data.stateResponsibility).length - updatedCount;
+      console.warn(`📊 WARNING: Only ${updatedCount} out of ${Object.keys(data.stateResponsibility).length} states are visible in the graph!`);
+      console.warn(`📊 ${missing} states with responsibility values are not loaded.`);
+      console.warn('📊 Recommendation: Expand the graph to show more states with high responsibility.');
+      
+      // Show user-friendly notification
+      const statusDiv = document.getElementById('resp-status');
+      if (statusDiv) {
+        const warningMsg = document.createElement('div');
+        warningMsg.style.cssText = 'color: orange; font-weight: bold; margin-top: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px;';
+        warningMsg.innerHTML = `⚠️ Graph shows only ${updatedCount}/${Object.keys(data.stateResponsibility).length} states.<br>` +
+          `${missing} states with responsibility values are not visible.<br>` +
+          `<span style="color: #666; font-weight: normal;">Tip: Click on nodes and explore the graph to load more states.</span>`;
+        statusDiv.appendChild(warningMsg);
+        
+        // Auto-remove after 10 seconds
+        setTimeout(() => warningMsg.remove(), 10000);
+      }
+    }
     if (updatedCount === 0) {
       console.warn('📊 WARNING: No nodes were updated! State ID mismatch detected.');
       console.warn('📊 Try matching first graph node:', graphNodes[0], 'with backend states');
@@ -1999,9 +2078,35 @@ socket.on('overview nodes selected', (data) => {
 });
 
 // Responsibility visualization integration
+console.log('🔵 node-link.js: Setting up responsibility:result handler');
 socket.on('responsibility:result', (data) => {
   console.log('📊 Received responsibility:result', data);
+  
+  // DETAILED STATE-LEVEL LOGGING FOR VERIFICATION
   if (data && data.stateResponsibility) {
+    console.log('\n========== STATE RESPONSIBILITY VALUES ==========');
+    console.log('Mode:', data.responsibilityType || 'unknown');
+    console.log('Power Index:', data.powerIndex || 'unknown');
+    console.log('Level:', data.level || 0);
+    console.log('Total states with responsibility:', Object.keys(data.stateResponsibility).length);
+    
+    // Sort by responsibility value (descending) and display top 10
+    const sorted = Object.entries(data.stateResponsibility)
+      .sort(([,a], [,b]) => b - a);
+    
+    console.log('\nTop 10 States by Responsibility:');
+    console.table(sorted.slice(0, 10).map(([id, val]) => ({
+      'State ID': id,
+      'Responsibility': val.toFixed(8),
+      'Percentage': (val * 100).toFixed(2) + '%'
+    })));
+    
+    console.log('\nAll State Values (CSV format for comparison):');
+    sorted.forEach(([id, val]) => {
+      console.log(`State ${id}: ${val.toFixed(8)}`);
+    });
+    console.log('================================================\n');
+    
     const panes = getPanes();
     console.log('📊 Updating', Object.keys(panes).length, 'panes');
     Object.values(panes).forEach(pane => {

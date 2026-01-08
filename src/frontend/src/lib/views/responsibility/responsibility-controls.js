@@ -5,6 +5,7 @@ import { PROJECT } from '../../utils/controls.js';
 let isRunning = false;
 let isPaused = false;
 let lastComponentResponsibility = null; // cache latest component map
+let lastStateResponsibility = null; // cache latest state responsibility data
 
 function getActiveProjectId() {
   const el = document.getElementById('project-id');
@@ -39,8 +40,7 @@ export function initResponsibilityControls() {
     // Save configuration
     saveConfig();
 
-    // Send start event
-    socket.emit('responsibility:start', {
+    const payload = {
       modelFile: 'current',
       property: 'current',
       targetLevel: 1,
@@ -48,7 +48,12 @@ export function initResponsibilityControls() {
       powerIndex: powerIndex,
       counterexample: null,
       projectId: getActiveProjectId()
-    });
+    };
+    
+    console.log('🚀 Sending responsibility:start event:', payload);
+
+    // Send start event
+    socket.emit('responsibility:start', payload);
 
     // Update UI state
     isRunning = true;
@@ -73,6 +78,14 @@ export function initResponsibilityControls() {
     clearResponsibilityVisualization();
     statusDiv.style.display = 'none';
   });
+
+  // Copy button for state responsibility
+  const copyBtn = document.getElementById('copy-state-resp-btn');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', () => {
+      copyStateResponsibilityToClipboard();
+    });
+  }
 
   // Listen for status updates
   socket.on('responsibility:status', (data) => {
@@ -99,6 +112,17 @@ export function initResponsibilityControls() {
 
   // Listen for results and aggregate components from current graph + state responsibilities
   socket.on('responsibility:result', (_data) => {
+    // Log state-level data for verification
+    if (_data && _data.stateResponsibility) {
+      console.log('🔍 State Responsibility Data Received:');
+      console.log('  Mode:', _data.responsibilityType);
+      console.log('  Index:', _data.powerIndex);
+      console.log('  States:', Object.keys(_data.stateResponsibility).length);
+      
+      // Render state responsibility table
+      renderStateResponsibilityTable(_data.stateResponsibility);
+    }
+    
     // Defer aggregation slightly to allow graph updater to set node responsibility
     setTimeout(() => {
       const fromGraph = aggregateComponentsFromGraph() || {};
@@ -140,6 +164,13 @@ function clearResponsibilityVisualization() {
   const tbody = document.querySelector('#component-resp-table tbody');
   if (tbody) {
     tbody.innerHTML = '<tr><td colspan="3" style="color:#888; text-align:center">No data yet</td></tr>';
+  }
+  
+  // Clear state table
+  lastStateResponsibility = null;
+  const stateTbody = document.querySelector('#state-resp-table tbody');
+  if (stateTbody) {
+    stateTbody.innerHTML = '<tr><td colspan="3" style="color:#888; text-align:center">No data yet</td></tr>';
   }
 }
 
@@ -229,6 +260,118 @@ function renderComponentTable(componentMap) {
       </tr>
     `;
   }).join('');
+}
+
+function renderStateResponsibilityTable(stateResponsibilityMap) {
+  const tbody = document.querySelector('#state-resp-table tbody');
+  if (!tbody) return;
+
+  if (!stateResponsibilityMap || Object.keys(stateResponsibilityMap).length === 0) {
+    tbody.innerHTML = '<tr><td colspan="3" style="color:#888; text-align:center">No data yet</td></tr>';
+    return;
+  }
+
+  // Sort states by responsibility value (descending)
+  const rows = Object.entries(stateResponsibilityMap)
+    .map(([stateId, value]) => ({ stateId, value: Number(value) }))
+    .filter(r => !isNaN(r.value))
+    .sort((a, b) => b.value - a.value);
+
+  // Show top 10 only
+  const top10 = rows.slice(0, 10);
+
+  // Calculate total for percentage
+  const total = rows.reduce((sum, r) => sum + r.value, 0);
+  
+  // Determine thresholds for coloring (same as graph: top 30% = high, next 40% = medium)
+  const positives = rows.filter(r => r.value > 0);
+  const highCutoff = Math.max(1, Math.ceil(positives.length * 0.3));
+  const medCutoff = Math.max(highCutoff + 1, Math.ceil(positives.length * 0.7));
+
+  tbody.innerHTML = top10.map((r, idx) => {
+    const percentage = total > 0 ? ((r.value / total) * 100).toFixed(2) : '0.00';
+    const valueStr = r.value.toFixed(8);
+    
+    // Determine color based on quantile
+    let colorClass = '';
+    let badge = '';
+    if (r.value > 0) {
+      const posIdx = positives.findIndex(p => p.stateId === r.stateId);
+      if (posIdx < highCutoff) {
+        colorClass = 'background: #ffe0e0; border-left: 3px solid #ff6b6b;';
+        badge = '<span style="background:#ff6b6b; color:white; padding:2px 6px; border-radius:3px; font-size:10px; margin-left:5px;">HIGH</span>';
+      } else if (posIdx < medCutoff) {
+        colorClass = 'background: #fff3e0; border-left: 3px solid #ffa726;';
+        badge = '<span style="background:#ffa726; color:white; padding:2px 6px; border-radius:3px; font-size:10px; margin-left:5px;">MED</span>';
+      } else {
+        colorClass = 'background: #e8f5e9; border-left: 3px solid #66bb6a;';
+        badge = '<span style="background:#66bb6a; color:white; padding:2px 6px; border-radius:3px; font-size:10px; margin-left:5px;">LOW</span>';
+      }
+    }
+    
+    return `
+      <tr style="${colorClass}">
+        <td>State ${r.stateId}${badge}</td>
+        <td style="text-align:right">${valueStr}</td>
+        <td style="text-align:right">${percentage}%</td>
+      </tr>
+    `;
+  }).join('');
+  
+  // Store the data for copying
+  lastStateResponsibility = stateResponsibilityMap;
+}
+
+function copyStateResponsibilityToClipboard() {
+  if (!lastStateResponsibility || Object.keys(lastStateResponsibility).length === 0) {
+    alert('No state responsibility data available to copy');
+    return;
+  }
+
+  // Sort states by responsibility value (descending)
+  const rows = Object.entries(lastStateResponsibility)
+    .map(([stateId, value]) => ({ stateId, value: Number(value) }))
+    .filter(r => !isNaN(r.value))
+    .sort((a, b) => b.value - a.value);
+
+  // Calculate total for percentage
+  const total = rows.reduce((sum, r) => sum + r.value, 0);
+
+  // Create text format similar to command-line output
+  let text = 'State Responsibility Values\n';
+  text += '='.repeat(50) + '\n\n';
+  text += 'State ID\tValue\t\t% of Total\n';
+  text += '-'.repeat(50) + '\n';
+
+  rows.forEach(r => {
+    const percentage = total > 0 ? ((r.value / total) * 100).toFixed(2) : '0.00';
+    const valueStr = r.value.toFixed(8);
+    text += `State ${r.stateId}\t${valueStr}\t${percentage}%\n`;
+  });
+
+  text += '\n' + '='.repeat(50) + '\n';
+  text += `Total: ${rows.length} states\n`;
+  text += `Sum: ${total.toFixed(8)}\n`;
+
+  // Copy to clipboard
+  navigator.clipboard.writeText(text).then(() => {
+    // Visual feedback
+    const btn = document.getElementById('copy-state-resp-btn');
+    if (btn) {
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '✓ Copied!';
+      btn.style.background = '#5ca65c';
+      btn.style.color = '#fff';
+      setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.style.background = '';
+        btn.style.color = '';
+      }, 2000);
+    }
+  }).catch(err => {
+    console.error('Failed to copy:', err);
+    alert('Failed to copy to clipboard');
+  });
 }
 
 function escapeHtml(s) {

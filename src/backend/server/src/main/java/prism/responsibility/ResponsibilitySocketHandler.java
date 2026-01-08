@@ -180,8 +180,8 @@ public class ResponsibilitySocketHandler {
                         logger.info("Resolved 'current' model file for project {} to {}", projectId, modelFile);
                     }
                     
-                    logger.info("Received START command: project={}, model={}, property={}, targetLevel={}", 
-                        projectId, modelFile, property, targetLevel);
+                    logger.info("Received START command: project={}, model={}, property={}, targetLevel={}, mode={}, powerIndex={}", 
+                        projectId, modelFile, property, targetLevel, mode, powerIndex);
                     
                     // Basic validation for mode/powerIndex
                     if (mode != null) mode = mode.trim().toLowerCase();
