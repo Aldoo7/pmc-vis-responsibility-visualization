@@ -150,10 +150,7 @@ public class ModelResource extends Resource {
         try {
             tasks.getProject(projectID).createView(type, parameters);
             return ok("Created View");
-
         } catch (Exception e) {
-            System.out.println(e.getCause());
-            e.printStackTrace();
             return error(e);
         }
     }

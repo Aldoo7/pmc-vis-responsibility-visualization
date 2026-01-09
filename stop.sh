@@ -1,7 +1,5 @@
 #!/bin/bash
-
-# PMC-VIS Stop Script
-# Stops all PMC-VIS processes
+# Stop servers
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PID_FILE="$SCRIPT_DIR/.pmc-vis.pids"

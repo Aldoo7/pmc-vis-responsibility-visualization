@@ -1,7 +1,5 @@
 #!/bin/bash
-
-# PMC-VIS Start Script
-# Starts backend and frontend servers
+# Start backend and frontend
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
