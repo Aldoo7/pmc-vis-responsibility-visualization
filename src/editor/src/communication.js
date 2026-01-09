@@ -11,8 +11,6 @@ class Communication {
         const address = `http://${constants.ADDRESS}:8082`
         this._socket = io(address);
 
-        console.log("opened socket on " + address)
-
         this._socket.on("connect", () => {
             this.updateStatusBar("Connected", null)
         })

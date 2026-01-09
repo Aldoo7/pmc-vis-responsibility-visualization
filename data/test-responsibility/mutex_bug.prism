@@ -1,0 +1,28 @@
+// Mutual Exclusion Bug - Missing Lock Check
+// Bug: Process 2 can enter critical section without checking lock
+// Expected: Both processes can be in critical section simultaneously
+
+mdp
+
+module process1
+    p1 : [0..3] init 0; // 0=idle, 1=trying, 2=critical, 3=exiting
+    lock : [0..1] init 0; // 0=free, 1=taken
+    
+    [try1] p1=0 -> (p1'=1);
+    [enter1] p1=1 & lock=0 -> (p1'=2) & (lock'=1); // acquire lock
+    [exit1] p1=2 -> (p1'=3);
+    [release1] p1=3 -> (p1'=0) & (lock'=0); // release lock
+endmodule
+
+module process2
+    p2 : [0..3] init 0;
+    
+    [try2] p2=0 -> (p2'=1);
+    // BUG: Missing lock check - can enter without checking
+    [enter2] p2=1 -> (p2'=2); // BUGGY - no "lock=0" guard and doesn't set lock
+    [exit2] p2=2 -> (p2'=3);
+    [release2] p2=3 -> (p2'=0);
+endmodule
+
+label "error" = (p1=2 & p2=2); // both in critical section
+label "safe" = !(p1=2 & p2=2);

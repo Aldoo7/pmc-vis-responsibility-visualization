@@ -4,7 +4,6 @@ import org.jdbi.v3.core.result.ResultIterator;
 import parser.ast.ExpressionProb;
 import parser.ast.PropertiesFile;
 import parser.ast.RelOp;
-import parser.type.TypeDouble;
 import prism.PrismException;
 import prism.Result;
 import prism.StateValues;
@@ -25,7 +24,6 @@ import java.math.BigInteger;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.Map;
-import java.util.Optional;
 
 public class Probability extends Property{
 

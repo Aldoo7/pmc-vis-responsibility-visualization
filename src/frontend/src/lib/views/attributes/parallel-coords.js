@@ -49,9 +49,6 @@ function parallelCoords(pane, data, metadata) {
         return returnable;
       });
     },
-    getOrder: () => {
-      return dimensions;
-    },
     redraw: () => {
       draw(pane, data);
     },
@@ -567,11 +564,6 @@ function parallelCoords(pane, data, metadata) {
             resp.scale.domain(dimensions);
             drawBrushed();
             g.attr('transform', (d) => resp.trans[orient] + position(d) + ')');
-
-            // ensure that new order is preserved on redraw:
-            const pld = {};
-            dimensions.forEach(key => pld[key] = metadata.pld[key]);
-            metadata.pld = pld;
           })
           .on('end', (_, d) => {
             delete dragging[d];

@@ -3,10 +3,19 @@ const vscode = require('vscode');
 const mathjs = require('mathjs');
 
 //Color used in Decorations
-const green = "#b3ffb3";
-const red = "#ff9999";
-const yellow = "#ffff99";
-const grey = "#f2f2f2";
+// NOTE: User requested swap: green now indicates blocked, red indicates allowed
+const green = "#b3ffb3"; // now: blocked action
+const red = "#ff9999";   // now: allowed action
+const yellow = "#ffff99"; // existing meaning: partially blocked action (local ok, global blocked)
+const grey = "#f2f2f2";  // variable highlight border
+
+// Responsibility heatmap colors (low -> high suspicion)
+const respCool = "#e1f5fe";      // very low responsibility (exonerated)
+const respLow = "#b3e5fc";
+const respMid = "#81d4fa";
+const respHigh = "#29b6f6";
+const respHot = "#0288d1";      // high responsibility (suspicious)
+const respMax = "#01579b";      // top responsibility (most suspicious)
 
 //RegExpressions used
 const constantRegExp = /^\s*const\s+(int|bool)\s+(\w+)\s*=\s*(.+?)\s*;$/
@@ -22,7 +31,7 @@ const moduleRegExp = /module\s+(\w*)(?:\s*=\s*(\w+))?(.*?)endmodule/gms
 const inactive = new vscode.ThemeIcon("issues");
 const active = new vscode.ThemeIcon("issue-closed");
 
-//Decoration Design
+//Decoration Design (colors swapped per user request)
 const allowedActionDecoration = vscode.window.createTextEditorDecorationType({
     borderWidth: '1px',
     borderStyle: 'solid',
@@ -30,13 +39,13 @@ const allowedActionDecoration = vscode.window.createTextEditorDecorationType({
     overviewRulerLane: vscode.OverviewRulerLane.Right,
     light: {
         // this color will be used in light color themes
-        borderColor: green,
-        backgroundColor: green
+        borderColor: red,
+        backgroundColor: red
     },
     dark: {
         // this color will be used in dark color themes
-        borderColor: green,
-        backgroundColor: green
+        borderColor: red,
+        backgroundColor: red
     }
 });
 
@@ -48,13 +57,13 @@ const blockedActionDecoration = vscode.window.createTextEditorDecorationType({
     overviewRulerLane: vscode.OverviewRulerLane.Right,
     light: {
         // this color will be used in light color themes
-        borderColor: red,
-        backgroundColor: red
+        borderColor: green,
+        backgroundColor: green
     },
     dark: {
         // this color will be used in dark color themes
-        borderColor: red,
-        backgroundColor: red
+        borderColor: green,
+        backgroundColor: green
     }
 });
 
@@ -89,6 +98,26 @@ const varDecoration = vscode.window.createTextEditorDecorationType({
     }
 });
 
+// Responsibility gradient decorations (overlays independent from action enablement)
+// We use subtle backgrounds so they can coexist; user may toggle later (future enhancement)
+function makeRespDecoration(color) {
+    return vscode.window.createTextEditorDecorationType({
+        borderWidth: '1px',
+        borderStyle: 'solid',
+        overviewRulerColor: color,
+        overviewRulerLane: vscode.OverviewRulerLane.Left,
+        light: { backgroundColor: color, borderColor: color },
+        dark: { backgroundColor: color + '80', borderColor: color }
+    });
+}
+
+const respDecoVeryLow = makeRespDecoration(respCool);
+const respDecoLow = makeRespDecoration(respLow);
+const respDecoMid = makeRespDecoration(respMid);
+const respDecoHigh = makeRespDecoration(respHigh);
+const respDecoHot = makeRespDecoration(respHot);
+const respDecoMax = makeRespDecoration(respMax);
+
 class Decorator {
     constructor() {
         this._constantDef = new Map();
@@ -105,6 +134,9 @@ class Decorator {
 
         this._onDidChangeTreeData = new vscode.EventEmitter();
         this.onDidChangeTreeData = this._onDidChangeTreeData.event;
+
+        // cache last responsibility mapping {componentId -> score}
+        this._componentResp = null;
     }
 
     parseDocument(activeEditor) {
@@ -125,6 +157,10 @@ class Decorator {
     }
 
     register(id) {
+        // When switching projects, clear previous responsibility overlay
+        if (this._projectID !== id) {
+            this.clearResponsibility();
+        }
         this._projectID = id;
         this.reloadPanel()
     }
@@ -144,23 +180,16 @@ class Decorator {
 
     updateInfo(activeEditor) {
 
-        console.log("updateInfo")
-
         let state = this._activeState[this._projectID];
-
-        console.log("activeState:")
-        console.log(state)
 
         if (!state || !this.matchVars(state.getState())) {
             activeEditor.setDecorations(allowedActionDecoration, []);
             activeEditor.setDecorations(blockedActionDecoration, []);
             activeEditor.setDecorations(partiallyBlockedActionDecoration, []);
             activeEditor.setDecorations(varDecoration, []);
-            console.log("fail")
             return;
         }
 
-        console.log("succeed")
         state = state.getState();
 
         const document = activeEditor.document;
@@ -258,7 +287,11 @@ class Decorator {
             }
         }
         activeEditor.setDecorations(varDecoration, varDeco);
-        console.log("new Decoration")
+
+        // Re-apply responsibility overlay if present
+        if (this._componentResp) {
+            this._applyResponsibility(activeEditor, this._componentResp);
+        }
     }
 
     //Gathers all action guards in the document
@@ -607,6 +640,107 @@ class Decorator {
     }
 
 }
+
+// Responsibility extension methods
+Decorator.prototype.updateResponsibility = function(activeEditor, componentResp) {
+    // Store for subsequent state changes
+    this._componentResp = componentResp;
+    if (!activeEditor) {
+        activeEditor = vscode.window.activeTextEditor;
+    }
+    if (!activeEditor) return;
+    this._applyResponsibility(activeEditor, componentResp);
+};
+
+Decorator.prototype.clearResponsibility = function() {
+    this._componentResp = null;
+    const activeEditor = vscode.window.activeTextEditor;
+    if (!activeEditor) return;
+    activeEditor.setDecorations(respDecoVeryLow, []);
+    activeEditor.setDecorations(respDecoLow, []);
+    activeEditor.setDecorations(respDecoMid, []);
+    activeEditor.setDecorations(respDecoHigh, []);
+    activeEditor.setDecorations(respDecoHot, []);
+    activeEditor.setDecorations(respDecoMax, []);
+};
+
+// Internal: map component IDs to document ranges heuristically
+Decorator.prototype._applyResponsibility = function(activeEditor, componentResp) {
+    if (!activeEditor || activeEditor.document.languageId !== 'mdp') return;
+    const text = activeEditor.document.getText();
+
+    // Build regex lists for modules, variables, actions
+    // Component naming conventions from backend:
+    // module_<name>, variable_<name>, action_<label>
+
+    const moduleRanges = new Map();
+    const moduleRegex = /module\s+(\w+)/gm;
+    let match;
+    while ((match = moduleRegex.exec(text))) {
+        const start = activeEditor.document.positionAt(match.index);
+        const end = activeEditor.document.positionAt(match.index + match[0].length);
+        moduleRanges.set(match[1], new vscode.Range(start, end));
+    }
+
+    const variableRanges = new Map();
+    const variableRegex = /(?:global\s+)?(\w+)\s*:\s*(?:\[.*?\]|bool).*?;/gm;
+    while ((match = variableRegex.exec(text))) {
+        const start = activeEditor.document.positionAt(match.index);
+        const end = activeEditor.document.positionAt(match.index + match[1].length);
+        variableRanges.set(match[1], new vscode.Range(start, end));
+    }
+
+    const actionRanges = new Map();
+    const actionRegex = /\[(\w+)\]\s*[^-]*->/gm;
+    while ((match = actionRegex.exec(text))) {
+        const start = activeEditor.document.positionAt(match.index);
+        const end = activeEditor.document.positionAt(match.index + match[0].length);
+        actionRanges.set(match[1], new vscode.Range(start, end));
+    }
+
+    // Buckets
+    const veryLow = [];
+    const low = [];
+    const mid = [];
+    const high = [];
+    const hot = [];
+    const max = [];
+
+    const pushDeco = (rangeList, range, id, score) => {
+        if (!range) return;
+        const hover = new vscode.MarkdownString(`Responsibility(${id}) = ${score.toFixed(3)}`);
+        hover.isTrusted = true;
+        rangeList.push({ range, hoverMessage: hover });
+    };
+
+    // Normalize scores 0..1 (backend already 0..1 but guard anyway)
+    for (const [id, val] of Object.entries(componentResp)) {
+        const score = Math.max(0, Math.min(1, val));
+        let range = null;
+        if (id.startsWith('module_')) {
+            range = moduleRanges.get(id.substring(7));
+        } else if (id.startsWith('variable_')) {
+            range = variableRanges.get(id.substring(9));
+        } else if (id.startsWith('action_')) {
+            range = actionRanges.get(id.substring(7));
+        }
+
+        if (!range) continue;
+        if (score >= 0.85)      pushDeco(max, range, id, score);
+        else if (score >= 0.70) pushDeco(hot, range, id, score);
+        else if (score >= 0.55) pushDeco(high, range, id, score);
+        else if (score >= 0.40) pushDeco(mid, range, id, score);
+        else if (score >= 0.25) pushDeco(low, range, id, score);
+        else                    pushDeco(veryLow, range, id, score);
+    }
+
+    activeEditor.setDecorations(respDecoVeryLow, veryLow);
+    activeEditor.setDecorations(respDecoLow, low);
+    activeEditor.setDecorations(respDecoMid, mid);
+    activeEditor.setDecorations(respDecoHigh, high);
+    activeEditor.setDecorations(respDecoHot, hot);
+    activeEditor.setDecorations(respDecoMax, max);
+};
 
 class StateItem extends vscode.TreeItem {
     constructor(label, number, parent, state = null) {

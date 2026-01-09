@@ -24,3 +24,34 @@ backend/server/.idea
 Artifact
 
 artifact-import-export/*.tar
+.notes/
+
+# Build artifacts and libraries
+*.class
+src/backend/server/lib/
+src/backend/server/target/
+src/backend/server/volume/
+src/backend/server/classpath.txt
+src/backend/server/pom.xml.dev-backup
+src/backend/prism
+
+# Startup scripts (local paths)
+start_server_direct.sh
+start_frontend.sh
+
+# PID file
+.pmc-vis.pids
+
+# Test files
+TestLibrary.java
+
+# PRISM generated files
+**/*_results.sta
+**/*_results.tra
+**/*_results.lab
+**/*_results.srew
+**/*_results.trew
+**/*_results.all
+
+# Temporary files
+**/pmc-vis/

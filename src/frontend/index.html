@@ -56,94 +56,251 @@
 
   <div id="config" class="config ui padded grid">
     <div class="ui column">
-      <h3 class="label label-info">Legend </h3>
-      <div style="display:flex">
-        <div style="float:right">  
+      <!-- RESPONSIBILITY ANALYSIS SECTION - First -->
+      <h3 class="label label-info">Responsibility Analysis</h3>
+      
+      <div class="param">
+        <p class="label inline label-info">Mode</p>
+        <select id="resp-mode" class="ui dropdown">
+          <option value="optimistic">Optimistic</option>
+          <option value="pessimistic">Pessimistic</option>
+        </select>
+        <small style="color:#888">Optimistic: states can cooperate | Pessimistic: worst-case individual blame</small>
+      </div>
+
+      <div class="param">
+        <p class="label inline label-info">Power Index</p>
+        <select id="resp-power-index" class="ui dropdown">
+          <option value="shapley" selected>Shapley Value</option>
+          <option value="banzhaf">Banzhaf Index</option>
+          <option value="custom">Custom</option>
+        </select>
+        <small style="color:#888">Method for computing responsibility values</small>
+      </div>
+
+      <div class="buttons param">
+        <button class="ui button" id="resp-start">
+          <i class="fa-solid fa-play"></i> Start
+        </button>
+        <button class="ui button" id="resp-cancel" disabled>
+          <i class="fa-solid fa-stop"></i> Cancel
+        </button>
+        <button class="ui button" id="resp-clear">
+          <i class="fa-solid fa-eraser"></i> Clear
+        </button>
+      </div>
+
+      <div id="resp-status" class="param" style="display: none;">
+        <p class="label inline label-info">Status: <span id="resp-status-text">Ready</span></p>
+      </div>
+
+      <!-- CRITICAL SUSPECTS (RED NODES) PANEL -->
+      <details class="param" style="border:2px solid #e74c3c; border-radius:8px; padding:10px; margin:12px 0; background:#fff5f5" open>
+        <summary style="cursor:pointer; font-weight:bold; color:#e74c3c; user-select:none; font-size:1.05em">
+          🔴 Critical Suspects (<span id="red-nodes-count">0</span> red nodes)
+        </summary>
+        <div id="red-nodes-container" style="max-height:160px; overflow-y:auto; margin-top:10px">
+          <ul id="red-nodes-list" style="list-style:none; padding:0; margin:0; font-size:0.9em">
+            <li style="color:#888; padding:6px; font-style:italic">No high-responsibility nodes yet</li>
+          </ul>
+        </div>
+      </details>
+
+      <!-- STATE RESPONSIBILITY TABLE -->
+      <div class="ui divider"></div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
+        <h4 class="label label-info" style="margin:0">State Responsibility (Top 10)</h4>
+        <button id="copy-state-resp-btn" class="ui mini button" style="padding:6px 12px; font-size:0.85em" title="Copy state values to clipboard">
+          Copy
+        </button>
+      </div>
+      <div class="param">
+        <small id="state-hint" style="color:#888">
+          Individual state responsibility values for comparison.<br>
+          <span style="color:#ff8c00">Tip: Only states visible in the graph can be colored. Click nodes to expand and see more states.</span>
+        </small>
+      </div>
+      <div id="state-resp-container" class="param" style="max-height:300px; overflow:auto; border:1px solid #eee; border-radius:6px">
+        <table id="state-resp-table" class="ui very basic compact table" style="width:100%; font-family:monospace; font-size:0.85em">
+          <thead>
+            <tr>
+              <th style="width:30%">State</th>
+              <th style="width:40%; text-align:right">Value</th>
+              <th style="width:30%; text-align:right">%</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="3" style="color:#888; text-align:center">No data yet</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- MODE COMPARISON PANEL -->
+      <details class="param" style="border:2px solid #9c27b0; border-radius:8px; padding:10px; margin:12px 0; background:#f3e5f5">
+        <summary style="cursor:pointer; font-weight:bold; color:#9c27b0; user-select:none; font-size:1.05em">
+          Compare All Modes <span id="comparison-status" style="font-size:0.85em; color:#666; margin-left:10px; display:none"></span>
+        </summary>
+        <div style="margin-top:10px">
+          <p style="font-size:0.85em; color:#555; margin-bottom:10px">
+            Compare Shapley vs Banzhaf × Optimistic vs Pessimistic.
+          </p>
+          <div style="display:flex; gap:8px; margin-bottom:10px">
+            <button class="ui mini button" id="resp-compare-all" style="background:#9c27b0; color:white">
+              <i class="fa-solid fa-table-columns"></i> Compare All
+            </button>
+            <button class="ui mini button" id="export-comparison-csv" title="Export as CSV">
+              <i class="fa-solid fa-download"></i> CSV
+            </button>
+          </div>
+          <div id="comparison-container" style="max-height:280px; overflow:auto; border:1px solid #ddd; border-radius:4px; background:white">
+            <table id="comparison-table" class="ui very basic compact table" style="width:100%; font-family:monospace; font-size:0.8em; margin:0">
+              <thead style="position:sticky; top:0; background:white; z-index:1">
+                <tr>
+                  <th style="width:12%">State</th>
+                  <th style="width:22%; text-align:right; color:#1976d2" title="Shapley Optimistic">Shap-O</th>
+                  <th style="width:22%; text-align:right; color:#1976d2" title="Shapley Pessimistic">Shap-P</th>
+                  <th style="width:22%; text-align:right; color:#388e3c" title="Banzhaf Optimistic">Banz-O</th>
+                  <th style="width:22%; text-align:right; color:#388e3c" title="Banzhaf Pessimistic">Banz-P</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td colspan="5" style="color:#888; text-align:center; padding:20px">Click "Compare All" to compute all 4 modes</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </details>
+
+      <!-- RESPONSIBILITY THRESHOLD FILTER -->
+      <div class="param" style="border:1px solid #ddd; border-radius:8px; padding:12px; margin:12px 0; background:#fafafa">
+        <p class="label inline" style="margin-bottom:8px; font-weight:bold; color:#555">Threshold Filter</p>
+        <div>
+          <label for="resp-threshold" style="font-size:0.9em; color:#555">
+            Show states with responsibility ≥ <span id="resp-threshold-value" style="font-weight:bold; color:#4887b9">0%</span>
+          </label>
+          <input type="range" id="resp-threshold" min="0" max="100" value="0" step="1" 
+                 style="width:100%; margin-top:4px" 
+                 title="Filter states by minimum responsibility value">
+          <div style="display:flex; justify-content:space-between; font-size:0.75em; color:#888; margin-top:2px">
+            <span>0%</span>
+            <span>50%</span>
+            <span>100%</span>
+          </div>
+        </div>
+        <div id="filter-stats" style="margin-top:8px; font-size:0.85em; color:#666; display:none">
+          <strong>Showing:</strong> <span id="filtered-count">0</span> states
+        </div>
+      </div>
+
+      <!-- COMPONENT RESPONSIBILITY PANEL -->
+      <div class="ui divider"></div>
+      <h4 class="label label-info">Component responsibility</h4>
+      <div class="param">
+        <small id="comp-hint" style="color:#888">Aggregated from state responsibilities (heuristic); click Start to refresh</small>
+      </div>
+      <div id="component-resp-container" class="param" style="max-height:220px; overflow:auto; border:1px solid #eee; border-radius:6px">
+        <table id="component-resp-table" class="ui very basic compact table" style="width:100%;">
+          <thead>
+            <tr>
+              <th style="width:55%">Component</th>
+              <th style="width:15%; text-align:right">Value</th>
+              <th style="width:30%">Scale</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="3" style="color:#888; text-align:center">No data yet</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="ui divider"></div>
+
+      <!-- LEGEND SECTION - Second -->
+      <h3 class="label label-info">Legend</h3>
+      <div style="display:flex; gap:15px; flex-wrap:wrap">
+        <div style="flex:1; min-width:120px">  
           <b>Nodes</b>
-          <div style="display:flex">
+          <div style="display:flex; align-items:center; margin:4px 0">
             <span class="legend-node unvisited"></span>
-            <p class="legend-p">State (collapsed) </p>
+            <p class="legend-p">State (collapsed)</p>
           </div>
-          <div style="display:flex">
+          <div style="display:flex; align-items:center; margin:4px 0">
             <span class="legend-node visited"></span>
-            <p class="legend-p">State (expanded) </p>
+            <p class="legend-p">State (expanded)</p>
           </div>
-          <div style="display:flex">
+          <div style="display:flex; align-items:center; margin:4px 0">
             <span class="legend-node actions"></span>
             <p class="legend-p">Action</p>
           </div>
+
+          <div style="margin-top:10px">
+            <b>Selections</b>
+            <div style="display:flex; align-items:center; margin:4px 0">
+              <span class="legend-node states-selected"></span>
+              <p class="legend-p">States</p>
+            </div>
+            <div style="display:flex; align-items:center; margin:4px 0">
+              <span class="legend-node actions-selected"></span>
+              <p class="legend-p">Actions</p>
+            </div>
+          </div>
         </div>
 
-        <div style="margin-left:15px">
-          <b>Selections</b>
-          <div style="display:flex">
-            <span class="legend-node states-selected"></span>
-            <p class="legend-p">States</p>
+        <div style="flex:1; min-width:120px">
+          <b>Responsibility</b>
+          <div style="display:flex; align-items:center; margin:4px 0">
+            <span class="legend-node resp-high"></span>
+            <p class="legend-p">High (&gt;70%)</p>
           </div>
-          <div style="display:flex">
-            <span class="legend-node actions-selected"></span>
-            <p class="legend-p">Actions</p>
+          <div style="display:flex; align-items:center; margin:4px 0">
+            <span class="legend-node resp-medium"></span>
+            <p class="legend-p">Medium (&gt;40%)</p>
           </div>
+          <div style="display:flex; align-items:center; margin:4px 0">
+            <span class="legend-node resp-low"></span>
+            <p class="legend-p">Low (≤40%)</p>
+          </div>
+
         </div>
       </div>
-      <br>
-      <div>
+
+      <div style="margin-top:10px">
         <b>Edges</b>
-        <div style="display:flex">
+        <div style="display:flex; align-items:center; margin:4px 0">
           <span class="legend-edge chosen-edge"></span>
           <p class="legend-p">Recommended path(s)</p>
         </div>
-        <div style="display:flex">
+        <div style="display:flex; align-items:center; margin:4px 0">
           <span class="legend-edge not-chosen-edge"></span>
           <p class="legend-p">Other path(s)</p>
         </div>
       </div>
 
-      <div id="info-box">
+      <div class="ui divider"></div>
 
-      </div>
+      <!-- GENERAL SETTINGS SECTION - Third -->
+      <h3 class="label label-info">General Settings</h3>
 
       <div class="param">
-        <p class="label inline label-info">Max # of panes</p> </br>
+        <p class="label inline label-info">Max # of panes</p>
         <input type="number" name="numberOfPanes" id="numberOfPanes" value="5" min="1">
       </div>
 
       <div class="param">
-        <p class="label inline label-info">Max # of nodes per pane</p> </br>
+        <p class="label inline label-info">Max # of nodes per pane</p>
         <input type="number" name="nodesPerPane" id="nodesPerPane" value="1000" min="100">
       </div>
 
-      <div class="ui negative message to-do">
-        <i class="close icon"></i>
-        <div class="header">
-          TODO: Missing / potential controls: 
-        </div>  
-        <ul class="list">
-          <li>buttons to pan/zoom/maximize/minimize/remove panes (in the graph part of the pane)</li>
-          <li>choose what happens to destroyed panes (save in db, save in file, forget) </li>
-          <li>toggle replace alert (popup / modals) with less obtrusive messages (like this one) </li>
-        </ul> 
-      </div>
+      <div id="info-box"></div>
 
       <div class="ui divider"></div>
 
-      <h3 class="label label-info cy-config">Model Settings</h3>
-      
-      <div class="ui negative message to-do">
-        <i class="close icon"></i>
-        <div class="header">
-          TODO: Missing / potential controls: 
-        </div>  
-        <ul class="list">
-          <li>[MUST] select: lens / level-of-detail / abstraction </li>
-        </ul>
-      </div>
+      <!-- MODEL SETTINGS SECTION - Fourth -->
+      <h3 class="label label-info">Model Settings</h3>
       
       <div id="props-config">
         <!-- layout specific options are appended here-->
       </div>
-    
-      <div class="ui divider"></div>
 
       <h3 class="label label-info">Node-link Diagram </h3>
       

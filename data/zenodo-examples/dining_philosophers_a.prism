@@ -1,0 +1,81 @@
+mdp
+
+// N = 3
+// n philosophers P1 ... PN
+// n forks F1 ... FN
+// Seating order: F1 - P1 - F2 - ... - FN - PN
+
+label "sbad" = !f1 & !f2 & !f3 & !(p1l & p1r) & !(p2l & p2r) & !(p3l & p3r);
+label "error" = !f1 & !f2 & !f3 & !(p1l & p1r) & !(p2l & p2r) & !(p3l & p3r); // for PMCVis compatibility
+
+label "p1" = p1l | p1r;
+label "p2" = p2l | p2r;
+label "p3" = p3l | p3r;
+
+// label "zero" = !f1 & !f2 & !f3;
+// label "one" = (f1 & !f2 & !f3) | (!f1 & f2 & !f3) | (!f1 & !f2 & f3);
+// label "two" = (f1 & f2 & !f3) | (!f1 & f2 & f3) | (f1 & !f2 & f3);
+// label "three" = f1 & f2 & f3;
+
+module P1
+    p1l: bool init false;
+    p1r: bool init false;
+
+    e1: bool init false;
+
+    [TakeF1P1] !p1l -> (p1l'= true);
+    [TakeF2P1] !p1r -> (p1r'= true);
+    [] p1l & p1r & !e1 -> (e1'= true);
+    [ReturnP1] p1l & p1r & e1 -> (p1l'= false) & (p1r'= false) & (e1'= false);
+endmodule
+
+module P2
+    p2l: bool init false;
+    p2r: bool init false;
+
+    e2: bool init false;
+
+    [TakeF2P2] !p2l -> (p2l'= true);
+    [TakeF3P2] !p2r -> (p2r'= true);
+    [] p2l & p2r & !e2 -> (e2'= true);
+    [ReturnP2] p2l & p2r & e2 -> (p2l'= false) & (p2r'= false) & (e2'= false);
+endmodule
+
+module P3
+    p3l: bool init false;
+    p3r: bool init false;
+
+    e3: bool init false;
+
+    [TakeF3P3] !p3l -> (p3l'= true);
+    [TakeF1P3] !p3r -> (p3r'= true);
+    [] p3l & p3r & !e3 -> (e3'= true);
+    [ReturnP3] p3l & p3r & e3 -> (p3l'= false) & (p3r'= false) & (e3'= false);
+endmodule
+
+module F1
+    f1: bool init true;
+
+    [TakeF1P1] f1 -> (f1'= false);
+    [TakeF1P3] f1 -> (f1'= false);
+    [ReturnP1] !f1 -> (f1'= true);
+    [ReturnP3] !f1 -> (f1'= true);
+endmodule
+
+module F2
+    f2: bool init true;
+
+    [TakeF2P2] f2 -> (f2'= false);
+    [TakeF2P1] f2 -> (f2'= false);
+    [ReturnP2] !f2 -> (f2'= true);
+    [ReturnP1] !f2 -> (f2'= true);
+endmodule
+
+module F3
+    f3: bool init true;
+
+    [TakeF3P3] f3 -> (f3'= false);
+    [TakeF3P2] f3 -> (f3'= false);
+    [ReturnP3] !f3 -> (f3'= true);
+    [ReturnP2] !f3 -> (f3'= true);
+endmodule

@@ -21,20 +21,24 @@ public class SocketServer implements AutoCloseable {
     private boolean excludeSender = true;
 
     public SocketServer(PRISMServerConfiguration configuration)  {
+        logger.info("Creating SocketServer with port={}, host={}", 
+            configuration.getSocketPort(), configuration.getSocketHost());
         Configuration config = new Configuration();
         config.setPort(configuration.getSocketPort());
         config.setHostname(configuration.getSocketHost());
 
         server = new SocketIOServer(config);
 
+
+
         server.addConnectListener(
                 (client) -> {
-                    logger.info("Client has Connected!");
+                    logger.info("Socket.IO client connected: {}", client.getSessionId());
                 });
 
         server.addDisconnectListener(
                 (client) -> {
-                    logger.info("Client has Disconnected!");
+                    logger.info("Socket.IO client disconnected: {}", client.getSessionId());
                 });
 
         //Equivalent to server.on()
@@ -52,14 +56,6 @@ public class SocketServer implements AutoCloseable {
                 });
 
         this.addEventBroadcast(EVENT_STATE_SELECTED);
-        this.addEventBroadcast("pane added");
-        this.addEventBroadcast("pane removed");
-        this.addEventBroadcast("overview node clicked");
-        this.addEventBroadcast("overview nodes selected");
-        this.addEventBroadcast("handle selection");
-        this.addEventBroadcast("duplicate pane ids");
-        this.addEventBroadcast("active pane");
-        this.addEventBroadcast("reset pane-node markings");
     }
 
     public void addEventBroadcast(String event) {
@@ -76,6 +72,7 @@ public class SocketServer implements AutoCloseable {
     }
 
     public void addEventListener(String event, Class objectClass, DataListener listener) {
+        logger.info("Registering Socket.IO event listener for: '{}'", event);
         server.addEventListener(event, objectClass, listener);
     }
 
@@ -85,13 +82,16 @@ public class SocketServer implements AutoCloseable {
     }
 
     public void open() throws InterruptedException {
+        logger.info("Starting Socket.IO server...");
         boolean connected = false;
         int waittime = 3000;
         while(!connected)
         try{
             this.server.start();
             connected = true;
+            logger.info("Socket.IO server started successfully on port {}", server.getConfiguration().getPort());
         }catch (Exception e){
+            logger.error("Failed to start Socket.IO server: {}", e.getMessage());
             logger.info(String.format("retrying connection in %s miliseconds", waittime));
             Thread.sleep(waittime);
             connected = false;

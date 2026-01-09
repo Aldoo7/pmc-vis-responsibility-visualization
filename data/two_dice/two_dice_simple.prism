@@ -1,0 +1,33 @@
+mdp
+
+// Simplified two-dice model that stays under 64 states for exact responsibility computation.
+// Each die now has only 3 possible outcomes (1, 2, 3) instead of 6.
+// This reduces state space while preserving the symmetric actor structure.
+
+label "error" = s1=3 & s2=3 & d1=1 & d2=1; // both dice roll 1 (snake eyes)
+
+module die1
+    s1 : [0..3] init 0;  // reduced from [0..7]
+    d1 : [0..3] init 0;  // reduced from [0..6]
+
+    // Simplified state machine with deterministic transitions
+    [d1_0a] s1=0 -> (s1'=1);
+    [d1_0b] s1=0 -> (s1'=2);
+
+    [d1_1a] s1=1 -> (s1'=3) & (d1'=1);
+    [d1_1b] s1=1 -> (s1'=3) & (d1'=2);
+
+    [d1_2a] s1=2 -> (s1'=3) & (d1'=3);
+    [d1_2b] s1=2 -> (s1'=1);
+
+    [] s1=3 & s2=3 -> (s1'=3);  // both dice finished
+endmodule
+
+module die2 = die1 [ s1=s2, s2=s1, d1=d2,
+                      d1_0a=d2_0a, d1_0b=d2_0b,
+                      d1_1a=d2_1a, d1_1b=d2_1b,
+                      d1_2a=d2_2a, d1_2b=d2_2b ] endmodule
+
+rewards "coin_flips"
+    [] !(s1=3 & s2=3) : 1;
+endrewards

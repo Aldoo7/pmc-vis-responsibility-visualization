@@ -1,0 +1,50 @@
+// Buggy Dining Philosophers - Missing Guard Causing Deadlock
+// Bug: Philosopher 1 missing guard to prevent picking up both forks simultaneously
+// Expected: Deadlock state reachable violating liveness property
+
+mdp
+
+// Philosopher states: 0=thinking, 1=hungry, 2=has_left_fork, 3=eating
+module phil1
+	p1 : [0..3] init 0;
+	
+	[think1] p1=0 -> (p1'=1); // become hungry
+	
+	// BUG: Missing guard "f1=0 & f2=0" - should check both forks available
+	// This allows phil1 to pick left fork even if right fork taken, causing deadlock
+	[left1]  p1=1 & f1=0 -> (p1'=2) & (f1'=1); // pick left fork (BUGGY - no check for f2)
+	
+	[right1] p1=2 & f2=0 -> (p1'=3) & (f2'=1); // pick right fork
+	[eat1]   p1=3 -> (p1'=0) & (f1'=0) & (f2'=0); // finish eating, release forks
+endmodule
+
+module phil2
+	p2 : [0..3] init 0;
+	
+	[think2] p2=0 -> (p2'=1);
+	[left2]  p2=1 & f2=0 -> (p2'=2) & (f2'=1); // pick left fork
+	[right2] p2=2 & f3=0 -> (p2'=3) & (f3'=1); // pick right fork
+	[eat2]   p2=3 -> (p2'=0) & (f2'=0) & (f3'=0);
+endmodule
+
+module phil3
+	p3 : [0..3] init 0;
+	
+	[think3] p3=0 -> (p3'=1);
+	[left3]  p3=1 & f3=0 -> (p3'=2) & (f3'=1); // pick left fork
+	[right3] p3=2 & f1=0 -> (p3'=3) & (f1'=1); // pick right fork
+	[eat3]   p3=3 -> (p3'=0) & (f3'=0) & (f1'=0);
+endmodule
+
+// Fork status: 0=available, 1=taken
+module forks
+	f1 : [0..1] init 0;
+	f2 : [0..1] init 0;
+	f3 : [0..1] init 0;
+endmodule
+
+// Deadlock occurs when:
+// p1=2 (has f1), p2=2 (has f2), p3=2 (has f3)
+// All waiting for right fork that's already taken
+label "error" = (p1=2 & p2=2 & p3=2); // Deadlock state - used by responsibility tool
+label "eating" = (p1=3 | p2=3 | p3=3);

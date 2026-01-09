@@ -80,7 +80,7 @@ public interface Namespace {
 
     String LABEL_END = "end";
 
-    String DEFAULT_STYLE =  "init:fa-solid fa-right-from-bracket\n" +
+    String DEFAULT_STYLE =  "init:fa-solid fa-arrow-right\n" +
                             "deadlock:fa-solid fa-rotate-right";
 
     String ENTRY_C_BLANK = "__BLANK__";
@@ -98,8 +98,6 @@ public interface Namespace {
     String TYPE_COMP = "computing";
 
     String EVENT_STATUS = "MC_STATUS";
-
-    String EVENT_RESET = "MODEL_RESET";
 
     static String getLanguage(String filename){
         String language = filename.substring(filename.lastIndexOf(".") + 1);

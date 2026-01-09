@@ -4,6 +4,7 @@ import { spawnGraph } from '../views/graph/node-link.js';
 import { PROJECT } from '../utils/controls.js';
 import { CONSTANTS } from '../utils/names.js';
 import { socket } from '../views/imports/import-socket.js';
+import { initResponsibilityControls } from '../views/responsibility/responsibility-controls.js';
 
 let BACKEND = import.meta.env.VITE_BACKEND_RESTFUL;
 
@@ -88,8 +89,6 @@ const interval = setInterval(async () => {
   if (socket.connected) {
     clearInterval(interval);
     start();
-  } else {
-    console.log('waiting for socket...');
   }
 }, 50);
 
@@ -99,7 +98,6 @@ async function start() {
 
   Promise.all([
     fetch(`${BACKEND}/${PROJECT}/initial`).then(r => r.json()),
-    // fetch(BACKEND + PROJECT).then((res) => res.json()), // requests entire dataset
   ]).then((promises) => {
     const data = promises[0];
     const nodesIds = data.nodes
@@ -112,13 +110,18 @@ async function start() {
       document.getElementById('project-id').innerHTML = info.id;
     }
 
-    const firstPaneId = 'pane-0';
-    const pane = spawnPane(
-      { id: firstPaneId },
-      nodesIds,
-    );
+    // If panes already exist, spawn new pane instead of reusing pane-0 to keep previous project visible
+    const existingPanes = Object.keys(getPanes());
+    const paneConfig = existingPanes.length === 0
+      ? { id: 'pane-0' }
+      : { id: null }; // null -> auto assign next id in panes.js
 
+    const pane = spawnPane(paneConfig, nodesIds);
     spawnGraph(pane, data, params);
+
+    // Initialize responsibility controls on every page load
+    // This ensures event listeners work even after backend restarts
+    initResponsibilityControls();
   });
 }
 

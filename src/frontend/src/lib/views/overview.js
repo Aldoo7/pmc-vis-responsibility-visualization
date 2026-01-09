@@ -1,6 +1,6 @@
 import { overviewStylesheet } from '../style/views/cy-style.js';
 import { h, t } from '../utils/utils.js';
-import { params } from './graph/layout-options/klay.js';
+import { params } from './graph/layout-options/elk.js';
 import { cytoscape } from './imports/import-cytoscape.js';
 import { socket } from './imports/import-socket.js';
 

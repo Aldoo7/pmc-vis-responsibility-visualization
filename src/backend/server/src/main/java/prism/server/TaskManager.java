@@ -17,6 +17,7 @@ import prism.core.Namespace;
 import prism.core.Project;
 import prism.db.Database;
 import prism.resources.Resource;
+import prism.responsibility.ResponsibilitySocketHandler;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -40,15 +41,31 @@ public class TaskManager implements Executor, Managed {
     public AtomicBoolean refreshing = new AtomicBoolean();
 
     private final SocketServer socketServer;
+    private final ResponsibilitySocketHandler responsibilityHandler;
 
     private final Map<String, Project> activeProjects;
 
     public TaskManager(Environment environment, PRISMServerConfiguration configuration) {
+        logger.info("TaskManager constructor starting...");
         this.environment = environment;
         this.configuration = configuration;
         this.executor = Executors.newSingleThreadExecutor();
+        logger.info("Creating SocketServer...");
         this.socketServer =  new SocketServer(configuration);
+        logger.info("SocketServer created");
         this.activeProjects = new HashMap<>();
+
+        // Initialize responsibility features with external tool (path via ENV)
+        String respToolPath = System.getenv("RESP_TOOL_PATH");
+        if (respToolPath == null || respToolPath.trim().isEmpty()) {
+            logger.warn("RESP_TOOL_PATH not set - responsibility engine will run in MOCK mode until configured");
+            respToolPath = "mock"; // ResponsibilityEngine interprets this as mock mode
+        } else {
+            logger.info("Responsibility tool path: {}", respToolPath);
+        }
+        logger.info("Creating ResponsibilitySocketHandler...");
+        this.responsibilityHandler = new ResponsibilitySocketHandler(this.socketServer, respToolPath);
+        logger.info("Responsibility features initialized (tool path: {})", respToolPath);
 
         this.socketServer.addEventListener(Namespace.EVENT_STATUS, String.class, (client, data, ackRequest) -> {
             String id = (String) data;
@@ -73,6 +90,7 @@ public class TaskManager implements Executor, Managed {
         this.configuration = null;
         this.executor = Executors.newSingleThreadExecutor();
         this.socketServer = null;
+        this.responsibilityHandler = null;  // No responsibility handler in empty constructor
         this.activeProjects = new HashMap<>();
     }
 
@@ -97,6 +115,10 @@ public class TaskManager implements Executor, Managed {
     @Override
     public void stop() throws Exception {
         try {
+            // Shutdown responsibility handler first
+            if (this.responsibilityHandler != null) {
+                this.responsibilityHandler.shutdown();
+            }
             this.socketServer.close();
             this.executor.shutdownNow();
         } catch (Exception e) {
@@ -181,7 +203,6 @@ public class TaskManager implements Executor, Managed {
     public void resetProject(String projectID) throws Exception {
         this.clearDatabase(projectID);
         Project resetProject = Project.reset(activeProjects.get(projectID));
-        socketServer.send(Namespace.EVENT_RESET, projectID);
         activeProjects.put(projectID, resetProject);
     }
 

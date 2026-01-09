@@ -96,7 +96,6 @@ class ConnectionViewProvider {
                 if (document.languageId == "mdp" && document.uri.scheme == "virtual") {
                     const project = document.uri.path.split("/")[1];
 
-                    console.log("register " + project)
                     this._decorator.register(project);
                     this._decorator.parseDocument(activeEditor);
                     this._decorator.updateInfo(activeEditor);
@@ -113,7 +112,6 @@ class ConnectionViewProvider {
         if (activeEditor) {
             const document = activeEditor.document;
             if (document.languageId == "mdp" && document.uri.scheme == "virtual" && this._decorator.checkRegistration(id)) {
-                console.log(id)
                 this._decorator.updateInfo(activeEditor);
             }
         }
@@ -180,13 +178,11 @@ class ConnectionItem extends vscode.TreeItem {
         super(label, vscode.TreeItemCollapsibleState.None);
         this._children = [];
         this._document = undefined;
-        this._saving = true;
 
         if (parent) {
             this.contextValue = "File"
             this.projectID = parent.projectID;
             this._position = position;
-            this.openDocument(false);
 
             this.command = {
                 title: label,
@@ -251,7 +247,6 @@ class ConnectionItem extends vscode.TreeItem {
                 async (response) => {
                     if (response.ok) {
                         //vscode.window.showInformationMessage(response.statusText) // Handle the success response object
-                        console.log("Uploaded", this.label)
                     } else {
                         const t = await response.text();
                         throw new Error(`Error: ${t}`);
@@ -266,7 +261,7 @@ class ConnectionItem extends vscode.TreeItem {
         vscode.env.openExternal(vscode.Uri.parse(`http://localhost:3000/?id=${this.projectID}`));
     }
 
-    async openDocument(show = true) {
+    async openDocument() {
         if (this.contextValue == "File") {
             if (!this._document) {
                 await fetch(`http://${constants.ADDRESS}:8080/${this.projectID}/file:${this._position}`, {
@@ -277,18 +272,14 @@ class ConnectionItem extends vscode.TreeItem {
                     // @ts-ignore
                     async data => {
                         const uri = vscode.Uri.parse(`virtual:/${this.projectID}/${data['name']}`);
-                        this._saving = false;
                         await vscode.workspace.fs.writeFile(uri, Buffer.from(data['content']));
                         this._document = await vscode.workspace.openTextDocument(uri);
-                        this.resourceUri = uri;
-                        this._saving = true;
                     }).catch(
                         error => vscode.window.showErrorMessage(error)
                     );
             }
-            if (show) {
-                await vscode.window.showTextDocument(this._document)
-            }
+            await vscode.window.showTextDocument(this._document)
+
             return this._document
         }
     }
@@ -317,10 +308,6 @@ class ConnectionItem extends vscode.TreeItem {
     }
 
     async onSave(content) {
-        if (this._saving)
-            if (await vscode.window.showInformationMessage("Are you sure you want to save a new file? This will rebuild the model.", "Yes", "No") == "No") {
-                return
-            }
         let call;
         switch (String(this._document.languageId)) {
             case "mdp":
@@ -348,7 +335,6 @@ class ConnectionItem extends vscode.TreeItem {
             async (response) => {
                 if (response.ok) {
                     //vscode.window.showInformationMessage(response.statusText)
-                    console.log("Saved ", this.label)
                 } else {
                     const t = await response.text();
                     throw new Error(`Error: ${t}`);

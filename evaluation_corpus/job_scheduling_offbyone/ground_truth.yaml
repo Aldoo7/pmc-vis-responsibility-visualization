@@ -1,0 +1,46 @@
+model_id: job_scheduling_offbyone
+description: "Off-by-one error in queue capacity guard allows overflow"
+
+bug_location:
+  module: scheduler
+  state_condition: "queue <= MAX_QUEUE"
+  line_number: 12
+  component: guard_condition
+  specific_element: "[arrive] guard uses <= instead of <"
+
+bug_type: logic_error_offbyone
+severity: medium
+
+property_violated: "Pmax=? [ F \"overflow\" ]"
+violation_details:
+  expected_value: 0.0
+  actual_value: ">0.0"
+  explanation: "Queue can exceed MAX_QUEUE capacity due to <= allowing 4 items in 3-capacity queue"
+
+expected_top_components:
+  - name: module_scheduler
+    rank: 1
+    expected_responsibility: [0.85, 1.0]
+    rationale: "Contains the buggy guard condition"
+  
+  - name: action_arrive
+    rank: 2
+    expected_responsibility: [0.75, 0.95]
+    rationale: "Action with incorrect guard"
+  
+  - name: variable_queue
+    rank: 3
+    expected_responsibility: [0.65, 0.85]
+    rationale: "Variable involved in buggy comparison"
+
+repair_suggestion: |
+  Change the guard condition from <= to <:
+  Change:  [arrive] queue <= MAX_QUEUE -> ...
+  To:      [arrive] queue < MAX_QUEUE -> ...
+  
+  This prevents accepting a job when queue is already at maximum capacity.
+
+test_status: ready
+notes: |
+  Classic off-by-one error in boundary condition.
+  Demonstrates how subtle logic errors in guards can violate safety properties.

@@ -1,0 +1,8 @@
+// Properties for two_dice model with error label
+
+// Probability of snake eyes (error state)
+"ProbSnakeEyes": P=? [ F "error" ];
+
+// Minimum/maximum expected coin flips to finish
+"costmin": Rmin=? [ F s1=7 & s2=7 ];
+"costmax": Rmax=? [ F s1=7 & s2=7 ];

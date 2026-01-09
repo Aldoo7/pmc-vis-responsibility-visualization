@@ -85,7 +85,7 @@ public class OutActIdentView extends View {
 
         Set<State> states = model.getStates(model.getAllStates())
                 .stream()
-                .filter(state -> relevantStates.contains(state.getNumId()))
+                .filter(state -> relevantStates.contains(Long.parseLong(state.getNumId())))
                 .collect(Collectors.toSet());
 
         // WEAK identity requires that the set of actions must be identical - THE QUANTITY OF AN ACTION DOES NOT MATTER

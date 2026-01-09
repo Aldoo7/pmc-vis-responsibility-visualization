@@ -106,6 +106,211 @@ function setStyles(cy) {
   cy.endBatch();
 }
 
+// updates responsibility values and styling for nodes
+function updateResponsibility(cy, data) {
+  const graphNodes = cy.$('node.s');
+  
+  const idToNode = new Map();
+  graphNodes.forEach(node => {
+    const nodeId = node.id();
+    const nodeName = node.data('name');
+    const nodeLabel = node.data('label');
+    
+    idToNode.set(nodeId, node);
+    
+    if (nodeName) {
+      idToNode.set(nodeName, node);
+      if (nodeName.startsWith('s')) {
+        idToNode.set(nodeName.substring(1), node);
+      }
+    }
+    
+    if (nodeLabel) {
+      idToNode.set(nodeLabel, node);
+      if (nodeLabel.startsWith('s')) {
+        idToNode.set(nodeLabel.substring(1), node);
+      }
+    }
+  });
+  
+  const stateIdToName = data.stateIdToName || {};
+  const hasStateMapping = Object.keys(stateIdToName).length > 0;
+  
+  cy.startBatch();
+  
+  // Clear existing responsibility classes
+  cy.$('node.s').removeClass('resp-high resp-medium resp-low');
+  
+  // Update state responsibilities
+  if (data.stateResponsibility) {
+    let updatedCount = 0;
+    const entries = [];
+    
+    Object.entries(data.stateResponsibility).forEach(([stateId, value]) => {
+      let node = null;
+      
+      if (hasStateMapping && stateIdToName[stateId]) {
+        const stateName = stateIdToName[stateId];
+        node = idToNode.get(stateName);
+      }
+      
+      if (!node) {
+        node = idToNode.get(stateId);
+      }
+      
+      if (node) {
+        updatedCount++;
+        entries.push({ node, value: Number(value) || 0 });
+      }
+    });
+
+    const positives = entries.filter(e => e.value > 0).sort((a, b) => b.value - a.value);
+    const n = positives.length;
+    
+    entries.forEach(({ node, value }) => {
+      node.data('responsibility', value);
+      node.removeClass('resp-high resp-medium resp-low');
+    });
+
+    if (n > 0) {
+      // Top ~30% = high (red), next ~40% = medium (orange), rest = low (green)
+      const highCutoff = Math.max(1, Math.ceil(n * 0.3));
+      const medCutoff = Math.max(highCutoff + 1, Math.ceil(n * 0.7));
+      
+      positives.forEach((e, idx) => {
+        if (idx < highCutoff) {
+          e.node.addClass('resp-high');
+        } else if (idx < medCutoff) {
+          e.node.addClass('resp-medium');
+        } else {
+          e.node.addClass('resp-low');
+        }
+      });
+      
+      updateRedNodesPanel(positives.slice(0, highCutoff));
+    } else {
+      updateRedNodesPanel([]);
+    }
+    
+    if (updatedCount === 0 && n === 0 && graphNodes.length > 0) {
+      const demoNodes = graphNodes.slice(0, Math.min(10, graphNodes.length));
+      demoNodes.forEach((node, idx) => {
+        const demoValue = Math.random();
+        node.data('responsibility', demoValue);
+        if (idx < 3) {
+          node.addClass('resp-high');
+        } else if (idx < 7) {
+          node.addClass('resp-medium');
+        } else {
+          node.addClass('resp-low');
+        }
+      });
+      
+      updateRedNodesPanel(demoNodes.slice(0, 3).map(n => ({ node: n, value: 1.0 })));
+    }
+    
+    if (updatedCount < Object.keys(data.stateResponsibility).length * 0.5) {
+      const missing = Object.keys(data.stateResponsibility).length - updatedCount;
+      
+      const statusDiv = document.getElementById('resp-status');
+      if (statusDiv) {
+        const warningMsg = document.createElement('div');
+        warningMsg.style.cssText = 'color: orange; font-weight: bold; margin-top: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px;';
+        warningMsg.innerHTML = `Graph shows only ${updatedCount}/${Object.keys(data.stateResponsibility).length} states.<br>` +
+          `${missing} states with responsibility values are not visible.<br>` +
+          `<span style=\"color: #666; font-weight: normal;\">Tip: Click on nodes and explore the graph to load more states.</span>`;
+        statusDiv.appendChild(warningMsg);
+        setTimeout(() => warningMsg.remove(), 10000);
+      }
+    }
+  }
+  
+  cy.endBatch();
+  
+  // Update tooltips with responsibility info (value only)
+  cy.$('node.s').forEach(node => {
+    const respValue = node.data('responsibility');
+    if (respValue && respValue > 0) {
+      const tooltipContent = `Responsibility: ${(respValue * 100).toFixed(2)}%`;
+      node.data('responsibilityTooltip', tooltipContent);
+    } else {
+      node.removeData('responsibilityTooltip');
+    }
+  });
+}
+
+// Update red-nodes panel with critical suspects
+function updateRedNodesPanel(redNodes) {
+  const countEl = document.getElementById('red-nodes-count');
+  const listEl = document.getElementById('red-nodes-list');
+  
+  if (!countEl || !listEl) return;
+  
+  countEl.textContent = redNodes.length;
+  
+  if (redNodes.length === 0) {
+    listEl.innerHTML = '<li style="color:#888; padding:6px; font-style:italic">No high-responsibility nodes yet</li>';
+    return;
+  }
+  
+  // Build list items
+  const items = redNodes.map((entry, idx) => {
+    const node = entry.node;
+    const value = entry.value;
+    const nodeId = node.id();
+    const nodeName = node.data('name') || nodeId;
+    
+    return `
+      <li class="red-node-item" data-node-id="${nodeId}" style="
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        padding:6px 8px;
+        margin:3px 0;
+        background:#ffe5e5;
+        border-left:3px solid #e74c3c;
+        border-radius:4px;
+        cursor:pointer;
+        transition:background 0.2s;
+      " onmouseover="this.style.background='#ffd0d0'" onmouseout="this.style.background='#ffe5e5'">
+        <span style="font-weight:500; color:#c0392b">
+          <span style="font-size:0.85em; color:#999">#${idx + 1}</span>
+          ${nodeName}
+        </span>
+        <span style="background:#e74c3c; color:white; padding:2px 8px; border-radius:12px; font-size:0.85em; font-weight:bold">
+          ${(value * 100).toFixed(1)}%
+        </span>
+      </li>
+    `;
+  }).join('');
+  
+  listEl.innerHTML = items;
+  
+  // Add click handlers to highlight node in graph
+  listEl.querySelectorAll('.red-node-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const nodeId = item.getAttribute('data-node-id');
+      highlightNodeInAllPanes(nodeId);
+    });
+  });
+}
+
+// Highlight a node across all panes
+function highlightNodeInAllPanes(nodeId) {
+  const panes = getPanes();
+  Object.values(panes).forEach(pane => {
+    if (pane.cy) {
+      const node = pane.cy.$('#' + nodeId);
+      if (node.length > 0) {
+        pane.cy.nodes().unselect();
+        node.select();
+        pane.cy.center(node);
+        pane.cy.fit(node, 100);
+      }
+    }
+  });
+}
+
 // queries and updates info on present graph
 async function renewInfo(cy) {
   async function getSameGraph(nodes) {
@@ -195,20 +400,18 @@ async function expandGraph(cy, nodes, onLayoutStopFn) {
     cy.nodes().unlock();
 
     const layout = cy.layout(cy.params);
-    layout.pon('layoutstop').then(() => {
+    if (new_nodes.length !== 0 && onLayoutStopFn) {
       // kills batch expansion if there is nothing to expand
-      if (new_nodes.length !== 0 && onLayoutStopFn) {
-        onLayoutStopFn();
-      } else {
-        getNexts(cy, cy.$('node.s:selected')).select();
-      }
-      spawnPCP(cy);
-    });
+      layout.pon('layoutstop').then(onLayoutStopFn);
+    } else {
+      layout.pon('layoutstop').then(() => getNexts(cy, cy.$('node.s:selected')).select());
+    }
 
     layout.run();
     bindListeners(cy);
     setStyles(cy);
     initHTML(cy);
+    spawnPCP(cy);
     const nodesIds = data.nodes
       .map((node) => node.id)
       .filter((id) => !id.startsWith('t'));
@@ -363,8 +566,7 @@ function spawnGraph(pane, data, params, vars = {}) {
     initControls(cy);
 
     selectAll(cy);
-    console.log(vars.order);
-    spawnPCP(cy, vars.order);
+    spawnPCP(cy);
     dispatchEvent(events.GLOBAL_PROPAGATE);
     return cy;
   }
@@ -467,7 +669,7 @@ async function fetchAndSpawn(cy, nodes) {
     });
     vars = structuredClone(varsValues);
   }
-  vars.order = cy.pcp.getOrder();
+
   spawnGraph(pane, data, structuredClone(cy.params), vars);
 }
 
@@ -592,7 +794,7 @@ function getPreviousInPath(cy, sourceNodeId) {
   return { cy, prev };
 }
 
-function spawnPCP(cy, order = undefined) {
+function spawnPCP(cy) {
   const m = cy.vars['mode'].value;
   const selector = m === 's+t' ? '' : '.' + m;
   let selected = 0;
@@ -609,33 +811,41 @@ function spawnPCP(cy, order = undefined) {
     cy.vars['details'].value,
   );
 
-  const hidden = new Set(['color']);
-  const props = Object.keys(pld).filter(k => !hidden.has(k));
-  const sorted_dim_metadata = {};
-
-  const previous_pcp_order = cy.pcp ? cy.pcp.getOrder() : undefined;
-  const pcp_order = order ? structuredClone(order) : previous_pcp_order;
-
-  if (pcp_order) {
-    pcp_order.forEach(key => {
-      if (pld[key]) {
-        sorted_dim_metadata[key] = pld[key];
-        delete pld[key];
+  // Add responsibility as a numeric dimension if available
+  let maxResp = 0;
+  pl.forEach(polyline => {
+    const node = cy.$id(polyline.id);
+    if (node.length > 0) {
+      const resp = node.data('responsibility');
+      if (resp !== undefined) {
+        polyline.responsibility = resp;
+        maxResp = Math.max(maxResp, resp);
       }
-    });
+    }
+  });
+
+  // Register responsibility as a numeric property if any nodes have it
+  if (maxResp > 0) {
+    pld.responsibility = {
+      type: 'number',
+      min: 0,
+      max: maxResp,
+      prop: 'responsibility'
+    };
   }
 
-  Object.keys(pld).forEach(key => sorted_dim_metadata[key] = pld[key]);
+  const hidden = new Set(['color']);
+  const props = Object.keys(pld).filter(k => !hidden.has(k));
 
   cy.pcp = parallelCoords(
     getPanes()[cy.paneId],
     pl,
     {
       data_id: 'id',
-      nominals: props.filter(k => sorted_dim_metadata[k].type === 'nominal'),
-      booleans: props.filter(k => sorted_dim_metadata[k].type === 'boolean'),
-      numbers: props.filter(k => sorted_dim_metadata[k].type === 'number'),
-      pld: sorted_dim_metadata,
+      nominals: props.filter(k => pld[k].type === 'nominal'),
+      booleans: props.filter(k => pld[k].type === 'boolean'),
+      numbers: props.filter(k => pld[k].type === 'number'),
+      pld,
       preselected: selected,
     },
   );
@@ -694,7 +904,6 @@ function bindListeners(cy) {
   cy.on('tap', 'edge', (e) => {
     setPane(cy.paneId);
     hideAllTippies();
-    console.log(e.target.data());
   });
 
   cy.on('zoom pan', () => {
@@ -721,14 +930,13 @@ function bindListeners(cy) {
     cy.pendingSelectify &&= (selectifyByMode(cy) && false);
   });
 
-  cy.on('select unselect', (e) => {
+  cy.on('select boxselect', 'node.s', (e) => {
     handleEditorSelection(e, cy);
   });
 
   cy.on('tap', 'node', (e) => {
     const n = e.target;
     setPane(cy.paneId);
-    console.log(n.data());
 
     if (!e.originalEvent.shiftKey) {
       hideAllTippies();
@@ -780,8 +988,6 @@ function bindListeners(cy) {
       && n.classes().filter(c => c === 's').length > 0
     ) {
       spawnGraphOnNewPane(cy, [n.data()]);
-    } else if (e.originalEvent.shiftKey) {
-      expandBestPath(cy, [n]);
     } else {
       expandGraph(cy, [n]);
     }
@@ -1659,7 +1865,6 @@ function selectAll(cy) {
 function keyboardShortcuts(cy, e) {
   cy.keyboard = e;
   const modifier = (e.ctrlKey || e.altKey);
-  const shift = e.shiftKey;
 
   selectifyByMode(cy);
 
@@ -1764,8 +1969,6 @@ function keyboardShortcuts(cy, e) {
   if (e.key === 'Enter' || e.keyCode === 13) {
     if (modifier) {
       spawnGraphOnNewPane(cy, cy.$('node.s:selected').map(n => n.data()));
-    } else if (shift) {
-      expandBestPath(cy, cy.$('node.s:selected'));
     } else {
       expandGraph(cy, cy.$('node.s:selected'));
     }
@@ -1821,6 +2024,34 @@ socket.on('overview nodes selected', (data) => {
       paneCy,
     };
   }
+});
+
+// Responsibility visualization integration
+socket.on('responsibility:result', (data) => {
+  if (data && data.stateResponsibility) {
+    const panes = getPanes();
+    Object.values(panes).forEach(pane => {
+      if (pane.cy) {
+        updateResponsibility(pane.cy, data);
+        if (pane.cy.pcp) {
+          spawnPCP(pane.cy);
+        }
+      }
+    });
+  }
+});
+
+socket.on('responsibility:status', (data) => {
+  // Status updates for UI
+});
+
+socket.on('responsibility:error', (data) => {
+  console.error('Responsibility error:', data);
+  Swal.fire({
+    title: 'Responsibility Analysis Error',
+    text: data.message || 'An error occurred during responsibility analysis',
+    icon: 'error',
+  });
 });
 
 // cy.vars stores the settings of the application

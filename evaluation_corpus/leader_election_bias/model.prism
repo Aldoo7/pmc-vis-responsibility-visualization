@@ -1,0 +1,44 @@
+// Buggy Leader Election - Unfair Probability Distribution
+// Bug: Process 1 has higher election probability (0.6 vs 0.4) creating bias
+// Expected: Violates fairness - P1 becomes leader more often than P2
+
+mdp
+
+module process1
+	state1 : [0..2] init 0; // 0=waiting, 1=candidate, 2=leader
+	
+	[start] state1=0 -> (state1'=1); // become candidate
+	
+	// BUG: Process 1 has unfair advantage (0.6 probability of winning)
+	[elect] state1=1 & state2=1 -> 0.6 : (state1'=2) + 0.4 : true; // BIASED
+	
+	[reset] state1=2 -> (state1'=0); // step down
+endmodule
+
+module process2
+	state2 : [0..2] init 0;
+	
+	[start] state2=0 -> (state2'=1);
+	
+	// Process 2 has corresponding 0.4 probability (unfair)
+	[elect] state1=1 & state2=1 -> 0.4 : (state2'=2) + 0.6 : true;
+	
+	[reset] state2=2 -> (state2'=0);
+endmodule
+
+module process3
+	state3 : [0..2] init 0;
+	
+	[start] state3=0 -> (state3'=1);
+	
+	// Process 3 has fair 0.5 probability (no bug here)
+	[elect] state1=1 & state3=1 -> 0.5 : (state3'=2) + 0.5 : true;
+	
+	[reset] state3=2 -> (state3'=0);
+endmodule
+
+label "p1_leader" = (state1=2);
+label "error" = (state1=2); // Alias for responsibility tool - detects bias toward p1
+label "p2_leader" = (state2=2);
+label "p3_leader" = (state3=2);
+label "has_leader" = (state1=2 | state2=2 | state3=2);

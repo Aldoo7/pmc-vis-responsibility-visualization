@@ -1,0 +1,43 @@
+// Correct Dining Philosophers - No Deadlock
+// Fix: All philosophers check both forks before picking left fork
+
+mdp
+
+module phil1
+	p1 : [0..3] init 0;
+	
+	[think1] p1=0 -> (p1'=1);
+	
+	// FIXED: Added guard "f2=0" to ensure both forks available before starting
+	[left1]  p1=1 & f1=0 & f2=0 -> (p1'=2) & (f1'=1); // pick left fork (CORRECT)
+	
+	[right1] p1=2 & f2=0 -> (p1'=3) & (f2'=1);
+	[eat1]   p1=3 -> (p1'=0) & (f1'=0) & (f2'=0);
+endmodule
+
+module phil2
+	p2 : [0..3] init 0;
+	
+	[think2] p2=0 -> (p2'=1);
+	[left2]  p2=1 & f2=0 & f3=0 -> (p2'=2) & (f2'=1); // CORRECT
+	[right2] p2=2 & f3=0 -> (p2'=3) & (f3'=1);
+	[eat2]   p2=3 -> (p2'=0) & (f2'=0) & (f3'=0);
+endmodule
+
+module phil3
+	p3 : [0..3] init 0;
+	
+	[think3] p3=0 -> (p3'=1);
+	[left3]  p3=1 & f3=0 & f1=0 -> (p3'=2) & (f3'=1); // CORRECT
+	[right3] p3=2 & f1=0 -> (p3'=3) & (f1'=1);
+	[eat3]   p3=3 -> (p3'=0) & (f3'=0) & (f1'=0);
+endmodule
+
+module forks
+	f1 : [0..1] init 0;
+	f2 : [0..1] init 0;
+	f3 : [0..1] init 0;
+endmodule
+
+label "deadlock" = (p1=2 & p2=2 & p3=2);
+label "eating" = (p1=3 | p2=3 | p3=3);

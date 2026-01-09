@@ -1,0 +1,20 @@
+// Corrected gossip: symmetric forwarding probability
+mdp
+
+module node1
+    inf1 : bool init true;
+    [send12] inf1 -> 0.5 : (inf1' = inf1) + 0.5 : (inf1' = inf1) & (inf2' = true);
+endmodule
+
+module node2
+    inf2 : bool init false;
+    [send23] inf2 -> 0.5 : (inf2' = inf2) + 0.5 : (inf2' = inf2) & (inf3' = true);
+endmodule
+
+module node3
+    inf3 : bool init false;
+    [send31] inf3 -> 0.5 : (inf3' = inf3) + 0.5 : (inf3' = inf3) & (inf1' = true);
+endmodule
+
+formula all_inf = (inf1 & inf2 & inf3);
+label "all_inf" = all_inf;

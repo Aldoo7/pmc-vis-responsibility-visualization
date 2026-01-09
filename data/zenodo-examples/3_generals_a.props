@@ -1,0 +1,5 @@
+// Properties for 3 Generals Problem (variant A)
+// Error state: coordination failure with partial damage
+
+// Can the error state be reached?
+P=? [ F "sbad" ]

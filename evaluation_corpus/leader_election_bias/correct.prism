@@ -1,0 +1,39 @@
+// Correct Leader Election - Fair Probability Distribution
+// Fix: All processes have equal 0.5 probability
+
+mdp
+
+module process1
+	state1 : [0..2] init 0;
+	
+	[start] state1=0 -> (state1'=1);
+	
+	// FIXED: Fair 0.5 probability
+	[elect] state1=1 & state2=1 -> 0.5 : (state1'=2) + 0.5 : true;
+	
+	[reset] state1=2 -> (state1'=0);
+endmodule
+
+module process2
+	state2 : [0..2] init 0;
+	
+	[start] state2=0 -> (state2'=1);
+	
+	// FIXED: Fair 0.5 probability
+	[elect] state1=1 & state2=1 -> 0.5 : (state2'=2) + 0.5 : true;
+	
+	[reset] state2=2 -> (state2'=0);
+endmodule
+
+module process3
+	state3 : [0..2] init 0;
+	
+	[start] state3=0 -> (state3'=1);
+	[elect] state1=1 & state3=1 -> 0.5 : (state3'=2) + 0.5 : true;
+	[reset] state3=2 -> (state3'=0);
+endmodule
+
+label "p1_leader" = (state1=2);
+label "p2_leader" = (state2=2);
+label "p3_leader" = (state3=2);
+label "has_leader" = (state1=2 | state2=2 | state3=2);

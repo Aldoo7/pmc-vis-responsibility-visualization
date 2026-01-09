@@ -1,0 +1,3 @@
+// Property: Queue should never overflow
+// Buggy version violates this with probability > 0
+Pmax=? [ F "overflow" ]

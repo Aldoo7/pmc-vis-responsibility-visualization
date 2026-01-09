@@ -1,0 +1,5 @@
+// Properties for broken_window example
+// Error state: window is broken (window_type=3)
+
+// Can the window be broken?
+P=? [ F "sbad" ]

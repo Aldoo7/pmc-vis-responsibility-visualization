@@ -1,0 +1,53 @@
+model_id: philosopher_deadlock
+description: "Missing guard in phil1 left fork transition allows deadlock"
+
+bug_location:
+  module: phil1
+  state_condition: "p1=1"
+  line_number: 11
+  component: guard_condition
+  specific_element: "[left1] transition missing f2=0 guard"
+
+bug_type: missing_guard
+severity: high
+
+property_violated: "Pmax=? [ F \"deadlock\" ]"
+violation_details:
+  expected_value: 0.0
+  actual_value: ">0.0"
+  explanation: "Deadlock state becomes reachable due to missing guard"
+
+expected_top_components:
+  - name: module_phil1
+    rank: 1
+    expected_responsibility: [0.8, 1.0]
+    rationale: "Contains the buggy transition with missing guard"
+  
+  - name: action_left1
+    rank: 2
+    expected_responsibility: [0.7, 0.9]
+    rationale: "Action involved in buggy transition"
+  
+  - name: variable_p1
+    rank: 3
+    expected_responsibility: [0.6, 0.8]
+    rationale: "State variable involved in deadlock path"
+  
+  - name: variable_f1
+    rank: 4
+    expected_responsibility: [0.5, 0.7]
+    rationale: "Fork involved in deadlock"
+
+repair_suggestion: |
+  Add guard "& f2=0" to the [left1] transition:
+  Change:  [left1]  p1=1 & f1=0 -> (p1'=2) & (f1'=1);
+  To:      [left1]  p1=1 & f1=0 & f2=0 -> (p1'=2) & (f1'=1);
+  
+  This ensures philosopher 1 only picks up left fork if right fork is also available,
+  preventing the circular wait condition that causes deadlock.
+
+test_status: ready
+notes: |
+  Classic dining philosophers deadlock scenario.
+  Bug demonstrates how missing synchronization guards can lead to deadlock.
+  Responsibility should highlight phil1 module and left1 action as root cause.

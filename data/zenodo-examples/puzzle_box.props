@@ -1,0 +1,5 @@
+// Properties for puzzle_box example
+// Error state: puzzle box reaches bad state
+
+// Can the bad state be reached?
+P=? [ F "sbad" ]

@@ -1,0 +1,32 @@
+mdp
+
+label "sbad" = damage > 0 & damage < 3 & g1 & g2 & g3;
+label "error" = damage > 0 & damage < 3 & g1 & g2 & g3; // for PMCVis compatibility
+
+module General1
+    g1: bool init false;
+    [G1Attack] !g1 -> (g1'= true);
+    [] !g1 -> (g1'= true);
+    [] g1 -> true;
+endmodule
+
+module General2
+    g2: bool init false;
+    [G2Attack] !g2 -> (g2'= true);
+    [] !g2 -> (g2'= true);
+    [] g2 -> true;
+endmodule
+
+module General3
+    g3: bool init false;
+    [G3Attack] !g3 -> (g3'= true);
+    [] !g3 -> (g3'= true);
+    [] g3 -> true;
+endmodule
+
+module Castle
+    damage: [0..10] init 0;
+    [G1Attack] damage < 10 -> (damage'= damage + 1);
+    [G2Attack] damage < 10 -> (damage'= damage + 1);
+    [G3Attack] damage < 10 -> (damage'= damage + 1);
+endmodule

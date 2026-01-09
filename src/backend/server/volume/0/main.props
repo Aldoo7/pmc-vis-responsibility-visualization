@@ -1,6 +1,0 @@
-
-"PrMin_finished":Pmin=? [F "finished"];
-"PrMax_finished":Pmax=? [F "finished"];
-
-"PrMax_equal_0":Pmax=? [F "all_coins_equal_0"];
-"PrMax_equal_1":Pmax=? [F "all_coins_equal_1"];

@@ -11,6 +11,9 @@ services:
     ports:
       - "8080:8080"
       - "8082:8082"
+    environment:
+      - RESP_TOOL_PATH=/usr/local/bin/bw-responsibility
+      - PRISM_BIN=/home/prismServer/prism/prism/bin/prism
     extra_hosts:
       - host.docker.internal:host-gateway
   editor:

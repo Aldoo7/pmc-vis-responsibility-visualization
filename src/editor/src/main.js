@@ -41,10 +41,8 @@ function activate(context) {
 	stateView.onDidChangeCheckboxState(event => {
 		event.items.forEach(item => {
 			if (item[1] == vscode.TreeItemCheckboxState.Checked) {
-				console.log(item[0]._label + " checked");
 				decorator.selectState(item[0])
 			} else {
-				console.log(item[0]._label + " unchecked");
 				decorator.unselectState(item[0])
 			}
 		})
@@ -74,6 +72,21 @@ function activate(context) {
 	context.subscriptions.push(vscode.workspace.onDidChangeTextDocument(event => { resetWorkspace(event.document) }));
 
 	comm.register(constants.EVENT_STATE, update_state);
+
+	// Listen for responsibility results from backend (Socket.IO on 8082)
+	comm.register('responsibility:result', (data) => {
+		try {
+			if (data && data.componentResponsibility) {
+				// Apply overlay in the active MDP document
+				decorator.updateResponsibility(vscode.window.activeTextEditor, data.componentResponsibility);
+			}
+		} catch (e) {
+			console.error('Failed to apply responsibility overlay', e);
+		}
+	});
+
+	// Handle responsibility error events
+	comm.register('responsibility:error', (e) => vscode.window.showErrorMessage(`Responsibility error: ${e?.message || e}`));
 }
 
 function resetWorkspace(document) {
@@ -84,11 +97,8 @@ function resetWorkspace(document) {
 }
 
 function update_state(data) {
-	console.log("updating States");
 	const states = filterState(data.states)
-	console.log("parsed States")
 	connectionProvider.updateState(data.id, states)
-	console.log("end")
 }
 
 // async function connectToPMCVis() {

@@ -1,0 +1,49 @@
+model_id: gossip_asymmetry
+description: "Asymmetric gossip propagation probability: node1 under-forwards"
+
+bug_location:
+  module: node1
+  component: transition_probabilities
+  line_number: 8
+  specific_element: "send12 distribution 0.3/0.7"
+
+bug_type: incorrect_probability
+severity: medium
+
+expected_behavior: "Uniform forwarding probability 0.5/0.5 among all nodes"
+actual_behavior: "Node1 forwards with only 0.5 chance of success (0.7 branch sets inf2 while the 0.3 branch stalls) but biased ratio differs from intended uniform design"
+
+property_violated: 'Pmax=? [ F "all_inf" ]'
+property_type: probabilistic_reachability
+
+correct_model_result: "Higher convergence probability (symmetric)"
+buggy_model_result: "Lower convergence probability (slower spread)"
+
+repair_action: "Change line 8 to: [send12] inf1 -> 0.5 : (inf1'=inf1) + 0.5 : (inf1'=inf1) & (inf2'=true);"
+
+expected_top_components:
+  - name: module_node1
+    rank: 1
+    expected_responsibility: [0.8, 1.0]
+    rationale: "Contains asymmetric probability causing slow spread"
+  - name: variable_inf1
+    rank: 2
+    expected_responsibility: [0.6, 0.8]
+    rationale: "Source of gossip initiation"
+  - name: action_send12
+    rank: 3
+    expected_responsibility: [0.5, 0.7]
+    rationale: "Action embodying the incorrect probability"
+
+expected_low_components:
+  - name: module_node3
+    expected_responsibility: [0.1, 0.3]
+    rationale: "Late stage forwarding, unaffected by asymmetry"
+
+evaluation:
+  precision_at_1: "module_node1 should be rank 1"
+  precision_at_3: "module_node1, variable_inf1, action_send12 in top-3"
+  asymmetry_detection: "node1 responsibility > node2, node3"
+
+debugging_difficulty: easy
+representative_of: probability_errors

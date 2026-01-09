@@ -1,0 +1,13 @@
+// Properties for Two Dice Model
+// Property that should detect the bias bug
+
+// Main property: Maximum probability of die1 finishing first
+// In correct model: should be ~0.5 (fair coin flips)
+// In buggy model: will be > 0.5 (die1 biased toward early termination)
+Pmax=? [ F "die1_decided" & !("die2_decided") ]
+
+// Expected number of coin flips to termination
+R{"coin_flips"}min=? [ F "done" ]
+
+// Probability both dice agree on value 1
+P=? [ F d1=1 & d2=1 ]

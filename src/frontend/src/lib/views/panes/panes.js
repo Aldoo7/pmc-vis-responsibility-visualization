@@ -684,16 +684,12 @@ document
         if (response.value.status === 200) {
           Swal.fire({
             title: 'Success!',
-            html: 'Redirecting to the created project on a new tab. ',
-            timer: 2000,
+            html: 'Opening the created project in this tab…',
+            timer: 1200,
             timerProgressBar: true,
           }).then(() => {
-            window
-              .open(
-                window.location.href.split('?')[0] + '?id=' + redirectName,
-                '_blank',
-              )
-              .focus();
+            // Navigate current tab to the new project URL to avoid multi-tab confusion
+            window.location.href = window.location.href.split('?')[0] + '?id=' + redirectName;
           });
         } else {
           Swal.fire({
