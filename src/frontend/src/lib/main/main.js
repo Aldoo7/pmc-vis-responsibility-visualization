@@ -89,8 +89,6 @@ const interval = setInterval(async () => {
   if (socket.connected) {
     clearInterval(interval);
     start();
-  } else {
-    console.log('waiting for socket...');
   }
 }, 50);
 

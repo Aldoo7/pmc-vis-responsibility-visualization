@@ -41,10 +41,8 @@ function activate(context) {
 	stateView.onDidChangeCheckboxState(event => {
 		event.items.forEach(item => {
 			if (item[1] == vscode.TreeItemCheckboxState.Checked) {
-				console.log(item[0]._label + " checked");
 				decorator.selectState(item[0])
 			} else {
-				console.log(item[0]._label + " unchecked");
 				decorator.unselectState(item[0])
 			}
 		})
@@ -87,8 +85,7 @@ function activate(context) {
 		}
 	});
 
-	// Optional: log status/error events
-	comm.register('responsibility:status', (s) => console.log('RESP STATUS', s));
+	// Handle responsibility error events
 	comm.register('responsibility:error', (e) => vscode.window.showErrorMessage(`Responsibility error: ${e?.message || e}`));
 }
 
@@ -100,11 +97,8 @@ function resetWorkspace(document) {
 }
 
 function update_state(data) {
-	console.log("updating States");
 	const states = filterState(data.states)
-	console.log("parsed States")
 	connectionProvider.updateState(data.id, states)
-	console.log("end")
 }
 
 // async function connectToPMCVis() {

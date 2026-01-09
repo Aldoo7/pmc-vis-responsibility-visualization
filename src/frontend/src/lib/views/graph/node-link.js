@@ -108,46 +108,23 @@ function setStyles(cy) {
 
 // updates responsibility values and styling for nodes
 function updateResponsibility(cy, data) {
-  console.log('📊 updateResponsibility called with', Object.keys(data.stateResponsibility || {}).length, 'states');
-  
-  // Debug: show what nodes are actually in the graph
   const graphNodes = cy.$('node.s');
-  console.log('📊 Graph has', graphNodes.length, 'state nodes');
-  console.log('📊 Backend sent state IDs:', Object.keys(data.stateResponsibility || {}).slice(0, 10));
   
-  // Log first 5 graph nodes to understand structure
-  console.log(`📊 First 5 graph nodes:`);
-  graphNodes.slice(0, 5).forEach((node, i) => {
-    console.log(`  [${i}] id=${node.id()}, name=${node.data('name')}, label=${node.data('label')}`);
-  });
-  
-  // Log ALL graph node IDs to see what's actually loaded
-  const allIds = [];
-  graphNodes.forEach(n => allIds.push(n.id()));
-  console.log(`📊 ALL ${allIds.length} graph node IDs:`, allIds.sort((a,b) => Number(a) - Number(b)));
-  
-  // Build mapping strategy:
-  // Graph nodes may use node.id() directly as state ID, or have a separate 'name' field
-  // Try multiple matching strategies
   const idToNode = new Map();
   graphNodes.forEach(node => {
     const nodeId = node.id();
     const nodeName = node.data('name');
     const nodeLabel = node.data('label');
     
-    // Strategy 1: Direct ID match (node ID = state ID)
     idToNode.set(nodeId, node);
     
-    // Strategy 2: Name-based match
     if (nodeName) {
       idToNode.set(nodeName, node);
-      // Also try without 's' prefix if present
       if (nodeName.startsWith('s')) {
         idToNode.set(nodeName.substring(1), node);
       }
     }
     
-    // Strategy 3: Label-based match
     if (nodeLabel) {
       idToNode.set(nodeLabel, node);
       if (nodeLabel.startsWith('s')) {
@@ -156,20 +133,8 @@ function updateResponsibility(cy, data) {
     }
   });
   
-  console.log('📊 Built ID->Node mapping with', idToNode.size, 'entries');
-  console.log('📊 Mapping keys sample:', Array.from(idToNode.keys()).slice(0, 10));
-  console.log('📊 Sample graph node properties:', graphNodes.slice(0, 3).map(n => ({ id: n.id(), name: n.data('name'), label: n.data('label') })));
-  
-  // Check if backend provided state ID to name mapping
   const stateIdToName = data.stateIdToName || {};
   const hasStateMapping = Object.keys(stateIdToName).length > 0;
-  if (hasStateMapping) {
-    console.log('📊 Backend provided', Object.keys(stateIdToName).length, 'state ID->name mappings');
-    console.log('📊 Sample mappings:', Object.entries(stateIdToName).slice(0, 10));
-    console.log('📊 ALL stateIdToName mappings:', stateIdToName);
-  } else {
-    console.warn('📊 Backend did NOT provide stateIdToName mapping!');
-  }
   
   cy.startBatch();
   
@@ -184,46 +149,31 @@ function updateResponsibility(cy, data) {
     Object.entries(data.stateResponsibility).forEach(([stateId, value]) => {
       let node = null;
       
-      // Strategy 1: If backend provides state name mapping, use it
       if (hasStateMapping && stateIdToName[stateId]) {
         const stateName = stateIdToName[stateId];
-        // Try to find node with matching name
         node = idToNode.get(stateName);
-        if (node) {
-          console.log('📊 Matched via stateIdToName: state', stateId, '→ name', stateName, '→ node', node.id());
-        }
       }
       
-      // Strategy 2: Fallback to direct ID match
       if (!node) {
         node = idToNode.get(stateId);
-        if (node) {
-          console.log('📊 Matched state ID', stateId, '→ node', node.id(), 'value:', value);
-        }
       }
       
       if (node) {
         updatedCount++;
         entries.push({ node, value: Number(value) || 0 });
-      } else {
-        console.warn('📊 No node found for state ID:', stateId, hasStateMapping ? `(name: ${stateIdToName[stateId]})` : '');
       }
     });
 
-    // Quantile-based coloring: distribute colors among positive-responsibility nodes
-    console.log('📊 All responsibility entries:', entries.map(e => ({ id: e.node.id(), value: e.value })));
     const positives = entries.filter(e => e.value > 0).sort((a, b) => b.value - a.value);
     const n = positives.length;
-    console.log('📊 Positive values count:', n, positives.map(e => ({ id: e.node.id(), value: e.value })));
     
-    // Store responsibility and clear old classes
     entries.forEach(({ node, value }) => {
       node.data('responsibility', value);
       node.removeClass('resp-high resp-medium resp-low');
     });
 
     if (n > 0) {
-      // Top ~30% → high (red), next ~40% → medium (orange), rest → low (green)
+      // Top ~30% = high (red), next ~40% = medium (orange), rest = low (green)
       const highCutoff = Math.max(1, Math.ceil(n * 0.3));
       const medCutoff = Math.max(highCutoff + 1, Math.ceil(n * 0.7));
       
@@ -237,20 +187,12 @@ function updateResponsibility(cy, data) {
         }
       });
       
-      console.log(`📊 Colored ${n} nodes: ${highCutoff} high, ${medCutoff - highCutoff} med, ${n - medCutoff} low`);
-      
-      // Populate red-nodes panel with high-responsibility (red) nodes
       updateRedNodesPanel(positives.slice(0, highCutoff));
     } else {
-      console.warn('📊 No positive responsibility values to color');
       updateRedNodesPanel([]);
     }
-
-    console.log('📊 Updated', updatedCount, 'nodes out of', Object.keys(data.stateResponsibility).length, 'states');
     
-    // FALLBACK: If no nodes matched (mock mode issue), color random nodes for demo
     if (updatedCount === 0 && n === 0 && graphNodes.length > 0) {
-      console.warn('📊 FALLBACK: No state ID matches found. Applying demo colors to random nodes...');
       const demoNodes = graphNodes.slice(0, Math.min(10, graphNodes.length));
       demoNodes.forEach((node, idx) => {
         const demoValue = Math.random();
@@ -263,35 +205,23 @@ function updateResponsibility(cy, data) {
           node.addClass('resp-low');
         }
       });
-      console.warn(`📊 FALLBACK: Colored ${demoNodes.length} random nodes for demonstration`);
-      console.warn('📊 NOTE: This is MOCK data. Configure RESP_TOOL_PATH for real responsibility analysis.');
       
       updateRedNodesPanel(demoNodes.slice(0, 3).map(n => ({ node: n, value: 1.0 })));
     }
     
     if (updatedCount < Object.keys(data.stateResponsibility).length * 0.5) {
       const missing = Object.keys(data.stateResponsibility).length - updatedCount;
-      console.warn(`📊 WARNING: Only ${updatedCount} out of ${Object.keys(data.stateResponsibility).length} states are visible in the graph!`);
-      console.warn(`📊 ${missing} states with responsibility values are not loaded.`);
-      console.warn('📊 Recommendation: Expand the graph to show more states with high responsibility.');
       
-      // Show user-friendly notification
       const statusDiv = document.getElementById('resp-status');
       if (statusDiv) {
         const warningMsg = document.createElement('div');
         warningMsg.style.cssText = 'color: orange; font-weight: bold; margin-top: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px;';
-        warningMsg.innerHTML = `⚠️ Graph shows only ${updatedCount}/${Object.keys(data.stateResponsibility).length} states.<br>` +
+        warningMsg.innerHTML = `Graph shows only ${updatedCount}/${Object.keys(data.stateResponsibility).length} states.<br>` +
           `${missing} states with responsibility values are not visible.<br>` +
-          `<span style="color: #666; font-weight: normal;">Tip: Click on nodes and explore the graph to load more states.</span>`;
+          `<span style=\"color: #666; font-weight: normal;\">Tip: Click on nodes and explore the graph to load more states.</span>`;
         statusDiv.appendChild(warningMsg);
-        
-        // Auto-remove after 10 seconds
         setTimeout(() => warningMsg.remove(), 10000);
       }
-    }
-    if (updatedCount === 0) {
-      console.warn('📊 WARNING: No nodes were updated! State ID mismatch detected.');
-      console.warn('📊 Try matching first graph node:', graphNodes[0], 'with backend states');
     }
   }
   
@@ -372,12 +302,10 @@ function highlightNodeInAllPanes(nodeId) {
     if (pane.cy) {
       const node = pane.cy.$('#' + nodeId);
       if (node.length > 0) {
-        // Center on node and select it
         pane.cy.nodes().unselect();
         node.select();
         pane.cy.center(node);
         pane.cy.fit(node, 100);
-        console.log('📍 Highlighted node', nodeId, 'in pane', pane.id);
       }
     }
   });
@@ -883,6 +811,29 @@ function spawnPCP(cy) {
     cy.vars['details'].value,
   );
 
+  // Add responsibility as a numeric dimension if available
+  let maxResp = 0;
+  pl.forEach(polyline => {
+    const node = cy.$id(polyline.id);
+    if (node.length > 0) {
+      const resp = node.data('responsibility');
+      if (resp !== undefined) {
+        polyline.responsibility = resp;
+        maxResp = Math.max(maxResp, resp);
+      }
+    }
+  });
+
+  // Register responsibility as a numeric property if any nodes have it
+  if (maxResp > 0) {
+    pld.responsibility = {
+      type: 'number',
+      min: 0,
+      max: maxResp,
+      prop: 'responsibility'
+    };
+  }
+
   const hidden = new Set(['color']);
   const props = Object.keys(pld).filter(k => !hidden.has(k));
 
@@ -953,7 +904,6 @@ function bindListeners(cy) {
   cy.on('tap', 'edge', (e) => {
     setPane(cy.paneId);
     hideAllTippies();
-    console.log(e.target.data());
   });
 
   cy.on('zoom pan', () => {
@@ -987,7 +937,6 @@ function bindListeners(cy) {
   cy.on('tap', 'node', (e) => {
     const n = e.target;
     setPane(cy.paneId);
-    console.log(n.data());
 
     if (!e.originalEvent.shiftKey) {
       hideAllTippies();
@@ -2078,54 +2027,26 @@ socket.on('overview nodes selected', (data) => {
 });
 
 // Responsibility visualization integration
-console.log('🔵 node-link.js: Setting up responsibility:result handler');
 socket.on('responsibility:result', (data) => {
-  console.log('📊 Received responsibility:result', data);
-  
-  // DETAILED STATE-LEVEL LOGGING FOR VERIFICATION
   if (data && data.stateResponsibility) {
-    console.log('\n========== STATE RESPONSIBILITY VALUES ==========');
-    console.log('Mode:', data.responsibilityType || 'unknown');
-    console.log('Power Index:', data.powerIndex || 'unknown');
-    console.log('Level:', data.level || 0);
-    console.log('Total states with responsibility:', Object.keys(data.stateResponsibility).length);
-    
-    // Sort by responsibility value (descending) and display top 10
-    const sorted = Object.entries(data.stateResponsibility)
-      .sort(([,a], [,b]) => b - a);
-    
-    console.log('\nTop 10 States by Responsibility:');
-    console.table(sorted.slice(0, 10).map(([id, val]) => ({
-      'State ID': id,
-      'Responsibility': val.toFixed(8),
-      'Percentage': (val * 100).toFixed(2) + '%'
-    })));
-    
-    console.log('\nAll State Values (CSV format for comparison):');
-    sorted.forEach(([id, val]) => {
-      console.log(`State ${id}: ${val.toFixed(8)}`);
-    });
-    console.log('================================================\n');
-    
     const panes = getPanes();
-    console.log('📊 Updating', Object.keys(panes).length, 'panes');
     Object.values(panes).forEach(pane => {
       if (pane.cy) {
-        console.log('📊 Updating pane', pane.id, 'with', Object.keys(data.stateResponsibility).length, 'states');
         updateResponsibility(pane.cy, data);
+        if (pane.cy.pcp) {
+          spawnPCP(pane.cy);
+        }
       }
     });
-  } else {
-    console.warn('📊 No stateResponsibility data in result');
   }
 });
 
 socket.on('responsibility:status', (data) => {
-  console.log('📊 Responsibility status:', data);
+  // Status updates for UI
 });
 
 socket.on('responsibility:error', (data) => {
-  console.error('📊 Responsibility error:', data);
+  console.error('Responsibility error:', data);
   Swal.fire({
     title: 'Responsibility Analysis Error',
     text: data.message || 'An error occurred during responsibility analysis',

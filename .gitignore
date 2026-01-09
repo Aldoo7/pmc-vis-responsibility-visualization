@@ -35,8 +35,12 @@ src/backend/server/classpath.txt
 src/backend/server/pom.xml.dev-backup
 src/backend/prism
 
-# Startup scripts (local)
-start_*.sh
+# Startup scripts (local paths)
+start_server_direct.sh
+start_frontend.sh
+
+# PID file
+.pmc-vis.pids
 
 # Test files
 TestLibrary.java

@@ -4,8 +4,11 @@ import java.util.*;
 import prism.responsibility.ResponsibilityEnums.PowerIndex;
 
 /**
+ * CORRECTED Optimistic responsibility strategy implementing the algorithm from:
+ * "Backward Responsibility in Transition Systems Using General Power Indices"
+ * (Baier et al., 2024) - https://arxiv.org/abs/2402.01539
  * 
- * KEY FORMULAS :
+ * KEY FORMULAS (extracted from paper):
  * 
  * Definition 3.1: Optimistic cooperative game
  * v_opt(C) = 1 if Safe wins G_ρ^TS(C ∪ (S \ ρ)), 0 otherwise
@@ -18,6 +21,11 @@ import prism.responsibility.ResponsibilityEnums.PowerIndex;
  * Shapley:  S(v_opt, s) = 1/|WS_opt| for s ∈ WS_opt
  * Banzhaf:  B(v_opt, s) = 1/2^(|WS_opt| - 1) for s ∈ WS_opt
  * 
+ * CORRECTIONS from original implementation:
+ * 1. Players are states on counterexample ρ, not successors
+ * 2. Coalition value uses SafetyGame solver, not set membership
+ * 3. Uses characterization theorem (uniform K for all WS_opt states)
+ * 4. No extra /n normalization
  */
 public class OptimisticExactStrategyCorrected implements ResponsibilityStrategy {
 
@@ -71,7 +79,7 @@ public class OptimisticExactStrategyCorrected implements ResponsibilityStrategy 
         output.setPowerIndex(powerIndex.name().toLowerCase());
         output.setCounterexample(counterexample.getTrace());
         output.setWinningStates(new ArrayList<>(wsOpt));
-        output.setApproximate(Boolean.FALSE);
+        output.setApproximate(false);
         output.setNormalizationConstantK(wsOpt.isEmpty() ? 0.0 : 
             (powerIndex == PowerIndex.SHAPLEY ? 1.0 / wsOpt.size() : 1.0 / Math.pow(2, wsOpt.size() - 1)));
         

@@ -21,7 +21,7 @@ public class SocketServer implements AutoCloseable {
     private boolean excludeSender = true;
 
     public SocketServer(PRISMServerConfiguration configuration)  {
-        logger.info("→ Creating SocketServer with port={}, host={}", 
+        logger.info("Creating SocketServer with port={}, host={}", 
             configuration.getSocketPort(), configuration.getSocketHost());
         Configuration config = new Configuration();
         config.setPort(configuration.getSocketPort());
@@ -33,12 +33,12 @@ public class SocketServer implements AutoCloseable {
 
         server.addConnectListener(
                 (client) -> {
-                    logger.info("✓ Socket.IO client connected: {}", client.getSessionId());
+                    logger.info("Socket.IO client connected: {}", client.getSessionId());
                 });
 
         server.addDisconnectListener(
                 (client) -> {
-                    logger.info("✗ Socket.IO client disconnected: {}", client.getSessionId());
+                    logger.info("Socket.IO client disconnected: {}", client.getSessionId());
                 });
 
         //Equivalent to server.on()
@@ -72,7 +72,7 @@ public class SocketServer implements AutoCloseable {
     }
 
     public void addEventListener(String event, Class objectClass, DataListener listener) {
-        logger.info("→ Registering Socket.IO event listener for: '{}'", event);
+        logger.info("Registering Socket.IO event listener for: '{}'", event);
         server.addEventListener(event, objectClass, listener);
     }
 
@@ -82,16 +82,16 @@ public class SocketServer implements AutoCloseable {
     }
 
     public void open() throws InterruptedException {
-        logger.info("→ Starting Socket.IO server...");
+        logger.info("Starting Socket.IO server...");
         boolean connected = false;
         int waittime = 3000;
         while(!connected)
         try{
             this.server.start();
             connected = true;
-            logger.info("✓ Socket.IO server started successfully on port {}", server.getConfiguration().getPort());
+            logger.info("Socket.IO server started successfully on port {}", server.getConfiguration().getPort());
         }catch (Exception e){
-            logger.error("✗ Failed to start Socket.IO server: {}", e.getMessage());
+            logger.error("Failed to start Socket.IO server: {}", e.getMessage());
             logger.info(String.format("retrying connection in %s miliseconds", waittime));
             Thread.sleep(waittime);
             connected = false;

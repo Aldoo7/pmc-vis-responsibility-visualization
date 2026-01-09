@@ -1,6 +1,8 @@
 import { socket } from '../imports/import-socket.js';
 import { getPanes } from '../panes/panes.js';
 import { PROJECT } from '../../utils/controls.js';
+import { initFilteringControls, updateStateResponsibility, clearFiltering } from './filtering.js';
+import { initComparisonControls, clearComparison, exportComparisonCSV } from './comparison.js';
 
 let isRunning = false;
 let isPaused = false;
@@ -32,6 +34,18 @@ export function initResponsibilityControls() {
 
   // Load saved configuration from localStorage
   loadSavedConfig();
+  
+  // Initialize filtering controls
+  initFilteringControls();
+  
+  // Initialize comparison controls
+  initComparisonControls();
+  
+  // CSV export button
+  const exportCsvBtn = document.getElementById('export-comparison-csv');
+  if (exportCsvBtn) {
+    exportCsvBtn.addEventListener('click', exportComparisonCSV);
+  }
 
   startBtn.addEventListener('click', () => {
     const mode = document.getElementById('resp-mode').value;
@@ -49,10 +63,7 @@ export function initResponsibilityControls() {
       counterexample: null,
       projectId: getActiveProjectId()
     };
-    
-    console.log('🚀 Sending responsibility:start event:', payload);
 
-    // Send start event
     socket.emit('responsibility:start', payload);
 
     // Update UI state
@@ -76,6 +87,8 @@ export function initResponsibilityControls() {
 
   clearBtn.addEventListener('click', () => {
     clearResponsibilityVisualization();
+    clearFiltering();
+    clearComparison();
     statusDiv.style.display = 'none';
   });
 
@@ -112,14 +125,9 @@ export function initResponsibilityControls() {
 
   // Listen for results and aggregate components from current graph + state responsibilities
   socket.on('responsibility:result', (_data) => {
-    // Log state-level data for verification
     if (_data && _data.stateResponsibility) {
-      console.log('🔍 State Responsibility Data Received:');
-      console.log('  Mode:', _data.responsibilityType);
-      console.log('  Index:', _data.powerIndex);
-      console.log('  States:', Object.keys(_data.stateResponsibility).length);
-      
-      // Render state responsibility table
+      lastStateResponsibility = _data.stateResponsibility;
+      updateStateResponsibility(_data.stateResponsibility);
       renderStateResponsibilityTable(_data.stateResponsibility);
     }
     
@@ -355,11 +363,10 @@ function copyStateResponsibilityToClipboard() {
 
   // Copy to clipboard
   navigator.clipboard.writeText(text).then(() => {
-    // Visual feedback
     const btn = document.getElementById('copy-state-resp-btn');
     if (btn) {
       const originalText = btn.innerHTML;
-      btn.innerHTML = '✓ Copied!';
+      btn.innerHTML = 'Copied!';
       btn.style.background = '#5ca65c';
       btn.style.color = '#fff';
       setTimeout(() => {

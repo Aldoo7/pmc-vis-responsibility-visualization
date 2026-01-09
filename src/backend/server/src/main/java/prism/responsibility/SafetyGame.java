@@ -8,7 +8,7 @@ import java.util.*;
  * A safety game consists of:
  * - S_Safe: states controlled by player Safe
  * - S_Reach: states controlled by player Reach
- * - →: transition relation
+ * - T: transition relation
  * - s0: initial state
  * - Bad: set of bad states (Safe wins if Bad is never reached)
  * 

@@ -46,13 +46,13 @@ public class TaskManager implements Executor, Managed {
     private final Map<String, Project> activeProjects;
 
     public TaskManager(Environment environment, PRISMServerConfiguration configuration) {
-        logger.info("→ TaskManager constructor starting...");
+        logger.info("TaskManager constructor starting...");
         this.environment = environment;
         this.configuration = configuration;
         this.executor = Executors.newSingleThreadExecutor();
-        logger.info("→ Creating SocketServer...");
+        logger.info("Creating SocketServer...");
         this.socketServer =  new SocketServer(configuration);
-        logger.info("✓ SocketServer created");
+        logger.info("SocketServer created");
         this.activeProjects = new HashMap<>();
 
         // Initialize responsibility features with external tool (path via ENV)
@@ -63,9 +63,9 @@ public class TaskManager implements Executor, Managed {
         } else {
             logger.info("Responsibility tool path: {}", respToolPath);
         }
-        logger.info("→ Creating ResponsibilitySocketHandler...");
+        logger.info("Creating ResponsibilitySocketHandler...");
         this.responsibilityHandler = new ResponsibilitySocketHandler(this.socketServer, respToolPath);
-        logger.info("✓ Responsibility features initialized (tool path: {})", respToolPath);
+        logger.info("Responsibility features initialized (tool path: {})", respToolPath);
 
         this.socketServer.addEventListener(Namespace.EVENT_STATUS, String.class, (client, data, ackRequest) -> {
             String id = (String) data;

@@ -96,7 +96,6 @@ class ConnectionViewProvider {
                 if (document.languageId == "mdp" && document.uri.scheme == "virtual") {
                     const project = document.uri.path.split("/")[1];
 
-                    console.log("register " + project)
                     this._decorator.register(project);
                     this._decorator.parseDocument(activeEditor);
                     this._decorator.updateInfo(activeEditor);
@@ -113,7 +112,6 @@ class ConnectionViewProvider {
         if (activeEditor) {
             const document = activeEditor.document;
             if (document.languageId == "mdp" && document.uri.scheme == "virtual" && this._decorator.checkRegistration(id)) {
-                console.log(id)
                 this._decorator.updateInfo(activeEditor);
             }
         }
@@ -249,7 +247,6 @@ class ConnectionItem extends vscode.TreeItem {
                 async (response) => {
                     if (response.ok) {
                         //vscode.window.showInformationMessage(response.statusText) // Handle the success response object
-                        console.log("Uploaded", this.label)
                     } else {
                         const t = await response.text();
                         throw new Error(`Error: ${t}`);
@@ -338,7 +335,6 @@ class ConnectionItem extends vscode.TreeItem {
             async (response) => {
                 if (response.ok) {
                     //vscode.window.showInformationMessage(response.statusText)
-                    console.log("Saved ", this.label)
                 } else {
                     const t = await response.text();
                     throw new Error(`Error: ${t}`);

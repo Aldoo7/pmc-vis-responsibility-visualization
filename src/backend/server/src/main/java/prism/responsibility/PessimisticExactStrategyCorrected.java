@@ -4,7 +4,11 @@ import java.util.*;
 import prism.responsibility.ResponsibilityEnums.PowerIndex;
 
 /**
- * KEY FORMULAS:
+ *  Pessimistic responsibility strategy implementing the algorithm from:
+ * "Backward Responsibility in Transition Systems Using General Power Indices"
+ * (Baier et al., 2024) - https://arxiv.org/abs/2402.01539
+ * 
+ * KEY FORMULAS (extracted from paper):
  * 
  * Definition 3.1: Pessimistic cooperative game
  * v_pes(C) = 1 if Safe wins G_ρ^TS(C), 0 otherwise
@@ -103,7 +107,7 @@ public class PessimisticExactStrategyCorrected implements ResponsibilityStrategy
         output.setResponsibilityType("pessimistic");
         output.setPowerIndex(powerIndex.name().toLowerCase());
         output.setCounterexample(counterexample.getTrace());
-        output.setApproximate(Boolean.FALSE);
+        output.setApproximate(false);
         
         // Prepare state metadata
         Map<String, ResponsibilityOutput.StateInfo> stateMetadata = new HashMap<>();

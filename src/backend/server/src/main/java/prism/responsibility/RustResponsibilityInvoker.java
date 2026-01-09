@@ -68,16 +68,6 @@ public class RustResponsibilityInvoker {
         ProcessBuilder pb = new ProcessBuilder(cmd);
         pb.directory(workDir.toFile());
         pb.redirectErrorStream(true); // merge stdout+stderr for easier capture
-        
-        // Add PRISM to PATH for the Rust tool
-        Map<String, String> env = pb.environment();
-        String prismBin = System.getenv().getOrDefault("PRISM_BIN", "/Users/aldo/opt/prism-source/prism/bin/prism");
-        env.put("PRISM_BIN", prismBin);
-        // Also add PRISM bin directory to PATH
-        String prismBinDir = prismBin.substring(0, prismBin.lastIndexOf('/'));
-        String currentPath = env.getOrDefault("PATH", "");
-        env.put("PATH", prismBinDir + ":" + currentPath);
-        
         Process proc;
         try {
             proc = pb.start();
@@ -94,30 +84,29 @@ public class RustResponsibilityInvoker {
             }
         }
         int code = proc.waitFor();
-        logger.info("Responsibility tool exited with code {}. Output ({} bytes):\n{}", code, console.length(), console);
         if (code != 0) {
-            logger.error("Responsibility tool FAILED with code {}. Output:\n{}", code, console);
+            logger.error("Responsibility tool exited with code {}. Output:\n{}", code, console);
             throw new Exception("Responsibility tool failed (exit=" + code + ")");
         }
+        logger.debug("Responsibility tool raw output ({} bytes)\n{}", console.length(), console);
 
-        // Extract state names from PRISM model FIRST for mapping during parsing
-        Map<String, String> stateNames = new LinkedHashMap<>();
-        try {
-            stateNames = extractStateNamesFromModel(modelFile);
-            logger.info("Extracted {} state names from PRISM model", stateNames.size());
-        } catch (Exception e) {
-            logger.warn("Could not extract state names from model: {}", e.getMessage());
-        }
-
-        ResponsibilityOutput output = parsePreferred(outFile, altFile, console.toString(), stateNames);
+        ResponsibilityOutput output = parsePreferred(outFile, altFile, console.toString());
         output.setLevel(level);
         output.setResponsibilityType(mode);
         output.setPowerIndex(index);
         output.setCounterexample(overrideTrace); // only set if provided
-        output.setApproximate(Boolean.FALSE); // exact computation
+        output.setApproximate(false); // assume exact – may adjust if tool exposes flag
         output.setGroupedMode(Boolean.FALSE); // will update after inspecting tool grouping output
         output.setStateMetadata(enrichStateMetadata(output.getStateResponsibility(), overrideTrace));
-        output.setStateIdToName(stateNames);
+
+        // Extract state ID to name mapping using lightweight PRISM CLI
+        // (avoids slow Java API - see Nov 26 report: "dropped from 18s to 8s")
+        Map<String, String> stateMapping = PrismStateMapper.extractStateMapping(absoluteModelFile);
+        if (!stateMapping.isEmpty()) {
+            output.setStateIdToName(stateMapping);
+        } else {
+            logger.warn("State mapping empty - frontend may not match states correctly");
+        }
 
         long ms = System.currentTimeMillis() - start;
         logger.info("Responsibility tool completed in {} ms: states={}, components={}", ms,
@@ -155,7 +144,6 @@ public class RustResponsibilityInvoker {
 
         // Metric (index)
         String metric = (index == null || index.isBlank()) ? "shapley" : index.toLowerCase();
-        logger.info("→ Rust command metric flag: -m {} (from index='{}')", metric, index);
         cmd.add("-m");
         cmd.add(metric);
 
@@ -170,16 +158,15 @@ public class RustResponsibilityInvoker {
             if (mode.toLowerCase().startsWith("o")) version = "o"; // optimistic
             else if (mode.toLowerCase().startsWith("p")) version = "p"; // pessimistic
         }
-        logger.info("→ Rust command version flag: -v {} (from mode='{}')", version, mode);
         cmd.add("-v");
         cmd.add(version);
 
-        // Refinement: enable -a if level > 0 (simple heuristic mapping)
-        // NOTE: Refinement mode currently ignores the -m parameter and always uses Shapley
-        // So we disable refinement when using Banzhaf until the tool is fixed
-        if (level > 0 && !"banzhaf".equalsIgnoreCase(metric)) {
-            cmd.add("-a");
-        }
+        // NOTE: Refinement (-a flag) disabled to get stable, verified values
+        // that match the November 2025 report. The refinement engine produces
+        // grouped results with different responsibility values.
+        // if (level > 0) {
+        //     cmd.add("-a");
+        // }
 
         // Thread count override (optional) via RESP_THREADS
         String threads = System.getenv("RESP_THREADS");
@@ -219,20 +206,32 @@ public class RustResponsibilityInvoker {
         return cmd;
     }
 
-    private ResponsibilityOutput parsePreferred(Path jsonFile, Path txtFile, String console, Map<String, String> stateNames) throws Exception {
+    private ResponsibilityOutput parsePreferred(Path jsonFile, Path txtFile, String console) throws Exception {
+        // The tool writes text format even to .json files, so try text parse first on any existing file
         if (Files.exists(jsonFile)) {
-            try {
-                byte[] data = Files.readAllBytes(jsonFile);
-                JsonNode root = mapper.readTree(data);
-                return parseJson(root);
+            try (BufferedReader br = new BufferedReader(new FileReader(jsonFile.toFile(), StandardCharsets.UTF_8))) {
+                java.util.List<String> lines = new java.util.ArrayList<>();
+                br.lines().forEach(lines::add);
+                logger.debug("Reading from jsonFile (as text): {} lines", lines.size());
+                Map<String, Double> stateResp = parseLineFormat(lines);
+                if (!stateResp.isEmpty()) {
+                    logger.info("Parsed {} states from output file", stateResp.size());
+                    ResponsibilityOutput o = new ResponsibilityOutput();
+                    o.setStateResponsibility(stateResp);
+                    o.setComponentResponsibility(Collections.emptyMap());
+                    return o;
+                }
             } catch (Exception e) {
-                logger.warn("JSON parse failed ({}). Falling back to line parse from same file.", e.getMessage());
-                // JSON parsing failed, but the file might be in text format - try parsing it as text
-                try (BufferedReader br = new BufferedReader(new FileReader(jsonFile.toFile(), StandardCharsets.UTF_8))) {
-                    java.util.List<String> lines = new java.util.ArrayList<>();
-                    br.lines().forEach(lines::add);
-                    logger.info("Parsing responsibility from file (text format): {} ({} lines)", jsonFile, lines.size());
-                    Map<String, Double> stateResp = parseLineFormat(lines, stateNames);
+                logger.warn("Text parse of jsonFile failed ({}). Trying other sources.", e.getMessage());
+            }
+        }
+        if (Files.exists(txtFile)) {
+            try (BufferedReader br = new BufferedReader(new FileReader(txtFile.toFile(), StandardCharsets.UTF_8))) {
+                java.util.List<String> lines = new java.util.ArrayList<>();
+                br.lines().forEach(lines::add);
+                Map<String, Double> stateResp = parseLineFormat(lines);
+                if (!stateResp.isEmpty()) {
+                    logger.info("Parsed {} states from txt file", stateResp.size());
                     ResponsibilityOutput o = new ResponsibilityOutput();
                     o.setStateResponsibility(stateResp);
                     o.setComponentResponsibility(Collections.emptyMap());
@@ -240,21 +239,10 @@ public class RustResponsibilityInvoker {
                 }
             }
         }
-        if (Files.exists(txtFile)) {
-            logger.info("Reading responsibility from file: {}", txtFile);
-            try (BufferedReader br = new BufferedReader(new FileReader(txtFile.toFile(), StandardCharsets.UTF_8))) {
-                java.util.List<String> lines = new java.util.ArrayList<>();
-                br.lines().forEach(lines::add); // Java 11 compatible
-                Map<String, Double> stateResp = parseLineFormat(lines, stateNames);
-                ResponsibilityOutput o = new ResponsibilityOutput();
-                o.setStateResponsibility(stateResp);
-                o.setComponentResponsibility(Collections.emptyMap());
-                return o;
-            }
-        }
-        // Attempt parse from console stdout if no files
-        logger.warn("No output files found, parsing from console output (may contain stderr contamination)");
-        Map<String, Double> stateResp = parseLineFormat(Arrays.asList(console.split("\n")), stateNames);
+        // Attempt parse from console stdout if no files worked
+        logger.debug("Parsing from console output ({} chars)", console.length());
+        Map<String, Double> stateResp = parseLineFormat(Arrays.asList(console.split("\n")));
+        logger.info("Parsed {} states from console output", stateResp.size());
         ResponsibilityOutput o = new ResponsibilityOutput();
         o.setStateResponsibility(stateResp);
         o.setComponentResponsibility(Collections.emptyMap());
@@ -339,124 +327,43 @@ public class RustResponsibilityInvoker {
     }
 
     /**
-     * Convert "var1=val1, var2=val2, ..." format to "val1,val2,..." format
-     */
-    private String convertVarValueToRawValues(String varValueFormat) {
-        // Split by comma
-        String[] pairs = varValueFormat.split(",");
-        StringBuilder raw = new StringBuilder();
-        for (int i = 0; i < pairs.length; i++) {
-            String pair = pairs[i].trim();
-            // Extract value after '='
-            int eqIdx = pair.indexOf('=');
-            if (eqIdx > 0 && eqIdx < pair.length() - 1) {
-                String value = pair.substring(eqIdx + 1).trim();
-                if (i > 0) raw.append(",");
-                raw.append(value);
-            }
-        }
-        return raw.toString();
-    }
-
-    /**
      * Parse fallback line-based format:
      *   s42 0.75
      *   s17 0.12
-     * 
-     * Also handles Rust tool format with state descriptions mapped to state IDs.
      */
-    private Map<String, Double> parseLineFormat(List<String> lines, Map<String, String> stateNames) {
+    private Map<String, Double> parseLineFormat(List<String> lines) {
         Map<String, Double> stateResp = new LinkedHashMap<>();
-        
-        // Build reverse map: state description -> state ID
-        Map<String, String> descToId = new LinkedHashMap<>();
-        if (stateNames != null) {
-            for (Map.Entry<String, String> entry : stateNames.entrySet()) {
-                String id = entry.getKey();
-                String desc = entry.getValue();
-                // Normalize description by removing wrapping parens if present
-                String normalized = desc.replaceAll("^\\(", "").replaceAll("\\)$", "").trim();
-                descToId.put(normalized, id);
-            }
-        }
-        
         // Pattern for simple format: "ID VALUE"
         Pattern p = Pattern.compile("^(?<id>[A-Za-z0-9_\\-\\.]+)\\s+(?<val>[0-9]*\\.?[0-9]+(?:[eE][+\\-]?[0-9]+)?)$");
-        // Pattern for Rust tool Shapley format: "({(var1=val1, var2=val2, ...)}): VALUE"
-        Pattern rustShapleyPattern = Pattern.compile("^\\(\\{\\((?<state>[^)]+)\\)\\}\\):\\s*(?<val>[0-9]*\\.?[0-9]+(?:[eE][+\\-]?[0-9]+)?)\\s*$");
-        // Pattern for Rust tool Banzhaf format: "(var1=val1, var2=val2, ...): VALUE"
-        Pattern rustBanzhafPattern = Pattern.compile("^\\((?<state>[^)]+)\\):\\s*(?<val>[0-9]*\\.?[0-9]+(?:[eE][+\\-]?[0-9]+)?)\\s*$");
-        // Pattern for old Rust tool format: "(ID): (state description): VALUE"
+        // Pattern for Rust tool format WITH ID: "(ID): (state description): VALUE"
         Pattern rustPattern = Pattern.compile("^\\((?<id>\\d+)\\):.*:\\s*(?<val>[0-9]*\\.?[0-9]+(?:[eE][+\\-]?[0-9]+)?)\\s*$");
-        
+        // Pattern for Rust tool format WITHOUT ID (file output): "(state=value, ...): VALUE"
+        // The line format is: (var1=val1, var2=val2, ...): 0.12345678
+        // We need to match from the first ( to the last ): then capture the number
+        Pattern noIdPattern = Pattern.compile("^\\(.*\\):\\s*(?<val>[0-9]*\\.?[0-9]+(?:[eE][+\\-]?[0-9]+)?)\\s*$");
+        int autoId = 0;
         for (String line : lines) {
             if (line == null) continue;
             String trimmed = line.trim();
-            if (trimmed.isEmpty() || trimmed.startsWith("#") || trimmed.startsWith("Metric:")) continue;
+            if (trimmed.isEmpty() || trimmed.startsWith("#") || trimmed.startsWith("Metric:") || trimmed.startsWith("Sum of")) continue;
             
-            // Debug: log first few lines being processed
-            if (stateResp.size() < 2) {
-                logger.info("Processing line (first 80 chars): {}", trimmed.substring(0, Math.min(80, trimmed.length())));
-            }
-            
-            // Try Shapley format first: "({(state)}): VALUE"
-            Matcher shapleyMatcher = rustShapleyPattern.matcher(trimmed);
-            if (shapleyMatcher.find()) {
-                String stateDesc = shapleyMatcher.group("state");
-                String valStr = shapleyMatcher.group("val");
-                try {
-                    double v = Double.parseDouble(valStr);
-                    // Convert var=value format to raw values
-                    String rawValues = convertVarValueToRawValues(stateDesc);
-                    // Try to match against PRISM state description
-                    String stateId = descToId.get(rawValues);
-                    if (stateId != null) {
-                        stateResp.put(stateId, v);
-                    } else {
-                        logger.warn("Could not map state description to ID: {} -> {}", stateDesc.substring(0, Math.min(50, stateDesc.length())), rawValues.substring(0, Math.min(30, rawValues.length())));
-                    }
-                } catch (NumberFormatException ignore) {
-                }
-                continue;
-            }
-            
-            // Try Banzhaf format: "(state): VALUE"
-            Matcher banzhafMatcher = rustBanzhafPattern.matcher(trimmed);
-            if (banzhafMatcher.find()) {
-                String stateDesc = banzhafMatcher.group("state");
-                String valStr = banzhafMatcher.group("val");
-                
-                // Debug: log first few parsed lines
-                if (stateResp.size() < 3) {
-                    logger.info("Parsed Rust output: state={} value={}", stateDesc.substring(0, Math.min(60, stateDesc.length())), valStr);
-                }
-                
-                try {
-                    double v = Double.parseDouble(valStr);
-                    // Convert var=value format to raw values
-                    String rawValues = convertVarValueToRawValues(stateDesc);
-                    // Try to match against PRISM state description
-                    String stateId = descToId.get(rawValues);
-                    if (stateId != null) {
-                        stateResp.put(stateId, v);
-                        if (stateResp.size() <= 3) {
-                            logger.info("✓ Matched state: {} -> ID={}", rawValues.substring(0, Math.min(40, rawValues.length())), stateId);
-                        }
-                    } else {
-                        logger.warn("Could not map state description to ID: {} -> {}", stateDesc.substring(0, Math.min(50, stateDesc.length())), rawValues.substring(0, Math.min(30, rawValues.length())));
-                    }
-                } catch (NumberFormatException ignore) {
-                }
-                continue;
-            }
-            
-            // Try old Rust format
+            // Try Rust format with ID first
             Matcher rustMatcher = rustPattern.matcher(trimmed);
             if (rustMatcher.find()) {
                 String id = rustMatcher.group("id");
                 try {
                     double v = Double.parseDouble(rustMatcher.group("val"));
                     stateResp.put(id, v);
+                } catch (NumberFormatException ignore) {
+                }
+                continue;
+            }
+            // Try format without ID (from file output)
+            Matcher noIdMatcher = noIdPattern.matcher(trimmed);
+            if (noIdMatcher.find()) {
+                try {
+                    double v = Double.parseDouble(noIdMatcher.group("val"));
+                    stateResp.put(String.valueOf(autoId++), v);
                 } catch (NumberFormatException ignore) {
                 }
                 continue;
@@ -497,105 +404,6 @@ public class RustResponsibilityInvoker {
                     try { Files.deleteIfExists(p); } catch (IOException ignored) {}
                 });
         } catch (IOException ignored) {
-        }
-    }
-
-    /**
-     * Extract state names from PRISM model by running prism export.
-     * Uses the PRISM CLI to export the state space and extract state representations.
-     * This is faster than loading the full model in-memory.
-     */
-    private Map<String, String> extractStateNamesFromModel(String modelFile) throws Exception {
-        Map<String, String> stateNames = new LinkedHashMap<>();
-        
-        // Create a temporary file for state export
-        Path statesFile = Files.createTempFile("states_", ".txt");
-        try {
-            // Determine PRISM executable path
-            String prismPath = System.getenv("PRISM_PATH");
-            if (prismPath == null || prismPath.isBlank()) {
-                // Try common locations
-                String[] candidates = {
-                    "/Users/aldo/opt/prism-source/prism/bin/prism",
-                    "/usr/local/bin/prism",
-                    "/opt/prism/bin/prism",
-                    "prism"
-                };
-                for (String candidate : candidates) {
-                    if (new java.io.File(candidate).exists() || candidate.equals("prism")) {
-                        prismPath = candidate;
-                        break;
-                    }
-                }
-            }
-            
-            // Run PRISM to export states: prism model.prism -exportstates states.txt
-            ProcessBuilder pb = new ProcessBuilder(
-                prismPath,
-                modelFile,
-                "-exportstates",
-                statesFile.toString()
-            );
-            
-            // Set library path for PRISM
-            Map<String, String> env = pb.environment();
-            String libPath = System.getenv("DYLD_LIBRARY_PATH");
-            if (libPath != null) {
-                env.put("DYLD_LIBRARY_PATH", libPath);
-            }
-            
-            Process proc = pb.start();
-            int exitCode = proc.waitFor();
-            
-            if (exitCode != 0) {
-                throw new Exception("PRISM export states failed with code " + exitCode);
-            }
-            
-            // Parse the states file
-            // Format: first line is variable names: "(var1,var2,...)"
-            // Then each line is "stateId:(val1,val2,...)"
-            // We need to convert to "var1=val1, var2=val2, ..." format to match Rust tool
-            List<String> varNames = new ArrayList<>();
-            try (BufferedReader reader = new BufferedReader(new FileReader(statesFile.toFile()))) {
-                String line;
-                boolean firstLine = true;
-                while ((line = reader.readLine()) != null) {
-                    line = line.trim();
-                    if (line.isEmpty() || line.startsWith("#")) continue;
-                    
-                    if (firstLine) {
-                        // Parse variable names: "(p1l,p1r,e1,...)"
-                        String varLine = line.replaceAll("^\\(", "").replaceAll("\\)$", "");
-                        String[] vars = varLine.split(",");
-                        for (String var : vars) {
-                            varNames.add(var.trim());
-                        }
-                        firstLine = false;
-                        continue;
-                    }
-                    
-                    // Parse state line: "id:(val1,val2,...)"
-                    int colonIdx = line.indexOf(':');
-                    if (colonIdx > 0) {
-                        String id = line.substring(0, colonIdx).trim();
-                        String valuesStr = line.substring(colonIdx + 1).trim();
-                        
-                        // Store the raw state representation as-is (matches graph node name format)
-                        // Graph nodes have names like "(0,0,0,0)" from PRISM export
-                        stateNames.put(id, valuesStr);
-                        
-                        // Debug: log first few state mappings
-                        if (stateNames.size() <= 3) {
-                            logger.info("State mapping example: id={} -> desc={}", id, valuesStr.substring(0, Math.min(60, valuesStr.length())));
-                        }
-                    }
-                }
-            }
-            
-            return stateNames;
-            
-        } finally {
-            Files.deleteIfExists(statesFile);
         }
     }
 }

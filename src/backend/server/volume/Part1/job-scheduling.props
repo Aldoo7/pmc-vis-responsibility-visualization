@@ -1,7 +1,0 @@
-"PMax_Success": Pmax=? [G "no_violations"];
-"PMin_Success": Pmin=? [G "no_violations"];
-
-"Min_Exp_Cost": R{"cost"}min=? [F "end"];
-"Max_Exp_Cost": R{"cost"}max=? [F "end"];
-
-"Deadlocks": Pmax=? [F "deadlock"];

@@ -180,23 +180,16 @@ class Decorator {
 
     updateInfo(activeEditor) {
 
-        console.log("updateInfo")
-
         let state = this._activeState[this._projectID];
-
-        console.log("activeState:")
-        console.log(state)
 
         if (!state || !this.matchVars(state.getState())) {
             activeEditor.setDecorations(allowedActionDecoration, []);
             activeEditor.setDecorations(blockedActionDecoration, []);
             activeEditor.setDecorations(partiallyBlockedActionDecoration, []);
             activeEditor.setDecorations(varDecoration, []);
-            console.log("fail")
             return;
         }
 
-        console.log("succeed")
         state = state.getState();
 
         const document = activeEditor.document;
@@ -294,7 +287,6 @@ class Decorator {
             }
         }
         activeEditor.setDecorations(varDecoration, varDeco);
-        console.log("new Decoration")
 
         // Re-apply responsibility overlay if present
         if (this._componentResp) {

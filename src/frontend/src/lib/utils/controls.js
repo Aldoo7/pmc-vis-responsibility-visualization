@@ -425,7 +425,6 @@ function updatePropsValues() {
 
 async function status() {
   const data = await socket.emitWithAck('MC_STATUS', PROJECT);
-  console.log(data);
   return data;
 }
 
@@ -445,7 +444,6 @@ async function triggerModelCheckProperty(e, propType, props) {
 }
 
 socket.on('MC_STATUS', (status) => {
-  console.log(status);
   setInfo(status.info);
   info.updating = true;
   setPane(pane.id, { force: true });
@@ -462,8 +460,6 @@ async function clear() {
     setInfo(state.info);
     setPane(pane.id, { force: true });
   }
-
-  console.log(response);
 }
 
 function makeDetailCheckboxes() {

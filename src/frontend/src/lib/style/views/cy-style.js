@@ -22,6 +22,11 @@ const colors = {
   RESP_HIGH: '#c74444',
   RESP_MEDIUM: '#e87d1e',
   RESP_LOW: '#5ca65c',
+  
+  // Path highlighting colors
+  PATH_EDGE: '#ff6b35',
+  PATH_NODE_GLOW: '#4887b9',
+  FILTERED_DIM: '#e0e0e0',
 };
 
 const outlines = {
@@ -224,6 +229,38 @@ const stylesheet = [
     style: {
       'background-opacity': 0,
       'border-color': '#5ca65c',
+    },
+  },
+  {
+    selector: 'node.filtered-out',
+    style: {
+      'opacity': 0.2,
+      'background-color': colors.FILTERED_DIM,
+      'border-color': colors.FILTERED_DIM,
+    },
+  },
+  {
+    selector: 'node.in-path',
+    style: {
+      'border-width': 4,
+      'border-color': colors.PATH_NODE_GLOW,
+      'border-style': 'solid',
+    },
+  },
+  {
+    selector: 'edge.path-edge',
+    style: {
+      'line-color': colors.PATH_EDGE,
+      'target-arrow-color': colors.PATH_EDGE,
+      'width': 3,
+      'line-style': 'solid',
+      'z-index': 999,
+    },
+  },
+  {
+    selector: 'edge.filtered-out',
+    style: {
+      'opacity': 0.1,
     },
   },
 ];
