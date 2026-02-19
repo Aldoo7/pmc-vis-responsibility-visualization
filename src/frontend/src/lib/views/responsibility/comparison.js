@@ -327,15 +327,37 @@ export function clearComparison() {
 }
 
 /**
+ * Normalize a state name to values-only format for comparison.
+ * "(d1=0,d2=0,s1=0,s2=0)" -> "(0,0,0,0)"
+ * "(0,0,0,0)" -> "(0,0,0,0)" (unchanged)
+ * "(true,false)" -> "(true,false)" (unchanged)
+ */
+function normalizeStateName(name) {
+  if (!name || !name.startsWith('(') || !name.endsWith(')')) return name;
+  const inner = name.slice(1, -1);
+  const parts = inner.split(',').map(p => {
+    const eq = p.indexOf('=');
+    return eq >= 0 ? p.substring(eq + 1).trim() : p.trim();
+  });
+  return '(' + parts.join(',') + ')';
+}
+
+/**
  * Build mapping from state ID (from responsibility tool) to graph node ID.
  * The stateIdToName from backend maps: toolStateId -> stateName (variable assignment string)
  * We need to find graph nodes whose 'name' matches these state names.
+ *
+ * Note: stateIdToName values are values-only like "(0,0,0,0)" while
+ * node.data('name') includes variable names like "(d1=0,d2=0,s1=0,s2=0)".
+ * We normalize both to values-only for matching.
  */
 function buildStateIdToGraphIdMapping(stateIdToName) {
   const mapping = {};
   const panes = getPanes();
   
-  // Build a lookup from state name to graph node ID
+  // Build a lookup from state name to graph node ID.
+  // Store BOTH the original name and the normalized (values-only) version
+  // so we match regardless of whether names include variable prefixes.
   const nameToGraphId = new Map();
   
   Object.values(panes).forEach(pane => {
@@ -344,20 +366,36 @@ function buildStateIdToGraphIdMapping(stateIdToName) {
       const name = node.data('name');
       if (name) {
         nameToGraphId.set(name, node.id());
+        const normalized = normalizeStateName(name);
+        if (normalized !== name) {
+          nameToGraphId.set(normalized, node.id());
+        }
       }
     });
   });
   
   // Map each tool state ID to graph node ID via the name
+  let mapped = 0, fallback = 0;
   Object.entries(stateIdToName).forEach(([toolStateId, stateName]) => {
-    const graphId = nameToGraphId.get(stateName);
+    // Try exact match first, then normalized
+    let graphId = nameToGraphId.get(stateName);
+    if (!graphId) {
+      graphId = nameToGraphId.get(normalizeStateName(stateName));
+    }
     if (graphId) {
       mapping[toolStateId] = graphId;
+      mapped++;
     } else {
       // Fallback: use tool state ID directly
       mapping[toolStateId] = toolStateId;
+      fallback++;
     }
   });
+  
+  if (fallback > 0 && mapped === 0) {
+    console.warn(`[comparison] State name mapping failed for all ${fallback} states. ` +
+      `Tool names and graph names may use different formats.`);
+  }
   
   return mapping;
 }

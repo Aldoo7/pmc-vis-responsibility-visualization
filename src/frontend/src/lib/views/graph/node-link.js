@@ -49,6 +49,21 @@ let selectedPanesData = {
   paneCy: null,
 };
 
+/**
+ * Normalize a state name to values-only format for comparison.
+ * "(d1=0,d2=0,s1=0,s2=0)" -> "(0,0,0,0)"
+ * "(0,0,0,0)" -> "(0,0,0,0)" (unchanged)
+ */
+function _normalizeStateName(name) {
+  if (!name || !name.startsWith('(') || !name.endsWith(')')) return name;
+  const inner = name.slice(1, -1);
+  const parts = inner.split(',').map(p => {
+    const eq = p.indexOf('=');
+    return eq >= 0 ? p.substring(eq + 1).trim() : p.trim();
+  });
+  return '(' + parts.join(',') + ')';
+}
+
 function getEdgeId(edge) {
   return edge.data.source + edge.data.label + edge.data.target;
 }
@@ -137,6 +152,20 @@ function updateResponsibility(cy, data) {
   const stateIdToName = data.stateIdToName || {};
   const hasStateMapping = Object.keys(stateIdToName).length > 0;
   
+  // Also build a normalized lookup for values-only state names.
+  // stateIdToName values may be "(0,0,0,0)" while node names are "(d1=0,d2=0,s1=0,s2=0)".
+  // Build a normalized-name-to-node map so both formats match.
+  const normalizedToNode = new Map();
+  graphNodes.forEach(node => {
+    const name = node.data('name');
+    if (name) {
+      const normalized = _normalizeStateName(name);
+      if (normalized !== name) {
+        normalizedToNode.set(normalized, node);
+      }
+    }
+  });
+  
   cy.startBatch();
   
   // Clear existing responsibility classes
@@ -153,6 +182,10 @@ function updateResponsibility(cy, data) {
       if (hasStateMapping && stateIdToName[stateId]) {
         const stateName = stateIdToName[stateId];
         node = idToNode.get(stateName);
+        // If exact name didn't match, try normalized (values-only) lookup
+        if (!node) {
+          node = normalizedToNode.get(_normalizeStateName(stateName));
+        }
       }
       
       if (!node) {
