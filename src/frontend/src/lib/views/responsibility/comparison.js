@@ -297,6 +297,14 @@ function highlightStateInGraph(stateId) {
 }
 
 /**
+ * Expose comparison results for other modules (e.g. explanation panel).
+ * Returns the comparisonResults object (may contain nulls for un-computed modes).
+ */
+export function getComparisonResults() {
+  return comparisonResults;
+}
+
+/**
  * Clear comparison results
  */
 export function clearComparison() {

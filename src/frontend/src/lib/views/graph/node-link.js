@@ -34,6 +34,7 @@ import { CONSTANTS } from '../../utils/names.js';
 import events from '../../utils/events.js';
 import { cytoscape } from '../imports/import-cytoscape.js';
 import { socket } from '../imports/import-socket.js';
+import { showExplanation } from '../responsibility/explanation.js';
 
 const THROTTLE_DEBOUNCE_DELAY = 100;
 var iteration = 0;
@@ -286,11 +287,22 @@ function updateRedNodesPanel(redNodes) {
   
   listEl.innerHTML = items;
   
-  // Add click handlers to highlight node in graph
+  // Add click handlers to highlight node in graph + show explanation
   listEl.querySelectorAll('.red-node-item').forEach(item => {
     item.addEventListener('click', () => {
       const nodeId = item.getAttribute('data-node-id');
       highlightNodeInAllPanes(nodeId);
+      // Open explanation panel for this node
+      const panes = getPanes();
+      for (const pane of Object.values(panes)) {
+        if (pane.cy) {
+          const node = pane.cy.$('#' + nodeId);
+          if (node.length > 0) {
+            showExplanation(node, pane.cy);
+            break;
+          }
+        }
+      }
     });
   });
 }
@@ -940,6 +952,11 @@ function bindListeners(cy) {
 
     if (!e.originalEvent.shiftKey) {
       hideAllTippies();
+      // Show explanation panel if node has responsibility data
+      const respVal = n.data('responsibility');
+      if (respVal != null && respVal > 0) {
+        showExplanation(n, cy);
+      }
     }
 
     if (e.originalEvent.shiftKey) {
@@ -1743,6 +1760,17 @@ function ctxmenu(cy) {
         selector: 'node:selected',
         onClickFunction: () => {
           spawnPCP(cy);
+        },
+        hasTrailingDivider: false,
+      },
+      {
+        id: 'explain-responsibility',
+        content: '🔍 Explain Responsibility',
+        tooltipText: 'Show why this state has its responsibility value',
+        selector: 'node.s',
+        onClickFunction: (event) => {
+          const target = event.target || event.cyTarget;
+          showExplanation(target, cy);
         },
         hasTrailingDivider: true,
       },

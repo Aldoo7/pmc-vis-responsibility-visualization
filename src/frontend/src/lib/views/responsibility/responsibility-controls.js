@@ -3,6 +3,7 @@ import { getPanes } from '../panes/panes.js';
 import { PROJECT } from '../../utils/controls.js';
 import { initFilteringControls, updateStateResponsibility, clearFiltering } from './filtering.js';
 import { initComparisonControls, clearComparison, exportComparisonCSV } from './comparison.js';
+import { cacheResponsibilityData, clearExplanationCache } from './explanation.js';
 
 let isRunning = false;
 let isPaused = false;
@@ -110,6 +111,7 @@ export function initResponsibilityControls() {
     clearResponsibilityVisualization();
     clearFiltering();
     clearComparison();
+    clearExplanationCache();
     statusDiv.style.display = 'none';
   });
 
@@ -148,6 +150,9 @@ export function initResponsibilityControls() {
   socket.on('responsibility:result', (_data) => {
     if (_data && _data.stateResponsibility) {
       lastStateResponsibility = _data.stateResponsibility;
+
+      // Cache data for explanation panel
+      cacheResponsibilityData(_data);
       
       // If grouped mode, render the group table instead of state table
       if (_data.groupedMode && _data.groups) {
