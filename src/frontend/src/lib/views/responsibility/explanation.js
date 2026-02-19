@@ -387,13 +387,13 @@ function insightSection(node, cy, nodeId, resp) {
     const second = positives[1];
     const spread = top.v - second.v;
     if (spread > 0.03 && top.id === nodeId) {
-      findings.push(`<b>Highest under pessimistic:</b> In pessimistic mode, off-trace states act adversarially. Despite this worst-case assumption, this state still leads the ranking by ${(spread * 100).toFixed(1)} pp—it is pivotal even when the environment works against it.`);
+      findings.push(`<b>Highest under pessimistic:</b> In pessimistic mode, off-trace states act adversarially. Despite this worst-case assumption, this state leads the ranking at ${(top.v * 100).toFixed(1)}% vs ${(second.v * 100).toFixed(1)}% for the next state—it is pivotal even when the environment works against it.`);
       if (!mainReason) mainReason = 'even under adversarial assumptions about other states, this state remains the most pivotal for reaching the error';
     } else if (positives.length >= 3) {
       const spreadTop3 = positives[0].v - positives[2].v;
       if (spreadTop3 > 0.05 && positives.some(e => e.id === nodeId)) {
         const myRank = positives.findIndex(e => e.id === nodeId) + 1;
-        findings.push(`<b>Pessimistic differentiation:</b> Pessimistic mode introduces a ${(spreadTop3 * 100).toFixed(1)} pp spread across the top 3 states. This state ranks #${myRank} among responsible states—the adversarial assumption reveals ranking differences that optimistic mode would not show.`);
+        findings.push(`<b>Pessimistic differentiation:</b> Under pessimistic mode, the top 3 states are differentiated: #1 at ${(positives[0].v * 100).toFixed(1)}%, #2 at ${(positives[1].v * 100).toFixed(1)}%, #3 at ${(positives[2].v * 100).toFixed(1)}%. This state ranks #${myRank}—the adversarial assumption reveals ranking differences that optimistic mode would not show.`);
         if (!mainReason) mainReason = 'pessimistic mode reveals that this state\'s pivotal power differs from other states when the environment is adversarial';
       }
     }
@@ -428,8 +428,7 @@ function insightSection(node, cy, nodeId, resp) {
 
     // Monotonicity gap
     if (optS != null && pesS != null && optS > pesS + 0.05) {
-      const gap = ((optS - pesS) * 100).toFixed(1);
-      findings.push(`<b>Monotonicity gap:</b> ${gap} pp difference between optimistic and pessimistic Shapley values. A larger gap indicates this state's power depends more on cooperation from other states.`);
+      findings.push(`<b>Monotonicity gap:</b> Optimistic (${(optS * 100).toFixed(1)}%) is higher than pessimistic (${(pesS * 100).toFixed(1)}%). The difference indicates this state's pivotal power depends on cooperation from other states.`);
     }
 
     // Consistent across modes — genuine causal significance
@@ -466,28 +465,12 @@ function insightSection(node, cy, nodeId, resp) {
     ? `<ul style="margin:6px 0 0; padding-left:16px; line-height:1.6; font-size:0.88em; color:#444">${findings.map(f => `<li style="margin-bottom:4px">${f}</li>`).join('')}</ul>`
     : '';
 
-  // Brief theory footnote (varies by index and mode)
-  let theoryNote = '';
-  if (isShapley) {
-    theoryNote = `Shapley value: averages a state's marginal contribution across all possible coalition orderings. Values sum to 1 across all states, giving a natural "share of blame."`;
-  } else {
-    theoryNote = `Banzhaf index: counts the fraction of coalitions where adding this state flips the outcome from "error reachable" to "error avoided." Does not sum to 1—measures raw pivotal frequency.`;
-  }
-  if (isOpt) {
-    theoryNote += ` Optimistic mode: off-trace states are assumed to cooperate (take safe actions).`;
-  } else if (isPes) {
-    theoryNote += ` Pessimistic mode: off-trace states are assumed adversarial (take worst-case actions).`;
-  }
-
   return sectionWrap('Theoretical Insight', `
     <p style="margin:0; font-size:0.9em; color:#555">
       Under the <b>${modeStr}</b> interpretation with <b>${indexStr}</b> index,
       this state has high responsibility because ${mainReason}.
     </p>
-    ${findingsHtml}
-    <p style="margin:8px 0 0; font-size:0.78em; color:#999; border-top:1px solid #f0f0f0; padding-top:6px">
-      ${theoryNote}
-    </p>`);
+    ${findingsHtml}`);
 }
 
 /**
@@ -557,24 +540,12 @@ function _zeroRespInsight(node, cy, nodeId, outDeg, inDeg, modeStr, indexStr, is
     ? `<ul style="margin:6px 0 0; padding-left:16px; line-height:1.6; font-size:0.88em; color:#444">${findings.map(f => `<li style="margin-bottom:4px">${f}</li>`).join('')}</ul>`
     : '';
 
-  let theoryNote = isShapley
-    ? `Shapley value of 0: this state's marginal contribution is zero in every coalition ordering—removing it never changes the outcome.`
-    : `Banzhaf index of 0: there is no coalition where adding this state flips the outcome from "error reachable" to "error avoided."`;
-  if (isOpt) {
-    theoryNote += ` Optimistic mode: off-trace states cooperate, so this state is not needed in any winning strategy.`;
-  } else if (isPes) {
-    theoryNote += ` Pessimistic mode: even with adversarial off-trace behavior, this state has no pivotal power.`;
-  }
-
   return sectionWrap('Theoretical Insight', `
     <p style="margin:0; font-size:0.9em; color:#555">
       Under the <b>${modeStr}</b> interpretation with <b>${indexStr}</b> index,
       this state has <b>zero responsibility</b> because ${mainReason}.
     </p>
-    ${findingsHtml}
-    <p style="margin:8px 0 0; font-size:0.78em; color:#999; border-top:1px solid #f0f0f0; padding-top:6px">
-      ${theoryNote}
-    </p>`);
+    ${findingsHtml}`);
 }
 
 /* ------------------------------------------------------------------ */
