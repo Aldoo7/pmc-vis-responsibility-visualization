@@ -991,9 +991,9 @@ function bindListeners(cy) {
 
     if (!e.originalEvent.shiftKey) {
       hideAllTippies();
-      // Show explanation panel if node has responsibility data
+      // Show explanation panel if responsibility data has been computed
       const respVal = n.data('responsibility');
-      if (respVal != null && respVal > 0) {
+      if (respVal != null) {
         showExplanation(n, cy);
       }
     }

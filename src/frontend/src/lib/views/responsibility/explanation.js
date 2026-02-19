@@ -270,7 +270,7 @@ function comparisonSection(nodeId) {
 }
 
 function insightSection(node, cy, nodeId, resp) {
-  if (resp == null || resp <= 0) return '';
+  if (resp == null) return '';
 
   const outEdges = node.outgoers('edge');
   const outDeg   = outEdges.length;
@@ -284,6 +284,18 @@ function insightSection(node, cy, nodeId, resp) {
 
   const findings = [];   // data-driven bullet points
   let mainReason = '';    // one-sentence summary
+
+  // === Zero-responsibility explanations ===
+  if (resp <= 0) {
+    return _zeroRespInsight(node, cy, nodeId, outDeg, inDeg, modeStr, indexStr, isOpt, isPes, isShapley);
+  }
+
+  // === Positive-responsibility analysis ===
+
+  const entries = _buildRankedEntries(cy);
+  const positives = entries.filter(e => e.v > 0);
+  const rank = entries.findIndex(e => e.id === nodeId) + 1;
+  const avgAll = positives.length > 0 ? positives.reduce((s, e) => s + e.v, 0) / positives.length : 0;
 
   // ---- 1. Decision point / successor analysis ----
   const successors = outEdges.map(e => e.target()).filter(n => n.id() !== node.id());
@@ -300,26 +312,32 @@ function insightSection(node, cy, nodeId, resp) {
     // "Direct route to safety" — a successor with near-zero resp means this state
     // could have diverted. Baier: states on winning strategies can redirect play away from error.
     const safeExits = succResps.filter(r => r < 0.01);
-    if (safeExits.length > 0 && resp > 0.1) {
+    if (safeExits.length > 0 && resp > 0.05) {
       findings.push(`<b>Direct route to safety:</b> ${safeExits.length} of ${succResps.length} successor(s) have near-zero responsibility. This state sits at a branching point where choosing differently could have avoided the error entirely.`);
       mainReason = 'it has a direct exit toward a safe region of the model—choosing the alternative action here would have prevented the error';
     }
 
     // "Point of no return" — high resp AND all successors also high → past the
     // decision point, now on an inevitable path to the error.
-    if (succResps.length > 0 && minSucc > resp * 0.6 && resp > 0.1) {
+    if (succResps.length > 0 && minSucc > resp * 0.5 && resp > 0.05) {
       findings.push(`<b>Point of no return:</b> All successors also carry high responsibility (min ${(minSucc * 100).toFixed(1)}%). Once the system reaches this state, the error is nearly inevitable regardless of future choices.`);
       if (!mainReason) mainReason = 'it lies past the critical decision point—all downstream paths lead toward the error';
     }
 
-    // "Decision point" — responsibility drops sharply to successors
-    if (resp > avgSucc * 2 && avgSucc < resp * 0.5) {
+    // "Decision point" — responsibility drops to successors
+    if (resp > avgSucc * 1.5 && outDeg >= 2) {
       findings.push(`<b>Decision point:</b> Responsibility drops from ${(resp * 100).toFixed(1)}% here to avg ${(avgSucc * 100).toFixed(1)}% in successors. The pivotal choice between reaching the error or avoiding it happens at this state.`);
       if (!mainReason) mainReason = 'the critical choice between reaching the error or avoiding it happens at this state';
     }
+
+    // "High-responsibility neighborhood" — both this state and successors carry significant resp
+    if (avgSucc > 0.05 && resp > 0.05 && Math.abs(resp - avgSucc) < avgSucc * 0.5) {
+      findings.push(`<b>High-responsibility neighborhood:</b> This state (${(resp * 100).toFixed(1)}%) and its successors (avg ${(avgSucc * 100).toFixed(1)}%) all carry significant responsibility. It is embedded in a cluster of states that collectively drive the error.`);
+      if (!mainReason) mainReason = 'it is part of a cluster of high-responsibility states that collectively contribute to the error';
+    }
   }
 
-  // ---- 2. No choice = no blame (Baier: single-transition states have zero resp) ----
+  // ---- 2. No choice = no blame / bottleneck ----
   if (outDeg === 1 && resp < 0.01) {
     findings.push(`<b>No choice, no blame:</b> This state has only 1 outgoing transition. With no alternative action available, it cannot change the outcome and correctly receives zero responsibility.`);
     mainReason = 'it has only one transition—without an alternative path, it has no power to change the outcome';
@@ -329,59 +347,51 @@ function insightSection(node, cy, nodeId, resp) {
   }
 
   // ---- 3. Gateway state detection ----
-  // A state where responsibility drops sharply compared to its predecessors
-  // indicates a "gateway" — the last point of intervention before a high-responsibility zone.
   const predecessors = inEdges.map(e => e.source()).filter(n => n.id() !== node.id());
   const predResps = predecessors.map(n => {
     const r = n.data('responsibility');
     return r != null ? Number(r) : null;
   }).filter(r => r !== null);
 
-  if (predResps.length > 0 && resp > 0.15) {
+  if (predResps.length > 0 && resp > 0.05) {
     const avgPred = predResps.reduce((a, b) => a + b, 0) / predResps.length;
-    if (resp > avgPred * 2.5 && avgPred < 0.1) {
+    if (resp > avgPred * 2 && avgPred < resp * 0.5) {
       findings.push(`<b>Gateway state:</b> Predecessors have low responsibility (avg ${(avgPred * 100).toFixed(1)}%) while this state jumps to ${(resp * 100).toFixed(1)}%. This is a boundary state—entering it marks the transition from a safe region into a high-responsibility zone.`);
       if (!mainReason) mainReason = 'it is a gateway between a low-responsibility region and the error-prone zone of the model';
     }
   }
 
   // ---- 4. Equal-share detection (optimistic mode property) ----
-  // Baier Theorem: In optimistic mode, all states in the optimal winning strategy set
-  // receive equal responsibility = 1/|WS_opt|. So equal top values = equally pivotal.
-  if (isOpt) {
-    const entries = _buildRankedEntries(cy).filter(e => e.v > 0);
+  if (isOpt && positives.length >= 2) {
+    const topVal = positives[0].v;
+    const sameAsTop = positives.filter(e => Math.abs(e.v - topVal) < 0.001);
+    if (sameAsTop.length >= 2 && sameAsTop.some(e => e.id === nodeId)) {
+      const theoreticalShare = 1 / sameAsTop.length;
+      const matchesTheory = Math.abs(topVal - theoreticalShare) < 0.02;
 
-    if (entries.length >= 2) {
-      const topVal = entries[0].v;
-      const sameAsTop = entries.filter(e => Math.abs(e.v - topVal) < 0.001);
-      if (sameAsTop.length >= 2 && sameAsTop.some(e => e.id === nodeId)) {
-        // Check if value is close to 1/n (the theoretical equal share)
-        const theoreticalShare = 1 / sameAsTop.length;
-        const matchesTheory = Math.abs(topVal - theoreticalShare) < 0.02;
+      let shareExplanation = matchesTheory
+        ? `Each receives exactly 1/${sameAsTop.length} = ${(theoreticalShare * 100).toFixed(1)}%, confirming the optimistic equal-share theorem.`
+        : `They share the top value of ${(topVal * 100).toFixed(1)}%.`;
 
-        let shareExplanation = matchesTheory
-          ? `Each receives exactly 1/${sameAsTop.length} = ${(theoreticalShare * 100).toFixed(1)}%, confirming the optimistic equal-share theorem.`
-          : `They share the top value of ${(topVal * 100).toFixed(1)}%.`;
-
-        findings.push(`<b>Equal share (optimistic property):</b> ${sameAsTop.length} states share the same top responsibility. ${shareExplanation} Each of these states can independently divert the system away from the error—they form the minimal winning strategy set.`);
-        if (!mainReason) mainReason = `it is one of ${sameAsTop.length} states that can each independently prevent the error, so they share responsibility equally under the optimistic interpretation`;
-      }
+      findings.push(`<b>Equal share (optimistic property):</b> ${sameAsTop.length} states share the same top responsibility. ${shareExplanation} Each of these states can independently divert the system away from the error—they form the minimal winning strategy set.`);
+      if (!mainReason) mainReason = `it is one of ${sameAsTop.length} states that can each independently prevent the error, so they share responsibility equally under the optimistic interpretation`;
     }
   }
 
-  // ---- 5. Pessimistic differentiates where optimistic cannot ----
-  // Baier: optimistic mode gives equal shares, but pessimistic uses adversarial
-  // off-trace behavior to differentiate otherwise-equal states.
-  if (isPes) {
-    const entries = _buildRankedEntries(cy).filter(e => e.v > 0);
-
-    if (entries.length >= 3) {
-      // Check if values are well-spread (not all equal)
-      const top3 = entries.slice(0, 3);
-      const spread = top3[0].v - top3[2].v;
-      if (spread > 0.05 && entries[0].id === nodeId) {
-        findings.push(`<b>Stands out under adversity:</b> In pessimistic mode, off-trace states act adversarially. Despite this worst-case assumption, this state still dominates the ranking—it is pivotal even when the environment works against it.`);
-        if (!mainReason) mainReason = 'even under adversarial assumptions about other states, this state remains the most pivotal for reaching the error';
+  // ---- 5. Pessimistic differentiates ----
+  if (isPes && positives.length >= 2) {
+    const top = positives[0];
+    const second = positives[1];
+    const spread = top.v - second.v;
+    if (spread > 0.03 && top.id === nodeId) {
+      findings.push(`<b>Stands out under adversity:</b> In pessimistic mode, off-trace states act adversarially. Despite this worst-case assumption, this state still leads the ranking by ${(spread * 100).toFixed(1)} pp—it is pivotal even when the environment works against it.`);
+      if (!mainReason) mainReason = 'even under adversarial assumptions about other states, this state remains the most pivotal for reaching the error';
+    } else if (positives.length >= 3) {
+      const spreadTop3 = positives[0].v - positives[2].v;
+      if (spreadTop3 > 0.05 && positives.some(e => e.id === nodeId)) {
+        const myRank = positives.findIndex(e => e.id === nodeId) + 1;
+        findings.push(`<b>Differentiated by adversity:</b> Pessimistic mode introduces a ${(spreadTop3 * 100).toFixed(1)} pp spread across the top 3 states. This state ranks #${myRank} among responsible states—the adversarial assumption reveals differences that optimistic mode would obscure.`);
+        if (!mainReason) mainReason = 'pessimistic mode reveals that this state\'s pivotal power differs from other states when the environment is adversarial';
       }
     }
   }
@@ -407,30 +417,40 @@ function insightSection(node, cy, nodeId, resp) {
       if (optS > 0.01 && pesS > 0.01 && Math.abs(optS - pesS) < 0.05) {
         findings.push(`<b>Robust across modes:</b> Shapley-Optimistic (${(optS * 100).toFixed(1)}%) ≈ Shapley-Pessimistic (${(pesS * 100).toFixed(1)}%). This state's responsibility is structurally inherent—it does not depend on assumptions about how other states behave.`);
       } else if (optS > pesS * 1.5 && optS > 0.05) {
-        // Cooperation-dependent
         findings.push(`<b>Cooperation-dependent:</b> Shapley-Optimistic (${(optS * 100).toFixed(1)}%) is much higher than Pessimistic (${(pesS * 100).toFixed(1)}%). This state is most effective when other states also cooperate to avoid the error. Under adversarial conditions, its influence diminishes.`);
       } else if (pesS > optS * 1.5 && pesS > 0.05) {
-        // Resilient under adversity
         findings.push(`<b>Resilient under adversity:</b> Shapley-Pessimistic (${(pesS * 100).toFixed(1)}%) exceeds Optimistic (${(optS * 100).toFixed(1)}%). Even when off-trace states act adversarially, this state remains highly pivotal—it may be the only line of defense.`);
       }
     }
 
-    // Monotonicity gap (opt >= pes for Shapley): large gap = state needs cooperation
-    if (optS != null && pesS != null && optS > pesS + 0.1) {
+    // Monotonicity gap
+    if (optS != null && pesS != null && optS > pesS + 0.05) {
       const gap = ((optS - pesS) * 100).toFixed(1);
-      findings.push(`<b>Monotonicity gap:</b> ${gap} pp difference between optimistic and pessimistic Shapley values. A large gap indicates this state's power depends heavily on cooperation from other states.`);
+      findings.push(`<b>Monotonicity gap:</b> ${gap} pp difference between optimistic and pessimistic Shapley values. A larger gap indicates this state's power depends more on cooperation from other states.`);
     }
 
     // All modes high — genuine causal significance
     const allVals = Object.values(vals).filter(v => v != null);
-    if (allVals.length >= 3 && allVals.every(v => v > 0.15)) {
+    if (allVals.length >= 3 && allVals.every(v => v > 0.1)) {
+      findings.push(`<b>Consistently responsible:</b> This state carries significant responsibility across all ${allVals.length} computed modes. Its role in reaching the error is a structural property of the model, not an artifact of one particular analysis mode.`);
       if (!mainReason) mainReason = 'it consistently ranks as highly responsible across all index-mode combinations, indicating genuine causal significance for the error';
     }
   }
 
-  // ---- 7. Nondeterministic branching (fallback only) ----
+  // ---- 7. Above average / below top ----
+  if (findings.length === 0 && rank > 0 && avgAll > 0) {
+    if (resp > avgAll * 1.3) {
+      findings.push(`<b>Above average:</b> This state's responsibility (${(resp * 100).toFixed(1)}%) exceeds the average of ${(avgAll * 100).toFixed(1)}% across all responsible states, placing it among the more influential states in the model.`);
+      if (!mainReason) mainReason = 'its responsibility exceeds the average, indicating a greater-than-typical influence on the error outcome';
+    } else if (resp < avgAll * 0.7 && resp > 0) {
+      findings.push(`<b>Minor contributor:</b> This state's responsibility (${(resp * 100).toFixed(1)}%) is below the average of ${(avgAll * 100).toFixed(1)}%. It plays a supporting role—it participates in some coalitions that reach the error but is rarely the pivotal member.`);
+      if (!mainReason) mainReason = 'it contributes to the error in some coalitions but is rarely pivotal on its own';
+    }
+  }
+
+  // ---- 8. Nondeterministic branching (last-resort fallback) ----
   if (findings.length === 0 && outDeg >= 2) {
-    findings.push(`<b>Nondeterministic choice:</b> This state has ${outDeg} outgoing transitions, giving it the ability to influence the outcome depending on which action is chosen.`);
+    findings.push(`<b>Nondeterministic choice:</b> This state has ${outDeg} outgoing transitions, giving it the ability to influence the outcome depending on which action is chosen. With a responsibility of ${(resp * 100).toFixed(1)}%, it has moderate influence on whether the error is reached.`);
     if (!mainReason) mainReason = `it has ${outDeg} outgoing transitions, providing choice points where the system could have been redirected`;
   }
 
@@ -467,6 +487,93 @@ function insightSection(node, cy, nodeId, resp) {
     </p>`);
 }
 
+/**
+ * Insight section for states with zero responsibility.
+ * Explains WHY the state has no responsibility based on structural properties.
+ */
+function _zeroRespInsight(node, cy, nodeId, outDeg, inDeg, modeStr, indexStr, isOpt, isPes, isShapley) {
+  const findings = [];
+  let mainReason = '';
+
+  const outEdges = node.outgoers('edge');
+  const successors = outEdges.map(e => e.target()).filter(n => n.id() !== node.id());
+  const succResps = successors.map(n => {
+    const r = n.data('responsibility');
+    return r != null ? Number(r) : null;
+  }).filter(r => r !== null);
+
+  const inEdges  = node.incomers('edge');
+  const predecessors = inEdges.map(e => e.source()).filter(n => n.id() !== node.id());
+  const predResps = predecessors.map(n => {
+    const r = n.data('responsibility');
+    return r != null ? Number(r) : null;
+  }).filter(r => r !== null);
+
+  // 1. No outgoing transitions (absorbing/terminal state)
+  if (outDeg === 0) {
+    findings.push(`<b>Terminal state:</b> This state has no outgoing transitions. As an absorbing state, it cannot influence any future outcomes and correctly receives zero responsibility.`);
+    mainReason = 'it is a terminal state with no transitions—it cannot influence the system\'s behavior';
+  }
+
+  // 2. Single outgoing transition — no choice, no blame (Baier theorem)
+  else if (outDeg === 1) {
+    findings.push(`<b>No choice, no blame:</b> This state has only 1 outgoing transition. With no alternative action available, it cannot change the outcome—it passes through to its only successor without affecting whether the error is reached.`);
+    mainReason = 'it has only one transition—without an alternative path, it has no power to change the outcome';
+  }
+
+  // 3. Multiple outgoing but all successors also zero — safe zone
+  else if (succResps.length > 0 && succResps.every(r => r < 0.001)) {
+    findings.push(`<b>Safe zone:</b> This state has ${outDeg} outgoing transitions but all successors also have zero responsibility. It is located in a region of the model far from the error—no path through this state leads to the error state.`);
+    mainReason = 'it is in a safe region of the model where no path leads toward the error';
+  }
+
+  // 4. Multiple outgoing, some successors have responsibility — near boundary but not pivotal
+  else if (succResps.length > 0 && succResps.some(r => r > 0.01)) {
+    const numHighSucc = succResps.filter(r => r > 0.01).length;
+    findings.push(`<b>Near the boundary:</b> ${numHighSucc} of ${succResps.length} successor(s) have nonzero responsibility, but this state itself scores zero. This means the responsible transitions through this state are not pivotal—alternative paths to the error exist that don't depend on this state's choice.`);
+    mainReason = 'although it neighbors responsible states, it is not pivotal—the error can be reached through other paths regardless of this state\'s action';
+  }
+
+  // 5. Has predecessors with responsibility — downstream of pivotal zone
+  else if (predResps.length > 0 && predResps.some(r => r > 0.01)) {
+    findings.push(`<b>Downstream of pivotal zone:</b> Some predecessors carry responsibility, but by the time the system reaches this state, the critical decision has already been made. This state's actions no longer affect the outcome.`);
+    mainReason = 'the critical decisions happen before this state—by the time it is reached, the outcome is already determined';
+  }
+
+  // 6. Generic zero fallback
+  else if (outDeg >= 2) {
+    findings.push(`<b>Not pivotal:</b> Despite having ${outDeg} outgoing transitions, this state does not appear in any pivotal coalition. Its choices do not affect whether the error state is reached under the current property.`);
+    mainReason = 'none of its available actions change whether the error is reached for the current property';
+  }
+
+  if (!mainReason) {
+    mainReason = 'it does not participate in any coalition that is pivotal for reaching the error';
+  }
+
+  const findingsHtml = findings.length > 0
+    ? `<ul style="margin:6px 0 0; padding-left:16px; line-height:1.6; font-size:0.88em; color:#444">${findings.map(f => `<li style="margin-bottom:4px">${f}</li>`).join('')}</ul>`
+    : '';
+
+  let theoryNote = isShapley
+    ? `Shapley value of 0: this state's marginal contribution is zero in every coalition ordering—removing it never changes the outcome.`
+    : `Banzhaf index of 0: there is no coalition where adding this state flips the outcome from "error reachable" to "error avoided."`;
+  if (isOpt) {
+    theoryNote += ` Optimistic mode: off-trace states cooperate, so this state is not needed in any winning strategy.`;
+  } else if (isPes) {
+    theoryNote += ` Pessimistic mode: even with adversarial off-trace behavior, this state has no pivotal power.`;
+  }
+
+  return sectionWrap('Theoretical Insight', `
+    <p style="margin:0; font-size:0.9em; color:#555">
+      Under the <b>${modeStr}</b> interpretation with <b>${indexStr}</b> index,
+      this state has <b>zero responsibility</b> because ${mainReason}.
+    </p>
+    ${findingsHtml}
+    <p style="margin:8px 0 0; font-size:0.78em; color:#999; border-top:1px solid #f0f0f0; padding-top:6px">
+      ${theoryNote}
+    </p>`);
+}
+
 /* ------------------------------------------------------------------ */
 /*  Utilities                                                         */
 /* ------------------------------------------------------------------ */
@@ -484,7 +591,7 @@ function badgeFor(resp) {
   if (resp >= 0.7)  return '<span style="background:#ff6b6b; color:white; padding:2px 8px; border-radius:10px; font-size:0.8em">HIGH</span>';
   if (resp >= 0.3)  return '<span style="background:#ffa726; color:white; padding:2px 8px; border-radius:10px; font-size:0.8em">MED</span>';
   if (resp > 0)     return '<span style="background:#66bb6a; color:white; padding:2px 8px; border-radius:10px; font-size:0.8em">LOW</span>';
-  return '';
+  return '<span style="background:#9e9e9e; color:white; padding:2px 8px; border-radius:10px; font-size:0.8em">NONE</span>';
 }
 
 /**
