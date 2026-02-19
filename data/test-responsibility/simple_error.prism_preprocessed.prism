@@ -1,0 +1,34 @@
+mdp
+
+label "error" = (state)=(3);
+label "scheduler" = (active)=(0);
+label "module_process" = (active)=(1);
+label "action_begin" = (active)=(2);
+label "action_reset" = (active)=(3);
+label "action_bad_choice" = (active)=(4);
+label "action_good_choice" = (active)=(5);
+
+module process
+    state: [0..3] init 0;
+
+    [action_begin] (state)=(0) -> (state'=1);
+    [action_bad_choice] (state)=(1) -> (state'=3);
+    [action_good_choice] (state)=(1) -> (state'=2);
+    [action_reset] (state)=(2) -> (state'=0);
+endmodule
+
+module scheduler
+    active: [0..5] init 0;
+
+    [] ((active)=(0))&(false) -> (active'=1);
+    [module_process] (active)=(1) -> (active'=0);
+    [] ((active)=(0))&((state)=(0)) -> (active'=2);
+    [action_begin] (active)=(2) -> (active'=0);
+    [] ((active)=(0))&((state)=(2)) -> (active'=3);
+    [action_reset] (active)=(3) -> (active'=0);
+    [] ((active)=(0))&((state)=(1)) -> (active'=4);
+    [action_bad_choice] (active)=(4) -> (active'=0);
+    [] ((active)=(0))&((state)=(1)) -> (active'=5);
+    [action_good_choice] (active)=(5) -> (active'=0);
+endmodule
+

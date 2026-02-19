@@ -1,43 +1,76 @@
-// Correct Dining Philosophers - No Deadlock
-// Fix: All philosophers check both forks before picking left fork
+// Correct Dining Philosophers - All Fixed, No Deadlock
+//
+// Same structure as model.prism but with P1 FIXED:
+// All three philosophers now check right fork before grabbing left fork.
+// This prevents circular wait — deadlock is impossible.
+//
+// Fix: Added "& f2" guard to P1's [TakeF1P1] transition.
 
 mdp
 
-module phil1
-	p1 : [0..3] init 0;
-	
-	[think1] p1=0 -> (p1'=1);
-	
-	// FIXED: Added guard "f2=0" to ensure both forks available before starting
-	[left1]  p1=1 & f1=0 & f2=0 -> (p1'=2) & (f1'=1); // pick left fork (CORRECT)
-	
-	[right1] p1=2 & f2=0 -> (p1'=3) & (f2'=1);
-	[eat1]   p1=3 -> (p1'=0) & (f1'=0) & (f2'=0);
+label "sbad" = !f1 & !f2 & !f3 & !(p1l & p1r) & !(p2l & p2r) & !(p3l & p3r);
+label "error" = !f1 & !f2 & !f3 & !(p1l & p1r) & !(p2l & p2r) & !(p3l & p3r);
+
+label "p1" = p1l | p1r;
+label "p2" = p2l | p2r;
+label "p3" = p3l | p3r;
+
+// ---- Philosopher 1 (FIXED) ----
+module P1
+    p1l: bool init false;
+    p1r: bool init false;
+    e1: bool init false;
+
+    [TakeF1P1] !p1l & f2 -> (p1l'= true);        // FIXED: checks f2
+    [TakeF2P1] !p1r -> (p1r'= true);
+    [] p1l & p1r & !e1 -> (e1'= true);
+    [ReturnP1] p1l & p1r & e1 -> (p1l'= false) & (p1r'= false) & (e1'= false);
 endmodule
 
-module phil2
-	p2 : [0..3] init 0;
-	
-	[think2] p2=0 -> (p2'=1);
-	[left2]  p2=1 & f2=0 & f3=0 -> (p2'=2) & (f2'=1); // CORRECT
-	[right2] p2=2 & f3=0 -> (p2'=3) & (f3'=1);
-	[eat2]   p2=3 -> (p2'=0) & (f2'=0) & (f3'=0);
+// ---- Philosopher 2 (unchanged) ----
+module P2
+    p2l: bool init false;
+    p2r: bool init false;
+    e2: bool init false;
+
+    [TakeF2P2] !p2l & f3 -> (p2l'= true);
+    [TakeF3P2] !p2r -> (p2r'= true);
+    [] p2l & p2r & !e2 -> (e2'= true);
+    [ReturnP2] p2l & p2r & e2 -> (p2l'= false) & (p2r'= false) & (e2'= false);
 endmodule
 
-module phil3
-	p3 : [0..3] init 0;
-	
-	[think3] p3=0 -> (p3'=1);
-	[left3]  p3=1 & f3=0 & f1=0 -> (p3'=2) & (f3'=1); // CORRECT
-	[right3] p3=2 & f1=0 -> (p3'=3) & (f1'=1);
-	[eat3]   p3=3 -> (p3'=0) & (f3'=0) & (f1'=0);
+// ---- Philosopher 3 (unchanged) ----
+module P3
+    p3l: bool init false;
+    p3r: bool init false;
+    e3: bool init false;
+
+    [TakeF3P3] !p3l & f1 -> (p3l'= true);
+    [TakeF1P3] !p3r -> (p3r'= true);
+    [] p3l & p3r & !e3 -> (e3'= true);
+    [ReturnP3] p3l & p3r & e3 -> (p3l'= false) & (p3r'= false) & (e3'= false);
 endmodule
 
-module forks
-	f1 : [0..1] init 0;
-	f2 : [0..1] init 0;
-	f3 : [0..1] init 0;
+module F1
+    f1: bool init true;
+    [TakeF1P1] f1 -> (f1'= false);
+    [TakeF1P3] f1 -> (f1'= false);
+    [ReturnP1] !f1 -> (f1'= true);
+    [ReturnP3] !f1 -> (f1'= true);
 endmodule
 
-label "deadlock" = (p1=2 & p2=2 & p3=2);
-label "eating" = (p1=3 | p2=3 | p3=3);
+module F2
+    f2: bool init true;
+    [TakeF2P2] f2 -> (f2'= false);
+    [TakeF2P1] f2 -> (f2'= false);
+    [ReturnP2] !f2 -> (f2'= true);
+    [ReturnP1] !f2 -> (f2'= true);
+endmodule
+
+module F3
+    f3: bool init true;
+    [TakeF3P3] f3 -> (f3'= false);
+    [TakeF3P2] f3 -> (f3'= false);
+    [ReturnP3] !f3 -> (f3'= true);
+    [ReturnP2] !f3 -> (f3'= true);
+endmodule

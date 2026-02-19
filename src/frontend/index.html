@@ -78,6 +78,36 @@
         <small style="color:#888">Method for computing responsibility values</small>
       </div>
 
+      <!-- Large Model Support -->
+      <details class="param" style="border:1px solid #3498db; border-radius:8px; padding:10px; margin:12px 0; background:#f0f8ff">
+        <summary style="cursor:pointer; font-weight:bold; color:#3498db; user-select:none; font-size:0.95em">
+          ⚡ Large Model Options (Sampling & Grouping)
+        </summary>
+        <div style="margin-top:10px">
+          <div style="margin-bottom:10px">
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer">
+              <input type="checkbox" id="resp-use-sampling" style="width:16px; height:16px">
+              <span>Use Stochastic Sampling (approximate)</span>
+            </label>
+            <div style="margin-left:24px; margin-top:6px">
+              <input type="text" id="resp-sampling-config" placeholder="e.g., 10000 or 60s" 
+                     style="width:120px; padding:4px 8px; border:1px solid #ccc; border-radius:4px" disabled>
+              <small style="color:#888; display:block; margin-top:4px">Number of samples or duration (e.g., "60s")</small>
+            </div>
+          </div>
+          <div>
+            <label style="display:block; margin-bottom:4px; font-weight:500">State Grouping</label>
+            <select id="resp-grouping-mode" style="padding:4px 8px; border:1px solid #ccc; border-radius:4px; width:180px">
+              <option value="individual" selected>Individual (exact)</option>
+              <option value="module">By Module</option>
+              <option value="label">By Label</option>
+              <option value="action">By Action</option>
+            </select>
+            <small style="color:#888; display:block; margin-top:4px">Group states to reduce computation complexity</small>
+          </div>
+        </div>
+      </details>
+
       <div class="buttons param">
         <button class="ui button" id="resp-start">
           <i class="fa-solid fa-play"></i> Start

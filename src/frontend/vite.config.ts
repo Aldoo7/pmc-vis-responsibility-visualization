@@ -43,6 +43,9 @@ const socketEvents = (io, socket) => {
 export default defineConfig({
   base: './',
   plugins: [vitePluginSocketIO({socketEvents})],
+  server: {
+    port: 3000,
+  },
   build: {
     rollupOptions: {
       input: {

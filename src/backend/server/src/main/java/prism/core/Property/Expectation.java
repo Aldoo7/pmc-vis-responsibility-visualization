@@ -23,6 +23,7 @@ import java.math.BigInteger;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 
 public class Expectation extends Property{
 

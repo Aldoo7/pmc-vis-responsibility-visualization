@@ -79,6 +79,12 @@ public class ResponsibilityOutput {
     @JsonProperty("stateIdToName")
     private Map<String, String> stateIdToName; // Maps state ID -> human-readable name
     
+    @JsonProperty("samplingConfig")
+    private String samplingConfig; // Sampling configuration used (e.g., "10000" or "60s")
+    
+    @JsonProperty("groupingMode")
+    private String groupingMode; // Grouping mode used (e.g., "module", "label", "value_of=x,y")
+    
     // Default constructor (required for Jackson deserialization)
     public ResponsibilityOutput() {
         this.stateResponsibility = new HashMap<>();
@@ -154,6 +160,12 @@ public class ResponsibilityOutput {
 
     public Map<String, String> getStateIdToName() { return stateIdToName; }
     public void setStateIdToName(Map<String, String> stateIdToName) { this.stateIdToName = stateIdToName; }
+    
+    public String getSamplingConfig() { return samplingConfig; }
+    public void setSamplingConfig(String samplingConfig) { this.samplingConfig = samplingConfig; }
+    
+    public String getGroupingMode() { return groupingMode; }
+    public void setGroupingMode(String groupingMode) { this.groupingMode = groupingMode; }
     
     @Override
     public String toString() {

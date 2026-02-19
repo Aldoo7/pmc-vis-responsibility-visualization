@@ -26,6 +26,10 @@ public class ResponsibilityEngine {
     private volatile PowerIndex currentIndex = PowerIndex.SHAPLEY;
     private volatile List<String> overrideCounterexample = null;
     
+    // Large model support: sampling and grouping configuration
+    private volatile String samplingConfig = null;  // e.g., "10000" (samples) or "60s" (duration)
+    private volatile String groupingMode = null;    // e.g., "individual", "module", "label", "action", "value_of=x,y"
+    
     private static final Logger logger = LoggerFactory.getLogger(ResponsibilityEngine.class);
     
     @SuppressWarnings("unused")  // Will be used in Week 3 for real tool integration
@@ -67,6 +71,28 @@ public class ResponsibilityEngine {
     }
     public void setOverrideCounterexample(List<String> rho) {
         this.overrideCounterexample = (rho == null || rho.isEmpty()) ? null : new ArrayList<>(rho);
+    }
+    
+    /**
+     * Set sampling configuration for approximate computation on large models.
+     * @param config Either number of samples (e.g., "10000") or duration with 's' suffix (e.g., "60s")
+     */
+    public void setSamplingConfig(String config) {
+        this.samplingConfig = (config == null || config.isBlank()) ? null : config.trim();
+        if (this.samplingConfig != null) {
+            logger.info("Sampling enabled: {}", this.samplingConfig);
+        }
+    }
+    
+    /**
+     * Set grouping mode for computing responsibility at group level instead of individual states.
+     * @param mode One of: individual, label, module, action, value_of=x,y,z
+     */
+    public void setGroupingMode(String mode) {
+        this.groupingMode = (mode == null || mode.isBlank()) ? null : mode.trim();
+        if (this.groupingMode != null && !this.groupingMode.equalsIgnoreCase("individual")) {
+            logger.info("Grouping enabled: {}", this.groupingMode);
+        }
     }
     
     /**
@@ -164,7 +190,8 @@ public class ResponsibilityEngine {
      * Real computation - calls external tool
      */
     private ResponsibilityOutput computeReal(String modelFile, String property, int level) throws Exception {
-        logger.info("Computing real responsibility for {} at level {}", modelFile, level);
+        logger.info("Computing real responsibility for {} at level {} (sampling={}, grouping={})", 
+            modelFile, level, samplingConfig, groupingMode);
         // If toolPath points to external Rust binary, prefer invoking it directly now.
         // We keep previous Java-based fallback extraction in place (commented block above) in case
         // we later need hybrid approaches (e.g., pre-processing with PRISM). For v1 integration
@@ -178,7 +205,12 @@ public class ResponsibilityEngine {
         List<String> overrideTrace = overrideCounterexample != null ? new ArrayList<>(overrideCounterexample) : null;
         String modeStr = currentMode.name().toLowerCase();
         String indexStr = currentIndex.name().toLowerCase();
-        ResponsibilityOutput output = invoker.run(modelFile, property, modeStr, indexStr, level, overrideTrace);
+        
+        // Use the new method signature with sampling and grouping support
+        ResponsibilityOutput output = invoker.run(
+            modelFile, property, modeStr, indexStr, level, overrideTrace, 
+            samplingConfig, groupingMode
+        );
 
         // If external tool did not provide component responsibilities, synthesize them for UI continuity
         if (output.getComponentResponsibility() == null || output.getComponentResponsibility().isEmpty()) {

@@ -2029,6 +2029,11 @@ socket.on('overview nodes selected', (data) => {
 // Responsibility visualization integration
 socket.on('responsibility:result', (data) => {
   if (data && data.stateResponsibility) {
+    // Skip graph coloring for grouped results (group names don't match individual nodes)
+    if (data.groupedMode) {
+      return;
+    }
+    
     const panes = getPanes();
     Object.values(panes).forEach(pane => {
       if (pane.cy) {

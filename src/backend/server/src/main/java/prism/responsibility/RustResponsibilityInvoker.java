@@ -49,6 +49,31 @@ public class RustResponsibilityInvoker {
                                      String index,
                                      int level,
                                      List<String> overrideTrace) throws Exception {
+        // Delegate to new method with default (exact) computation settings
+        return run(modelFile, property, mode, index, level, overrideTrace, null, null);
+    }
+
+    /**
+     * Execute the external tool with optional sampling and grouping for large models.
+     * @param modelFile PRISM model path
+     * @param property (ignored for current Rust tool; responsibility is driven by -b bad label)
+     * @param mode optimistic|pessimistic (maps to -v o | -v p)
+     * @param index shapley|banzhaf|count (maps to -m)
+     * @param level refinement level (>0 enables refinement engine via -a)
+     * @param overrideTrace optional explicit counterexample trace
+     * @param samplingConfig optional sampling configuration (e.g., "10000" for samples or "60s" for duration)
+     * @param groupingMode optional grouping mode (individual|label|module|action|value_of=x,y,z)
+     * @return ResponsibilityOutput mapped from tool output
+     * @throws Exception on execution or parsing errors
+     */
+    public ResponsibilityOutput run(String modelFile,
+                                     String property,
+                                     String mode,
+                                     String index,
+                                     int level,
+                                     List<String> overrideTrace,
+                                     String samplingConfig,
+                                     String groupingMode) throws Exception {
         long start = System.currentTimeMillis();
         
         // Convert model file to absolute path to avoid issues with working directory
@@ -62,7 +87,7 @@ public class RustResponsibilityInvoker {
         Path outFile = workDir.resolve("responsibility.json");
         Path altFile = workDir.resolve("responsibility.txt");
 
-        List<String> cmd = buildCommand(absoluteModelFile, property, mode, index, level, outFile, altFile, overrideTrace);
+        List<String> cmd = buildCommand(absoluteModelFile, property, mode, index, level, outFile, altFile, overrideTrace, samplingConfig, groupingMode);
         logger.info("Invoking responsibility tool: {}", String.join(" ", cmd));
 
         ProcessBuilder pb = new ProcessBuilder(cmd);
@@ -90,13 +115,41 @@ public class RustResponsibilityInvoker {
         }
         logger.debug("Responsibility tool raw output ({} bytes)\n{}", console.length(), console);
 
-        ResponsibilityOutput output = parsePreferred(outFile, altFile, console.toString());
+        ResponsibilityOutput output = parsePreferred(outFile, altFile, console.toString(), groupingMode);
         output.setLevel(level);
         output.setResponsibilityType(mode);
         output.setPowerIndex(index);
         output.setCounterexample(overrideTrace); // only set if provided
-        output.setApproximate(false); // assume exact – may adjust if tool exposes flag
-        output.setGroupedMode(Boolean.FALSE); // will update after inspecting tool grouping output
+        
+        // Mark as approximate if sampling was used
+        boolean isApproximate = (samplingConfig != null && !samplingConfig.isBlank());
+        output.setApproximate(isApproximate);
+        if (isApproximate) {
+            output.setSamplingConfig(samplingConfig);
+        }
+        
+        // Mark grouped mode if non-individual grouping was used
+        boolean isGrouped = (groupingMode != null && !groupingMode.isBlank() && !groupingMode.equalsIgnoreCase("individual"));
+        output.setGroupedMode(isGrouped);
+        if (isGrouped) {
+            output.setGroupingMode(groupingMode);
+            // Move parsed results from stateResponsibility into the groups field
+            // so the frontend knows these are group-level, not state-level values
+            Map<String, Double> rawResp = output.getStateResponsibility();
+            if (rawResp != null && !rawResp.isEmpty()) {
+                Map<String, ResponsibilityOutput.GroupInfo> groupMap = new LinkedHashMap<>();
+                for (Map.Entry<String, Double> entry : rawResp.entrySet()) {
+                    String groupName = entry.getKey();
+                    Double value = entry.getValue();
+                    groupMap.put(groupName, new ResponsibilityOutput.GroupInfo(null, value));
+                }
+                output.setGroups(groupMap);
+                // Also keep in stateResponsibility for backward compatibility with graph coloring
+                // but log that these are groups, not individual states
+                logger.info("Grouped mode ({}): {} groups detected: {}", groupingMode, groupMap.size(), groupMap.keySet());
+            }
+        }
+        
         output.setStateMetadata(enrichStateMetadata(output.getStateResponsibility(), overrideTrace));
 
         // Extract state ID to name mapping using lightweight PRISM CLI
@@ -129,7 +182,9 @@ public class RustResponsibilityInvoker {
                                       int level,
                                       Path outFile,
                                       Path altFile,
-                                      List<String> overrideTrace) {
+                                      List<String> overrideTrace,
+                                      String samplingConfig,
+                                      String groupingMode) {
         List<String> cmd = new ArrayList<>();
         cmd.add(binaryPath);
         // Real CLI flags (captured from tool --help)
@@ -147,8 +202,10 @@ public class RustResponsibilityInvoker {
         cmd.add("-m");
         cmd.add(metric);
 
-        // Grouping mode (default individual); env RESP_GROUPING overrides
-        String grouping = System.getenv().getOrDefault("RESP_GROUPING", "individual");
+        // Grouping mode: prefer explicit parameter, fall back to env, default to individual
+        String grouping = (groupingMode != null && !groupingMode.isBlank()) 
+            ? groupingMode 
+            : System.getenv().getOrDefault("RESP_GROUPING", "individual");
         cmd.add("-g");
         cmd.add(grouping);
 
@@ -160,6 +217,14 @@ public class RustResponsibilityInvoker {
         }
         cmd.add("-v");
         cmd.add(version);
+
+        // SAMPLING: Use randomised sampler instead of exact engine for large models
+        // Format: "-r 10000" (number of samples) or "-r 60s" (duration in seconds)
+        if (samplingConfig != null && !samplingConfig.isBlank()) {
+            cmd.add("-r");
+            cmd.add(samplingConfig.trim());
+            logger.info("Using stochastic sampling with config: {}", samplingConfig);
+        }
 
         // NOTE: Refinement (-a flag) disabled to get stable, verified values
         // that match the November 2025 report. The refinement engine produces
@@ -206,14 +271,15 @@ public class RustResponsibilityInvoker {
         return cmd;
     }
 
-    private ResponsibilityOutput parsePreferred(Path jsonFile, Path txtFile, String console) throws Exception {
+    private ResponsibilityOutput parsePreferred(Path jsonFile, Path txtFile, String console, String groupingMode) throws Exception {
+        boolean isGrouped = (groupingMode != null && !groupingMode.isBlank() && !groupingMode.equalsIgnoreCase("individual"));
         // The tool writes text format even to .json files, so try text parse first on any existing file
         if (Files.exists(jsonFile)) {
             try (BufferedReader br = new BufferedReader(new FileReader(jsonFile.toFile(), StandardCharsets.UTF_8))) {
                 java.util.List<String> lines = new java.util.ArrayList<>();
                 br.lines().forEach(lines::add);
                 logger.debug("Reading from jsonFile (as text): {} lines", lines.size());
-                Map<String, Double> stateResp = parseLineFormat(lines);
+                Map<String, Double> stateResp = parseLineFormat(lines, isGrouped);
                 if (!stateResp.isEmpty()) {
                     logger.info("Parsed {} states from output file", stateResp.size());
                     ResponsibilityOutput o = new ResponsibilityOutput();
@@ -229,7 +295,7 @@ public class RustResponsibilityInvoker {
             try (BufferedReader br = new BufferedReader(new FileReader(txtFile.toFile(), StandardCharsets.UTF_8))) {
                 java.util.List<String> lines = new java.util.ArrayList<>();
                 br.lines().forEach(lines::add);
-                Map<String, Double> stateResp = parseLineFormat(lines);
+                Map<String, Double> stateResp = parseLineFormat(lines, isGrouped);
                 if (!stateResp.isEmpty()) {
                     logger.info("Parsed {} states from txt file", stateResp.size());
                     ResponsibilityOutput o = new ResponsibilityOutput();
@@ -241,7 +307,7 @@ public class RustResponsibilityInvoker {
         }
         // Attempt parse from console stdout if no files worked
         logger.debug("Parsing from console output ({} chars)", console.length());
-        Map<String, Double> stateResp = parseLineFormat(Arrays.asList(console.split("\n")));
+        Map<String, Double> stateResp = parseLineFormat(Arrays.asList(console.split("\n")), isGrouped);
         logger.info("Parsed {} states from console output", stateResp.size());
         ResponsibilityOutput o = new ResponsibilityOutput();
         o.setStateResponsibility(stateResp);
@@ -330,24 +396,27 @@ public class RustResponsibilityInvoker {
      * Parse fallback line-based format:
      *   s42 0.75
      *   s17 0.12
+     * Also handles Rust tool grouped format:
+     *   (label_name): 0.12345678
+     *   (state=1): 1.00000000
      */
-    private Map<String, Double> parseLineFormat(List<String> lines) {
+    private Map<String, Double> parseLineFormat(List<String> lines, boolean isGrouped) {
         Map<String, Double> stateResp = new LinkedHashMap<>();
         // Pattern for simple format: "ID VALUE"
         Pattern p = Pattern.compile("^(?<id>[A-Za-z0-9_\\-\\.]+)\\s+(?<val>[0-9]*\\.?[0-9]+(?:[eE][+\\-]?[0-9]+)?)$");
         // Pattern for Rust tool format WITH ID: "(ID): (state description): VALUE"
         Pattern rustPattern = Pattern.compile("^\\((?<id>\\d+)\\):.*:\\s*(?<val>[0-9]*\\.?[0-9]+(?:[eE][+\\-]?[0-9]+)?)\\s*$");
-        // Pattern for Rust tool format WITHOUT ID (file output): "(state=value, ...): VALUE"
-        // The line format is: (var1=val1, var2=val2, ...): 0.12345678
-        // We need to match from the first ( to the last ): then capture the number
-        Pattern noIdPattern = Pattern.compile("^\\(.*\\):\\s*(?<val>[0-9]*\\.?[0-9]+(?:[eE][+\\-]?[0-9]+)?)\\s*$");
+        // Pattern for Rust tool named format: "(name): VALUE"
+        // Used for grouped results (e.g., "(scheduler): 0.967", "(unlabelled): 0.969")
+        // Also matches individual state descriptions like "(g1=false, g2=false): 0.333"
+        Pattern namedPattern = Pattern.compile("^\\((?<name>[^)]+)\\):\\s*(?<val>[0-9]*\\.?[0-9]+(?:[eE][+\\-]?[0-9]+)?)\\s*$");
         int autoId = 0;
         for (String line : lines) {
             if (line == null) continue;
             String trimmed = line.trim();
             if (trimmed.isEmpty() || trimmed.startsWith("#") || trimmed.startsWith("Metric:") || trimmed.startsWith("Sum of")) continue;
             
-            // Try Rust format with ID first
+            // Try Rust format with ID first: "(0): (g1=false, ...): 0.333"
             Matcher rustMatcher = rustPattern.matcher(trimmed);
             if (rustMatcher.find()) {
                 String id = rustMatcher.group("id");
@@ -358,12 +427,21 @@ public class RustResponsibilityInvoker {
                 }
                 continue;
             }
-            // Try format without ID (from file output)
-            Matcher noIdMatcher = noIdPattern.matcher(trimmed);
-            if (noIdMatcher.find()) {
+            // Try named format: (name): VALUE
+            Matcher namedMatcher = namedPattern.matcher(trimmed);
+            if (namedMatcher.find()) {
+                String name = namedMatcher.group("name").trim();
                 try {
-                    double v = Double.parseDouble(noIdMatcher.group("val"));
-                    stateResp.put(String.valueOf(autoId++), v);
+                    double v = Double.parseDouble(namedMatcher.group("val"));
+                    if (isGrouped) {
+                        // For grouped mode, preserve the group name (e.g., "scheduler", "unlabelled")
+                        stateResp.put(name, v);
+                    } else {
+                        // For individual mode, use auto-incrementing numeric ID
+                        // (descriptive names like "g1=false, g2=false" break graph coloring
+                        //  which needs numeric IDs to match via stateIdToName mapping)
+                        stateResp.put(String.valueOf(autoId++), v);
+                    }
                 } catch (NumberFormatException ignore) {
                 }
                 continue;

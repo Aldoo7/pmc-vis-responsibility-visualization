@@ -66,6 +66,13 @@ public class ResponsibilitySocketHandler {
         @JsonProperty("projectId")
         private String projectId; // active project identifier
         
+        // Large model support fields
+        @JsonProperty("samplingConfig")
+        private String samplingConfig; // e.g., "10000" (samples) or "60s" (duration)
+        
+        @JsonProperty("groupingMode")
+        private String groupingMode; // e.g., "individual", "module", "label", "action", "value_of=x,y"
+        
         // Getters and setters
         public String getModelFile() { return modelFile; }
         public void setModelFile(String modelFile) { this.modelFile = modelFile; }
@@ -87,6 +94,12 @@ public class ResponsibilitySocketHandler {
 
         public String getProjectId() { return projectId; }
         public void setProjectId(String projectId) { this.projectId = projectId; }
+        
+        public String getSamplingConfig() { return samplingConfig; }
+        public void setSamplingConfig(String samplingConfig) { this.samplingConfig = samplingConfig; }
+        
+        public String getGroupingMode() { return groupingMode; }
+        public void setGroupingMode(String groupingMode) { this.groupingMode = groupingMode; }
     }
 
     /**
@@ -207,6 +220,28 @@ public class ResponsibilitySocketHandler {
                     if (rho != null && !rho.isEmpty()) {
                         engine.setOverrideCounterexample(rho);
                     }
+                    
+                    // Large model support: apply sampling and grouping configuration
+                    String samplingConfig = request.getSamplingConfig();
+                    String groupingMode = request.getGroupingMode();
+                    
+                    // Validation: sampling only supports pessimistic mode
+                    if (samplingConfig != null && !samplingConfig.isBlank()) {
+                        if ("optimistic".equals(mode)) {
+                            sendStatus("invalid-config", "Stochastic sampling only supports pessimistic mode. Please disable sampling or switch to pessimistic.");
+                            return;
+                        }
+                        // Force pessimistic mode for sampling if no mode specified
+                        if (mode == null) {
+                            mode = "pessimistic";
+                            engine.setMode(mode);
+                            logger.info("Forcing pessimistic mode for stochastic sampling");
+                        }
+                    }
+                    
+                    engine.setSamplingConfig(samplingConfig);
+                    engine.setGroupingMode(groupingMode);
+                    
                     if (controller.getState() == RefinementController.RefinementState.RUNNING) {
                         sendStatus("already-running", "Refinement already in progress at level " + controller.getCurrentLevel());
                     } else if (controller.getState() == RefinementController.RefinementState.PAUSED) {
@@ -216,7 +251,9 @@ public class ResponsibilitySocketHandler {
                         String ceInfo = (rho != null && !rho.isEmpty()) ? ", counterexample=present" : ", counterexample=none";
                         String mInfo = (mode != null ? mode : "(default)");
                         String pInfo = (powerIndex != null ? powerIndex : "(default)");
-                        sendStatus("running", "Refinement started (mode=" + mInfo + ", index=" + pInfo + ceInfo + ")");
+                        String sInfo = (samplingConfig != null && !samplingConfig.isBlank()) ? ", sampling=" + samplingConfig : "";
+                        String gInfo = (groupingMode != null && !groupingMode.isBlank() && !groupingMode.equals("individual")) ? ", grouping=" + groupingMode : "";
+                        sendStatus("running", "Refinement started (mode=" + mInfo + ", index=" + pInfo + ceInfo + sInfo + gInfo + ")");
                     }
                     
                 } catch (Exception e) {

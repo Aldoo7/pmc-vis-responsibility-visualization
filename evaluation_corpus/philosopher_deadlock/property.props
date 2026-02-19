@@ -1,3 +1,8 @@
-// Property: Verify deadlock is not reachable
-// In buggy version, this should be violated
-Pmax=? [ F "deadlock" ]
+// Dining Philosophers - Deadlock Reachability
+//
+// In the BUGGY model (model.prism):  result should be > 0 (deadlock reachable)
+// In the CORRECT model (correct.prism): result should be 0 (deadlock impossible)
+//
+// "sbad" = all forks taken, no philosopher eating (same label as dining_philosophers_a)
+
+P=? [ F "sbad" ]
