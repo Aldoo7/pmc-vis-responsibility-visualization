@@ -201,9 +201,20 @@ function updateResponsibility(cy, data) {
     const positives = entries.filter(e => e.value > 0).sort((a, b) => b.value - a.value);
     const n = positives.length;
     
+    // Track which nodes got responsibility set from the backend response
+    const updatedNodeIds = new Set(entries.map(e => e.node.id()));
+
     entries.forEach(({ node, value }) => {
       node.data('responsibility', value);
       node.removeClass('resp-high resp-medium resp-low');
+    });
+
+    // Set responsibility = 0 for all graph nodes NOT in the backend response
+    // so that clicking grey nodes can still open the explanation panel.
+    graphNodes.forEach(node => {
+      if (!updatedNodeIds.has(node.id())) {
+        node.data('responsibility', 0);
+      }
     });
 
     if (n > 0) {
