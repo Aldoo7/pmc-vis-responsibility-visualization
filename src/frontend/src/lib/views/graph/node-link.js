@@ -208,13 +208,19 @@ function updateResponsibility(cy, data) {
 
     if (n > 0) {
       // Top ~30% = high (red), next ~40% = medium (orange), rest = low (green)
+      // Ties: states with equal values get the same color class.
       const highCutoff = Math.max(1, Math.ceil(n * 0.3));
       const medCutoff = Math.max(highCutoff + 1, Math.ceil(n * 0.7));
       
       positives.forEach((e, idx) => {
-        if (idx < highCutoff) {
+        // Handle ties: find the first index in this tie group
+        let effectiveIdx = idx;
+        while (effectiveIdx > 0 && Math.abs(positives[effectiveIdx - 1].value - e.value) < 0.0001) {
+          effectiveIdx--;
+        }
+        if (effectiveIdx < highCutoff) {
           e.node.addClass('resp-high');
-        } else if (idx < medCutoff) {
+        } else if (effectiveIdx < medCutoff) {
           e.node.addClass('resp-medium');
         } else {
           e.node.addClass('resp-low');

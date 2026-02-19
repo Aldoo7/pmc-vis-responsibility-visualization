@@ -96,7 +96,7 @@ function buildExplanationHTML(node, cy) {
   sections.push(headerSection(nodeName, resp));
 
   // ---- 1. Ranking ----
-  sections.push(rankingSection(nodeId, resp));
+  sections.push(rankingSection(nodeId, resp, cy));
 
   // ---- 2. Structural context ----
   sections.push(structuralSection(node, cy, nodeId));
@@ -125,21 +125,18 @@ function headerSection(name, resp) {
     </div>`;
 }
 
-function rankingSection(nodeId, resp) {
-  if (!cachedStateResponsibility) return '';
-
-  const entries = Object.entries(cachedStateResponsibility)
-    .map(([id, v]) => ({ id, v: Number(v) }))
-    .filter(e => !isNaN(e.v))
-    .sort((a, b) => b.v - a.v);
+function rankingSection(nodeId, resp, cy) {
+  // Build ranking from graph nodes (which have correctly mapped responsibility values)
+  // rather than cachedStateResponsibility (which uses tool state IDs that don't match graph node IDs).
+  const entries = _buildRankedEntries(cy);
+  if (entries.length === 0) return '';
 
   const total     = entries.length;
   const positives = entries.filter(e => e.v > 0);
-  // Find this state (try both nodeId and all entries that match)
-  const rank = entries.findIndex(e => matchId(e.id, nodeId)) + 1;
+  const rank = entries.findIndex(e => e.id === nodeId) + 1;
 
   if (rank === 0) {
-    return sectionWrap('Ranking', `<span style="color:#888">State not found in cached responsibility data</span>`);
+    return sectionWrap('Ranking', `<span style="color:#888">State not found in responsibility data</span>`);
   }
 
   const percentile = ((1 - (rank - 1) / total) * 100).toFixed(1);
@@ -351,16 +348,13 @@ function insightSection(node, cy, nodeId, resp) {
   // ---- 4. Equal-share detection (optimistic mode property) ----
   // Baier Theorem: In optimistic mode, all states in the optimal winning strategy set
   // receive equal responsibility = 1/|WS_opt|. So equal top values = equally pivotal.
-  if (isOpt && cachedStateResponsibility) {
-    const entries = Object.entries(cachedStateResponsibility)
-      .map(([id, v]) => ({ id, v: Number(v) }))
-      .filter(e => !isNaN(e.v) && e.v > 0)
-      .sort((a, b) => b.v - a.v);
+  if (isOpt) {
+    const entries = _buildRankedEntries(cy).filter(e => e.v > 0);
 
     if (entries.length >= 2) {
       const topVal = entries[0].v;
       const sameAsTop = entries.filter(e => Math.abs(e.v - topVal) < 0.001);
-      if (sameAsTop.length >= 2 && sameAsTop.some(e => matchId(e.id, nodeId))) {
+      if (sameAsTop.length >= 2 && sameAsTop.some(e => e.id === nodeId)) {
         // Check if value is close to 1/n (the theoretical equal share)
         const theoreticalShare = 1 / sameAsTop.length;
         const matchesTheory = Math.abs(topVal - theoreticalShare) < 0.02;
@@ -378,17 +372,14 @@ function insightSection(node, cy, nodeId, resp) {
   // ---- 5. Pessimistic differentiates where optimistic cannot ----
   // Baier: optimistic mode gives equal shares, but pessimistic uses adversarial
   // off-trace behavior to differentiate otherwise-equal states.
-  if (isPes && cachedStateResponsibility) {
-    const entries = Object.entries(cachedStateResponsibility)
-      .map(([id, v]) => ({ id, v: Number(v) }))
-      .filter(e => !isNaN(e.v) && e.v > 0)
-      .sort((a, b) => b.v - a.v);
+  if (isPes) {
+    const entries = _buildRankedEntries(cy).filter(e => e.v > 0);
 
     if (entries.length >= 3) {
       // Check if values are well-spread (not all equal)
       const top3 = entries.slice(0, 3);
       const spread = top3[0].v - top3[2].v;
-      if (spread > 0.05 && entries.some(e => matchId(e.id, nodeId) && e === entries[0])) {
+      if (spread > 0.05 && entries[0].id === nodeId) {
         findings.push(`<b>Stands out under adversity:</b> In pessimistic mode, off-trace states act adversarially. Despite this worst-case assumption, this state still dominates the ranking—it is pivotal even when the environment works against it.`);
         if (!mainReason) mainReason = 'even under adversarial assumptions about other states, this state remains the most pivotal for reaching the error';
       }
@@ -494,6 +485,33 @@ function badgeFor(resp) {
   if (resp >= 0.3)  return '<span style="background:#ffa726; color:white; padding:2px 8px; border-radius:10px; font-size:0.8em">MED</span>';
   if (resp > 0)     return '<span style="background:#66bb6a; color:white; padding:2px 8px; border-radius:10px; font-size:0.8em">LOW</span>';
   return '';
+}
+
+/**
+ * Build a ranked list of {id, v} entries from Cytoscape graph nodes.
+ * Uses graph node IDs (which match the clicked node's ID) rather than
+ * tool state IDs from cachedStateResponsibility (which use a different numbering).
+ * Falls back to cachedStateResponsibility if no graph is available.
+ */
+function _buildRankedEntries(cy) {
+  const entries = [];
+  if (cy) {
+    cy.$('node.s').forEach(n => {
+      const r = n.data('responsibility');
+      if (r != null && !isNaN(Number(r))) {
+        entries.push({ id: n.id(), v: Number(r) });
+      }
+    });
+  }
+  // Fallback to cached data if graph query produced nothing
+  if (entries.length === 0 && cachedStateResponsibility) {
+    Object.entries(cachedStateResponsibility).forEach(([id, v]) => {
+      const num = Number(v);
+      if (!isNaN(num)) entries.push({ id, v: num });
+    });
+  }
+  entries.sort((a, b) => b.v - a.v);
+  return entries;
 }
 
 /**
