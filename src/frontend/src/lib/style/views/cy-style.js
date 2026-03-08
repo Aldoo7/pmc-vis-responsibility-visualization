@@ -257,6 +257,28 @@ const stylesheet = [
     },
   },
   {
+    selector: 'node.s.sp-coalition-member',
+    style: {
+      'border-width': '5px',
+      'border-color': '#2980b9',
+      'border-style': 'solid',
+      'background-opacity': 1,
+      'background-color': '#d4edfa',
+      'z-index': 998,
+    },
+  },
+  {
+    selector: 'node.s.sp-pivot-state',
+    style: {
+      'border-width': '5px',
+      'border-color': '#e67e22',
+      'border-style': 'solid',
+      'background-opacity': 1,
+      'background-color': '#fdebd0',
+      'z-index': 999,
+    },
+  },
+  {
     selector: 'node.filtered-out',
     style: {
       'opacity': 0.2,

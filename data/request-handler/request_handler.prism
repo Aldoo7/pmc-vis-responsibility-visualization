@@ -1,0 +1,21 @@
+mdp
+
+// Request Handler
+// A server receives and processes requests with a bounded queue.
+// Nondeterminism models unpredictable interleaving of arrivals
+// and processing.  Error state: queue overflow.
+
+const int CAP = 3;
+
+module server
+    q    : [0..4] init 0;
+    busy : bool init false;
+
+    [arrive]  q <= CAP           -> (q'=q+1);
+    [start]   q > 0 & !busy     -> (q'=q-1) & (busy'=true);
+    [finish]  busy               -> (busy'=false);
+    [idle]    q=0 & !busy        -> true;
+endmodule
+
+label "sbad"  = (q > CAP);
+label "error" = (q > CAP);

@@ -52,15 +52,22 @@ let selectedPanesData = {
   paneCy: null,
 };
 
-// "(d1=0,d2=0)" -> "(0,0)"
+// Normalize state name to a canonical "val;val;val" format for matching.
+// Handles: "(d1=0,d2=0)" | "d1=0, d2=0" | "(0,0)" | "0;0" etc.
 function _normalizeStateName(name) {
-  if (!name || !name.startsWith('(') || !name.endsWith(')')) return name;
-  const inner = name.slice(1, -1);
-  const parts = inner.split(',').map(p => {
+  if (!name) return name;
+  let inner = name;
+  // Strip parentheses
+  if (inner.startsWith('(') && inner.endsWith(')')) {
+    inner = inner.slice(1, -1);
+  }
+  // Split on comma or semicolon
+  const parts = inner.split(/[,;]/).map(p => {
+    p = p.trim();
     const eq = p.indexOf('=');
-    return eq >= 0 ? p.substring(eq + 1).trim() : p.trim();
+    return eq >= 0 ? p.substring(eq + 1).trim() : p;
   });
-  return '(' + parts.join(',') + ')';
+  return parts.join(';');
 }
 
 function getEdgeId(edge) {
@@ -148,21 +155,19 @@ function updateResponsibility(cy, data) {
   const stateIdToName = data.stateIdToName || {};
   const hasStateMapping = Object.keys(stateIdToName).length > 0;
   
-  // Build normalized lookup so "(0,0,0,0)" matches "(d1=0,d2=0,s1=0,s2=0)"
+  // Build normalized lookup so various formats all resolve to the same node
   const normalizedToNode = new Map();
   graphNodes.forEach(node => {
     const name = node.data('name');
     if (name) {
       const normalized = _normalizeStateName(name);
-      if (normalized !== name) {
-        normalizedToNode.set(normalized, node);
-      }
+      normalizedToNode.set(normalized, node);
     }
   });
   
   cy.startBatch();
   
-  cy.$('node.s').removeClass('resp-high resp-medium resp-low resp-winning resp-trace');
+  cy.$('node.s').removeClass('resp-high resp-medium resp-low resp-winning resp-trace sp-coalition-member sp-pivot-state');
 
   if (data.stateResponsibility) {
     let updatedCount = 0;
@@ -326,7 +331,7 @@ function _buildNodeLookups(cy) {
     }
     if (nodeName) {
       const normalized = _normalizeStateName(nodeName);
-      if (normalized !== nodeName) normalizedToNode.set(normalized, node);
+      normalizedToNode.set(normalized, node);
     }
   });
   return { idToNode, normalizedToNode };
@@ -472,7 +477,7 @@ function _applySwitchingPairOverlay(cy, pair, stateIdToName) {
   cy.startBatch();
 
   // Clear previous overlays
-  cy.$('node.s').removeClass('resp-winning resp-trace');
+  cy.$('node.s').removeClass('resp-winning resp-trace sp-coalition-member sp-pivot-state');
   cy.$('edge').removeClass('strategy-edge cex-edge');
 
   // Mark winning-region states on the trace

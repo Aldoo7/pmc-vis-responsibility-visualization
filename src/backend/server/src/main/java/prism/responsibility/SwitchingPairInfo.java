@@ -26,6 +26,9 @@ public class SwitchingPairInfo {
     @JsonProperty("counterexample")
     private List<String> counterexample;
 
+    @JsonProperty("memberImpact")
+    private Map<String, Integer> memberImpact; // stateId → winning states lost when removed
+
     public SwitchingPairInfo() {}
 
     public SwitchingPairInfo(String label, List<String> coalition,
@@ -58,4 +61,7 @@ public class SwitchingPairInfo {
 
     public List<String> getCounterexample() { return counterexample; }
     public void setCounterexample(List<String> counterexample) { this.counterexample = counterexample; }
+
+    public Map<String, Integer> getMemberImpact() { return memberImpact; }
+    public void setMemberImpact(Map<String, Integer> memberImpact) { this.memberImpact = memberImpact; }
 }

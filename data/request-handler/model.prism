@@ -1,0 +1,48 @@
+// Quality control pipeline — tiny example for demonstrating responsibility
+// 6 states, 4 actors on the counterexample, asymmetric responsibility
+//
+// Scenario: A defective product moves through a quality control pipeline.
+//   - Inspector (s0): examines the product — can reject it or let it pass
+//   - Sorter (s1):    routes the product to one of two assembly lines
+//   - Line A (s2):    can fix the defect or miss it
+//   - Line B (s3):    can fix the defect or miss it
+//   If the defect is missed, the defective product ships (error).
+//
+// Counterexample: inspector approves → sorter sends to A → line A misses → error
+//
+// Expected responsibility (pessimistic Shapley, n=4):
+//   Inspector = 5/12 (41.7%)  — can reject defect alone; high upstream control
+//   Sorter    = 5/12 (41.7%)  — can route to a cooperating line
+//   Line A    = 1/12  (8.3%)  — can only fix if product reaches this line
+//   Line B    = 1/12  (8.3%)  — can only fix if product reaches this line
+
+mdp
+
+module pipeline
+    s : [0..5] init 0;
+
+    // s=0: Inspector — examines the product
+    [reject]  s=0 -> (s'=5);     // catch defect → safe
+    [approve] s=0 -> (s'=1);     // let it pass
+
+    // s=1: Sorter — routes product to assembly line
+    [line_A]  s=1 -> (s'=2);     // send to line A
+    [line_B]  s=1 -> (s'=3);     // send to line B
+
+    // s=2: Line A — attempts to fix the defect
+    [fix_A]   s=2 -> (s'=5);     // defect fixed → safe
+    [miss_A]  s=2 -> (s'=4);     // defect missed → error!
+
+    // s=3: Line B — attempts to fix the defect
+    [fix_B]   s=3 -> (s'=5);     // defect fixed → safe
+    [miss_B]  s=3 -> (s'=4);     // defect missed → error!
+
+    // s=4: Error — defective product shipped (absorbing)
+    [shipped] s=4 -> (s'=4);
+
+    // s=5: Safe — product is good (absorbing)
+    [done]    s=5 -> (s'=5);
+endmodule
+
+label "error" = s=4;
+label "safe"  = s=5;

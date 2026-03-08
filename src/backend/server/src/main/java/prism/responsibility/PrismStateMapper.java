@@ -67,9 +67,12 @@ public class PrismStateMapper {
             logger.debug("PRISM CLI completed in {} ms", ms);
             
             // Parse states file
-            // Format: 0:(false,false,false,true,true,...)
-            //         1:(true,false,false,false,true,...)
-            Pattern pattern = Pattern.compile("^(\\d+):\\((.+)\\)$");
+            // Format: (var1,var2,var3)      <-- header with variable names
+            //         0:(val1,val2,val3)
+            //         1:(val1,val2,val3)
+            Pattern headerPattern = Pattern.compile("^\\((.+)\\)$");
+            Pattern statePattern = Pattern.compile("^(\\d+):\\((.+)\\)$");
+            String[] varNames = null;
             
             if (Files.exists(statesFile)) {
                 int count = 0;
@@ -77,10 +80,33 @@ public class PrismStateMapper {
                     line = line.trim();
                     if (line.isEmpty()) continue;
                     
-                    Matcher m = pattern.matcher(line);
+                    // Try header first
+                    if (varNames == null) {
+                        Matcher hm = headerPattern.matcher(line);
+                        if (hm.matches()) {
+                            varNames = hm.group(1).split(",");
+                            for (int i = 0; i < varNames.length; i++) {
+                                varNames[i] = varNames[i].trim();
+                            }
+                            logger.debug("State variables: {}", String.join(", ", varNames));
+                            continue;
+                        }
+                    }
+                    
+                    Matcher m = statePattern.matcher(line);
                     if (m.matches()) {
                         String id = m.group(1);
-                        String stateName = "(" + m.group(2) + ")";
+                        String[] values = m.group(2).split(",");
+                        
+                        // Produce name in the same format as ModelParser.normalizeStateName():
+                        // semicolons, values only (no var names), no parentheses.
+                        // This ensures the frontend can match state IDs to graph nodes.
+                        StringBuilder sb = new StringBuilder();
+                        for (int i = 0; i < values.length; i++) {
+                            if (sb.length() > 0) sb.append(";");
+                            sb.append(values[i].trim());
+                        }
+                        String stateName = sb.toString();
                         mapping.put(id, stateName);
                         count++;
                         
@@ -89,7 +115,8 @@ public class PrismStateMapper {
                         }
                     }
                 }
-                logger.info("Extracted state mapping: {} states in {} ms", mapping.size(), ms);
+                logger.info("Extracted state mapping: {} states ({} vars) in {} ms", 
+                        mapping.size(), varNames != null ? varNames.length : 0, ms);
             } else {
                 logger.warn("States file not created: {}", statesFile);
             }

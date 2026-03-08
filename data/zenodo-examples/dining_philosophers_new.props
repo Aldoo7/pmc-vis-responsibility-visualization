@@ -1,8 +1,0 @@
-// Properties for Dining Philosophers (new variant - with injected bug)
-// Error state: all forks taken but no philosopher is eating (deadlock)
-//
-// In the BUGGY model (dining_philosophers_new.prism): result should be > 0
-// In the ORIGINAL model (dining_philosophers_a.prism): result should also be > 0
-// (the original has symmetric deadlock; the new one has asymmetric deadlock due to P1's bug)
-
-P=? [ F "sbad" ]

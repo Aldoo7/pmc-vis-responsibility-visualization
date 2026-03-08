@@ -9,6 +9,9 @@ let isPaused = false;
 let lastComponentResponsibility = null;
 let lastStateResponsibility = null;
 let lastGroupingMode = null;
+let lastSwitchingPairs = null;
+let lastSwitchingPairStats = null; // Per-player stats from full Shapley computation
+let lastStateIdToName = null; // Raw state ID → human name mapping
 
 function getActiveProjectId() {
   const el = document.getElementById('project-id');
@@ -134,6 +137,19 @@ export function initResponsibilityControls() {
     if (_data && _data.stateResponsibility) {
       lastStateResponsibility = _data.stateResponsibility;
       
+      // Store switching pairs if present (from switching pair analysis)
+      if (_data.switchingPairs && _data.switchingPairs.length > 0) {
+        lastSwitchingPairs = _data.switchingPairs;
+      }
+      // Store real switching pair stats from Java Shapley computation
+      if (_data.switchingPairStats) {
+        lastSwitchingPairStats = _data.switchingPairStats;
+      }
+      // Store state ID to name mapping for resolving coalition member names
+      if (_data.stateIdToName) {
+        lastStateIdToName = _data.stateIdToName;
+      }
+      
       if (_data.groupedMode && _data.groups) {
         lastGroupingMode = _data.groupingMode || 'group';
         renderGroupResponsibilityTable(_data.groups, _data.groupingMode);
@@ -188,7 +204,7 @@ function clearResponsibilityVisualization() {
       pane.cy.$('node.s').forEach(node => {
         node.removeData('responsibility');
         node.removeData('responsibilityTooltip');
-        node.removeClass('resp-high resp-medium resp-low');
+        node.removeClass('resp-high resp-medium resp-low sp-coalition-member sp-pivot-state');
       });
       pane.cy.endBatch();
     }
@@ -201,9 +217,12 @@ function clearResponsibilityVisualization() {
   }
   
   lastStateResponsibility = null;
+  lastSwitchingPairs = null;
+  lastSwitchingPairStats = null;
+  lastStateIdToName = null;
   const stateTbody = document.querySelector('#state-resp-table tbody');
   if (stateTbody) {
-    stateTbody.innerHTML = '<tr><td colspan="3" style="color:#888; text-align:center">No data yet</td></tr>';
+    stateTbody.innerHTML = '<tr><td colspan="4" style="color:#888; text-align:center">No data yet</td></tr>';
   }
 }
 
@@ -397,7 +416,7 @@ function renderStateResponsibilityTable(stateResponsibilityMap) {
   }
 
   if (!stateResponsibilityMap || Object.keys(stateResponsibilityMap).length === 0) {
-    tbody.innerHTML = '<tr><td colspan="3" style="color:#888; text-align:center">No data yet</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" style="color:#888; text-align:center">No data yet</td></tr>';
     return;
   }
 
@@ -432,19 +451,233 @@ function renderStateResponsibilityTable(stateResponsibilityMap) {
       }
     }
     
-    const isPureNumber = /^\d+$/.test(r.stateId);
-    const stateLabel = isPureNumber ? `State ${r.stateId}` : r.stateId;
+    const stateLabel = resolveStateShortLabel(r.stateId);
+
+    // Switching pairs column — only show if we have real data
+    const spStats = lastSwitchingPairStats ? lastSwitchingPairStats[r.stateId] : null;
+    let pivotCell = '<td style="text-align:center; color:#bbb">—</td>';
+    
+    if (spStats) {
+      const pct = spStats.totalCoalitions > 0 
+          ? Math.round(100 * spStats.pivotalCount / spStats.totalCoalitions) : 0;
+      let bg, color;
+      if (spStats.pivotalCount === 0) {
+        bg = 'transparent'; color = '#888';
+      } else if (pct >= 50) {
+        bg = '#c0392b'; color = 'white';
+      } else if (pct >= 20) {
+        bg = '#e67e22'; color = 'white';
+      } else {
+        bg = '#27ae60'; color = 'white';
+      }
+      const style = bg === 'transparent' 
+          ? `color:${color}; font-size:10px`
+          : `background:${bg}; color:${color}; padding:2px 6px; border-radius:3px; font-size:10px; font-weight:600; cursor:pointer`;
+      pivotCell = `<td style="text-align:center; cursor:pointer" class="pivot-cell" data-state-id="${r.stateId}">` +
+          `<span style="${style}">${spStats.pivotalCount}/${spStats.totalCoalitions}</span></td>`;
+    }
     
     return `
-      <tr style="${colorClass}">
+      <tr style="${colorClass}" data-state-id="${r.stateId}">
         <td>${stateLabel}${badge}</td>
         <td style="text-align:right">${valueStr}</td>
         <td style="text-align:right">${percentage}%</td>
+        ${pivotCell}
       </tr>
     `;
   }).join('');
+
+  // Attach click handlers for switching pair detail expansion
+  tbody.querySelectorAll('.pivot-cell').forEach(cell => {
+    cell.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const sid = cell.dataset.stateId;
+      const existingDetail = tbody.querySelector(`tr.pivot-detail-row[data-for="${sid}"]`);
+      if (existingDetail) {
+        existingDetail.remove();
+        clearCoalitionHighlight();
+        return;
+      }
+      // Remove any other open detail rows
+      tbody.querySelectorAll('tr.pivot-detail-row').forEach(r => r.remove());
+      clearCoalitionHighlight();
+      
+      const spStats = lastSwitchingPairStats ? lastSwitchingPairStats[sid] : null;
+      if (!spStats) return;
+
+      const pct = spStats.totalCoalitions > 0 
+          ? Math.round(100 * spStats.pivotalCount / spStats.totalCoalitions) : 0;
+      
+      let html = '<td colspan="4" style="padding:8px 10px; background:#f8f9fa; border-left:3px solid #3498db">';
+      html += `<div style="display:flex; justify-content:space-between; align-items:center">`;
+      html += `<strong style="font-size:0.9em">Switching pairs for State ${escapeHtml(sid)}</strong>`;
+      html += `<span style="font-size:0.8em; color:#666">Pivotal in ${spStats.pivotalCount} of ${spStats.totalCoalitions} coalitions (${pct}%)</span>`;
+      html += `</div>`;
+      
+      // Example coalitions — clickable to highlight on graph
+      if (spStats.examples && spStats.examples.length > 0) {
+        html += `<div style="margin-top:6px; font-size:0.82em; color:#555">Click a coalition to highlight its members on the graph:</div>`;
+        html += `<div style="margin-top:4px">`;
+        spStats.examples.forEach((coalition, i) => {
+          const memberNames = coalition.map(id => {
+            const full = resolveStateName(id);
+            const short = /^\d+$/.test(id) ? `State ${id}` : id;
+            if (full !== short) {
+              return `<span title="${escapeHtml(full)}" style="cursor:help; border-bottom:1px dotted #999">${escapeHtml(short)}</span>`;
+            }
+            return escapeHtml(short);
+          });
+          const cStr = coalition.length === 0 
+              ? '<span style="color:#888">∅</span> <span style="color:#666">(wins alone)</span>' 
+              : '{' + memberNames.join(', ') + '}';
+          // Store raw IDs as data attribute for graph interaction
+          const rawIds = coalition.join(',');
+          html += `<div class="sp-coalition-entry" data-member-ids="${rawIds}" data-pivot-id="${sid}" style="
+            margin:3px 0; padding:4px 8px; font-family:monospace; font-size:0.92em;
+            background:#fff; border:1px solid #ddd; border-radius:4px;
+            cursor:pointer; transition:all 0.15s; display:flex; align-items:center; gap:6px;
+          ">`;
+          html += `<span style="color:#3498db; font-size:1.1em">&#9654;</span>`;
+          html += `<span>C = ${cStr}</span>`;
+          html += `</div>`;
+        });
+        if (spStats.pivotalCount > spStats.examples.length) {
+          html += `<div style="margin:4px 0; font-size:0.78em; color:#999; font-style:italic; padding-left:8px">`;
+          html += `… and ${spStats.pivotalCount - spStats.examples.length} more`;
+          html += `</div>`;
+        }
+        html += `</div>`;
+      } else if (spStats.pivotalCount === 0) {
+        html += `<div style="margin-top:4px; font-size:0.82em; color:#888; font-style:italic">Not pivotal in any coalition.</div>`;
+      }
+      
+      html += '</td>';
+      const detailRow = document.createElement('tr');
+      detailRow.className = 'pivot-detail-row';
+      detailRow.dataset.for = sid;
+      detailRow.innerHTML = html;
+      cell.closest('tr').after(detailRow);
+
+      // Attach click handlers to coalition entries
+      detailRow.querySelectorAll('.sp-coalition-entry').forEach(entry => {
+        entry.addEventListener('mouseenter', () => { 
+          entry.style.background = '#e3f2fd'; 
+          entry.style.borderColor = '#3498db'; 
+        });
+        entry.addEventListener('mouseleave', () => { 
+          entry.style.background = '#fff'; 
+          entry.style.borderColor = '#ddd'; 
+        });
+        entry.addEventListener('click', () => {
+          const memberIds = entry.dataset.memberIds ? entry.dataset.memberIds.split(',').filter(Boolean) : [];
+          const pivotId = entry.dataset.pivotId;
+          highlightCoalitionOnGraph(memberIds, pivotId);
+          // Mark active entry
+          detailRow.querySelectorAll('.sp-coalition-entry').forEach(e => {
+            e.style.background = '#fff';
+            e.style.borderColor = '#ddd';
+          });
+          entry.style.background = '#d4edfa'; 
+          entry.style.borderColor = '#2980b9';
+        });
+      });
+    });
+  });
   
   lastStateResponsibility = stateResponsibilityMap;
+}
+
+/** Resolve a raw state ID to a human-readable name using the stateIdToName map */
+function resolveStateName(stateId) {
+  if (lastStateIdToName && lastStateIdToName[stateId]) {
+    return lastStateIdToName[stateId];
+  }
+  return /^\d+$/.test(stateId) ? `State ${stateId}` : stateId;
+}
+
+/** Short label for table display — just "State N" with full name as tooltip */
+function resolveStateShortLabel(stateId) {
+  const fullName = resolveStateName(stateId);
+  const short = /^\d+$/.test(stateId) ? `State ${stateId}` : stateId;
+  if (fullName !== short) {
+    return `<span title="${escapeHtml(fullName)}" style="cursor:help; border-bottom:1px dotted #999">${short}</span>`;
+  }
+  return short;
+}
+
+/** Highlight coalition members + pivot state on the Cytoscape graph */
+function highlightCoalitionOnGraph(memberIds, pivotId) {
+  const panes = getPanes();
+  Object.values(panes).forEach(pane => {
+    if (!pane.cy) return;
+    const cy = pane.cy;
+    
+    // Clear previous coalition highlights
+    cy.$('node.s').removeClass('sp-coalition-member sp-pivot-state');
+    
+    // Build lookup maps for flexible node resolution
+    const idToNode = new Map();
+    cy.$('node.s').forEach(node => {
+      const nid = node.id();
+      const name = node.data('name');
+      const label = node.data('label');
+      idToNode.set(nid, node);
+      if (name) {
+        idToNode.set(name, node);
+        if (name.startsWith('s')) idToNode.set(name.substring(1), node);
+      }
+      if (label) {
+        idToNode.set(label, node);
+        if (label.startsWith('s')) idToNode.set(label.substring(1), node);
+      }
+    });
+
+    const resolveNode = (stateId) => {
+      let node = idToNode.get(String(stateId));
+      if (!node) node = idToNode.get('s' + stateId);
+      if (!node && lastStateIdToName && lastStateIdToName[stateId]) {
+        node = idToNode.get(lastStateIdToName[stateId]);
+      }
+      return node || null;
+    };
+    
+    // Highlight coalition members in blue
+    const highlightedNodes = [];
+    memberIds.forEach(id => {
+      const node = resolveNode(id);
+      if (node) {
+        node.addClass('sp-coalition-member');
+        highlightedNodes.push(node);
+      }
+    });
+    
+    // Highlight the pivot state (the one being added) in orange
+    if (pivotId) {
+      const pivotNode = resolveNode(pivotId);
+      if (pivotNode) {
+        pivotNode.addClass('sp-pivot-state');
+        highlightedNodes.push(pivotNode);
+      }
+    }
+    
+    // Pan to show all highlighted nodes
+    if (highlightedNodes.length > 0) {
+      const collection = cy.collection(highlightedNodes);
+      cy.animate({
+        fit: { eles: collection, padding: 60 },
+        duration: 400
+      });
+    }
+  });
+}
+
+/** Clear coalition highlights from the graph */
+function clearCoalitionHighlight() {
+  const panes = getPanes();
+  Object.values(panes).forEach(pane => {
+    if (!pane.cy) return;
+    pane.cy.$('node.s').removeClass('sp-coalition-member sp-pivot-state');
+  });
 }
 
 function copyStateResponsibilityToClipboard() {
@@ -459,6 +692,17 @@ function copyStateResponsibilityToClipboard() {
     : 'State';
   const itemLabel = isGrouped ? 'groups' : 'states';
 
+  // Get the analysis settings that were used
+  const modeEl = document.getElementById('resp-mode');
+  const powerIndexEl = document.getElementById('resp-power-index');
+  const mode = modeEl ? modeEl.options[modeEl.selectedIndex].text : 'Unknown';
+  const powerIndex = powerIndexEl ? powerIndexEl.options[powerIndexEl.selectedIndex].text : 'Unknown';
+
+  const groupingEl = document.getElementById('resp-grouping-mode');
+  const grouping = groupingEl ? groupingEl.options[groupingEl.selectedIndex].text : null;
+  const useSampling = document.getElementById('resp-use-sampling')?.checked || false;
+  const samplingConfig = document.getElementById('resp-sampling-config')?.value || '';
+
   const rows = Object.entries(lastStateResponsibility)
     .map(([stateId, value]) => ({ stateId, value: Number(value) }))
     .filter(r => !isNaN(r.value))
@@ -467,6 +711,14 @@ function copyStateResponsibilityToClipboard() {
   const total = rows.reduce((sum, r) => sum + r.value, 0);
 
   let text = `${modeLabel} Responsibility Values\n`;
+  text += '='.repeat(50) + '\n';
+  text += `Analysis: ${powerIndex} × ${mode}\n`;
+  if (grouping && grouping.toLowerCase() !== 'individual') {
+    text += `Grouping: ${grouping}\n`;
+  }
+  if (useSampling) {
+    text += `Sampling: ${samplingConfig || 'enabled'}\n`;
+  }
   text += '='.repeat(50) + '\n\n';
   text += `${modeLabel}\tValue\t\t% of Total\n`;
   text += '-'.repeat(50) + '\n';

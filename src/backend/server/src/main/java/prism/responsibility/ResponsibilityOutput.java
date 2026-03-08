@@ -63,6 +63,9 @@ public class ResponsibilityOutput {
 
     @JsonProperty("switchingPairs")
     private List<SwitchingPairInfo> switchingPairs; // Per-coalition safety game results
+
+    @JsonProperty("switchingPairStats")
+    private Map<String, SwitchingPairStats> switchingPairStats; // Per-player: real switching pair data from Shapley computation
     
     public ResponsibilityOutput() {
         this.stateResponsibility = new HashMap<>();
@@ -145,6 +148,9 @@ public class ResponsibilityOutput {
 
     public List<SwitchingPairInfo> getSwitchingPairs() { return switchingPairs; }
     public void setSwitchingPairs(List<SwitchingPairInfo> switchingPairs) { this.switchingPairs = switchingPairs; }
+
+    public Map<String, SwitchingPairStats> getSwitchingPairStats() { return switchingPairStats; }
+    public void setSwitchingPairStats(Map<String, SwitchingPairStats> switchingPairStats) { this.switchingPairStats = switchingPairStats; }
     
     @Override
     public String toString() {
@@ -202,6 +208,32 @@ public class ResponsibilityOutput {
         public GroupInfo(List<String> members, Double responsibility) {
             this.members = members;
             this.responsibility = responsibility;
+        }
+    }
+
+    /**
+     * Per-player switching pair statistics from the full Shapley computation.
+     * A switching pair (C, x) exists when v(C)=0 and v(C∪{x})=1.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class SwitchingPairStats {
+        @JsonProperty("pivotalCount")
+        public int pivotalCount;           // Number of coalitions where this player is pivotal
+
+        @JsonProperty("totalCoalitions")
+        public int totalCoalitions;        // Total coalitions checked (2^(n-1))
+
+        @JsonProperty("shapleyValue")
+        public double shapleyValue;        // Computed Shapley value for cross-check
+
+        @JsonProperty("examples")
+        public List<List<String>> examples; // Representative switching pair coalitions (up to 10, raw state IDs)
+
+        public SwitchingPairStats() {}
+        public SwitchingPairStats(int pivotalCount, int totalCoalitions, double shapleyValue) {
+            this.pivotalCount = pivotalCount;
+            this.totalCoalitions = totalCoalitions;
+            this.shapleyValue = shapleyValue;
         }
     }
 }

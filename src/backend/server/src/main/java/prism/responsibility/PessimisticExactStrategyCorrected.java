@@ -11,15 +11,23 @@ public class PessimisticExactStrategyCorrected implements ResponsibilityStrategy
 
     @Override
     public ResponsibilityOutput compute(TransitionSystem ts, Counterexample counterexample, int level, PowerIndex powerIndex) {
-        List<String> trace = counterexample.getTrace();
-        
-        // Players are states on the counterexample (excluding error state if present)
+        // Default: extract players from the counterexample trace
         List<String> players = new ArrayList<>();
-        for (String state : trace) {
+        for (String state : counterexample.getTrace()) {
             if (!ts.getBadStates().contains(state)) {
                 players.add(state);
             }
         }
+        return compute(ts, counterexample, level, powerIndex, players);
+    }
+
+    /**
+     * Compute with an explicit player list.
+     * The counterexample is still used for the pessimistic game construction,
+     * but the player set can include states not on the trace.
+     */
+    public ResponsibilityOutput compute(TransitionSystem ts, Counterexample counterexample, int level, PowerIndex powerIndex, List<String> players) {
+        List<String> trace = counterexample.getTrace();
         
         int n = players.size();
         Map<String, Double> stateResponsibility = new HashMap<>();
@@ -32,10 +40,15 @@ public class PessimisticExactStrategyCorrected implements ResponsibilityStrategy
             return output;
         }
         
+        // Collect switching pair statistics per player
+        Map<String, ResponsibilityOutput.SwitchingPairStats> switchingPairStats = new HashMap<>();
+
         // Compute responsibility using general power index formula
         for (int playerIdx = 0; playerIdx < n; playerIdx++) {
             String player = players.get(playerIdx);
             double responsibility = 0.0;
+            int pivotalCount = 0;
+            List<List<String>> switchingExamples = new ArrayList<>();
             
             // Enumerate all coalitions C ⊆ N \ {player}
             int numCoalitions = 1 << (n - 1); // 2^(n-1)
@@ -64,6 +77,14 @@ public class PessimisticExactStrategyCorrected implements ResponsibilityStrategy
                 int marginalValue = valueWith - valueWithout;
                 
                 if (marginalValue > 0) {
+                    // This is a switching pair (C, player): v(C)=0 and v(C∪{player})=1
+                    pivotalCount++;
+                    
+                    // Save representative examples (up to 10)
+                    if (switchingExamples.size() < 10) {
+                        switchingExamples.add(new ArrayList<>(coalition));
+                    }
+                    
                     // Apply weight based on power index
                     double weight;
                     if (powerIndex == PowerIndex.SHAPLEY) {
@@ -79,6 +100,12 @@ public class PessimisticExactStrategyCorrected implements ResponsibilityStrategy
             }
             
             stateResponsibility.put(player, responsibility);
+            
+            // Build switching pair stats for this player
+            ResponsibilityOutput.SwitchingPairStats stats = 
+                new ResponsibilityOutput.SwitchingPairStats(pivotalCount, numCoalitions, responsibility);
+            stats.examples = switchingExamples;
+            switchingPairStats.put(player, stats);
         }
         
         // Aggregate to component-level responsibility
@@ -91,6 +118,7 @@ public class PessimisticExactStrategyCorrected implements ResponsibilityStrategy
         output.setPowerIndex(powerIndex.name().toLowerCase());
         output.setCounterexample(counterexample.getTrace());
         output.setApproximate(false);
+        output.setSwitchingPairStats(switchingPairStats);
         
         // Prepare state metadata
         Map<String, ResponsibilityOutput.StateInfo> stateMetadata = new HashMap<>();

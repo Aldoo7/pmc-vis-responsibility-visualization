@@ -232,6 +232,97 @@ public class ResponsibilityEngine {
 
         output.setSwitchingPairs(pairs);
         logger.info("Switching pair analysis: {} pairs computed", pairs.size());
+
+        // Compute member impact: how many winning states are lost when each member is removed
+        int fullWinSize;
+        for (SwitchingPairInfo pair : pairs) {
+            if (!pair.isSafeWins() || pair.getCoalition().size() <= 1
+                    || pair.getCoalition().size() > 30) {
+                continue; // skip non-winning, singletons, or very large coalitions
+            }
+            fullWinSize = pair.getWinningRegion().size();
+            Map<String, Integer> impact = new LinkedHashMap<>();
+            for (String sid : pair.getCoalition()) {
+                Set<String> reduced = new HashSet<>(pair.getCoalition());
+                reduced.remove(sid);
+                if (reduced.isEmpty()) { impact.put(sid, fullWinSize); continue; }
+                try {
+                    SafetyGame.GameResult res = SafetyGame
+                            .fromTransitionSystem(ts, ce, reduced).solve();
+                    int delta = fullWinSize - res.winningRegion.size();
+                    if (delta != 0 || !res.safeWinsFromInitial) {
+                        impact.put(sid, !res.safeWinsFromInitial ? -1 : delta);
+                    }
+                } catch (Exception e) {
+                    logger.warn("Impact check failed for state {}: {}", sid, e.getMessage());
+                }
+            }
+            pair.setMemberImpact(impact);
+            logger.info("Pair '{}': {} members with impact out of {} (fullWin={})",
+                    pair.getLabel(), impact.size(), pair.getCoalition().size(), fullWinSize);
+        }
+
+        // ── Full switching pair analysis via Java Shapley computation ──
+        // For small models (≤15 players), run the exact Shapley computation
+        // to collect ALL switching pairs per player. This gives theoretically grounded
+        // data: for each state, exactly how many of the 2^(n-1) coalitions it's pivotal in.
+        //
+        // IMPORTANT: use ALL non-bad states as players (matching the Rust binary),
+        // but keep the REAL counterexample for the pessimistic game construction.
+        // The counterexample defines trace-restricted transitions for states not
+        // in the coalition; the player set is separate.
+        Set<String> allNonBad = new LinkedHashSet<>(ts.getStates());
+        allNonBad.removeAll(ts.getBadStates());
+        // Also exclude the safe/terminal absorbing states that aren't reachable
+        // on any path to error — they don't participate meaningfully
+        Set<String> players = new LinkedHashSet<>();
+        for (String s : allNonBad) {
+            // Include state if it's on the trace OR has successors leading somewhere
+            // (i.e., skip pure absorbing safe states like state 5 in the quality control model)
+            if (trace.contains(s)) {
+                players.add(s);
+            } else {
+                // Include off-trace states that can reach a bad state
+                // (they're meaningful players even if not on this particular trace)
+                Set<String> succs = ts.getSuccessors(s);
+                boolean isSelfLoop = (succs != null && succs.size() == 1 && succs.contains(s));
+                if (!isSelfLoop) {
+                    players.add(s);
+                }
+            }
+        }
+        List<String> playerList = new ArrayList<>(players);
+        int nPlayers = playerList.size();
+        if (nPlayers > 0 && nPlayers <= 20) {
+            logger.info("Running full switching pair analysis: {} players (trace={}, total non-bad={}), {} coalitions/player",
+                    nPlayers, trace.size(), allNonBad.size(), 1 << (nPlayers - 1));
+            try {
+                PessimisticExactStrategyCorrected javaShapley = new PessimisticExactStrategyCorrected();
+                // Use the REAL counterexample for the game, but override the player list
+                ResponsibilityOutput shapleyResult = javaShapley.compute(ts, ce, output.getLevel(), 
+                        PowerIndex.valueOf(output.getPowerIndex().toUpperCase()), playerList);
+                if (shapleyResult.getSwitchingPairStats() != null) {
+                    // Keep raw state IDs in examples — frontend resolves names via stateIdToName
+                    // and uses raw IDs for graph node highlighting on click
+                    output.setSwitchingPairStats(shapleyResult.getSwitchingPairStats());
+                    logger.info("Switching pair stats attached for {} players", 
+                            shapleyResult.getSwitchingPairStats().size());
+                    Map<String, String> idToName = output.getStateIdToName();
+                    for (Map.Entry<String, ResponsibilityOutput.SwitchingPairStats> e 
+                            : shapleyResult.getSwitchingPairStats().entrySet()) {
+                        String name = (idToName != null && idToName.containsKey(e.getKey())) 
+                                ? idToName.get(e.getKey()) : e.getKey();
+                        logger.info("  {}: {}/{} switching pairs (shapley={})", 
+                                name, e.getValue().pivotalCount, e.getValue().totalCoalitions,
+                                String.format("%.4f", e.getValue().shapleyValue));
+                    }
+                }
+            } catch (Exception e) {
+                logger.warn("Full switching pair analysis failed: {}", e.getMessage());
+            }
+        } else if (nPlayers > 20) {
+            logger.info("Skipping full switching pair analysis: {} players (max 20)", nPlayers);
+        }
     }
     
 

@@ -1,0 +1,4 @@
+// Request Handler properties
+// Error state: queue overflow (q > CAP)
+
+P=? [ F "sbad" ]

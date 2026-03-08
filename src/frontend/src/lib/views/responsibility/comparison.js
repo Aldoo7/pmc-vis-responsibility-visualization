@@ -269,15 +269,19 @@ export function clearComparison() {
   }
 }
 
-// "(d1=0,d2=0)" -> "(0,0)"
+// Normalize state name to canonical "val;val;val" format for matching.
 function normalizeStateName(name) {
-  if (!name || !name.startsWith('(') || !name.endsWith(')')) return name;
-  const inner = name.slice(1, -1);
-  const parts = inner.split(',').map(p => {
+  if (!name) return name;
+  let inner = name;
+  if (inner.startsWith('(') && inner.endsWith(')')) {
+    inner = inner.slice(1, -1);
+  }
+  const parts = inner.split(/[,;]/).map(p => {
+    p = p.trim();
     const eq = p.indexOf('=');
-    return eq >= 0 ? p.substring(eq + 1).trim() : p.trim();
+    return eq >= 0 ? p.substring(eq + 1).trim() : p;
   });
-  return '(' + parts.join(',') + ')';
+  return parts.join(';');
 }
 
 // Maps tool state IDs -> graph node IDs via normalized name matching
@@ -294,9 +298,7 @@ function buildStateIdToGraphIdMapping(stateIdToName) {
       if (name) {
         nameToGraphId.set(name, node.id());
         const normalized = normalizeStateName(name);
-        if (normalized !== name) {
-          nameToGraphId.set(normalized, node.id());
-        }
+        nameToGraphId.set(normalized, node.id());
       }
     });
   });
