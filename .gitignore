@@ -55,3 +55,20 @@ TestLibrary.java
 
 # Temporary files
 **/pmc-vis/
+*.bak
+*.tmp
+*~
+*.swp
+
+# LaTeX build artifacts
+*.aux
+*.toc
+*.out
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.bbl
+*.blg
+
+# Preprocessed PRISM files
+*_preprocessed.prism

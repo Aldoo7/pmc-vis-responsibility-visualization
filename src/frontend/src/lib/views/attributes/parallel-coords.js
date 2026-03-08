@@ -269,16 +269,7 @@ function parallelCoords(pane, data, metadata) {
         }
       });
 
-      // console.log(`Foreground drew ${
-      //   foreground.segments.drawn
-      // } and saved ${
-      //   foreground.segments.skipped
-      // } segments`);
-      // console.log(`Background drew ${
-      //   background.segments.drawn
-      // } and saved ${
-      //   background.segments.skipped
-      // } segments`);
+
 
       drawBoundIndicators();
 
@@ -688,11 +679,7 @@ function parallelCoords(pane, data, metadata) {
 
       drawBoundIndicators();
 
-      // console.log(`Highlighting layer drew: ${
-      //   highlight.segments.drawn
-      // } and saved ${
-      //   highlight.segments.skipped
-      // } segments`);
+
 
       countTooltipUpdate(count_tooltip, mouse, highlighted.size);
     });
