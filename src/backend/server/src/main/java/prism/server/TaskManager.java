@@ -55,11 +55,9 @@ public class TaskManager implements Executor, Managed {
         logger.info("SocketServer created");
         this.activeProjects = new HashMap<>();
 
-        // Initialize responsibility features with external tool (path via ENV)
         String respToolPath = System.getenv("RESP_TOOL_PATH");
         if (respToolPath == null || respToolPath.trim().isEmpty()) {
-            logger.warn("RESP_TOOL_PATH not set - responsibility engine will run in MOCK mode until configured");
-            respToolPath = "mock"; // ResponsibilityEngine interprets this as mock mode
+            logger.error("RESP_TOOL_PATH not set — responsibility features will be unavailable");
         } else {
             logger.info("Responsibility tool path: {}", respToolPath);
         }

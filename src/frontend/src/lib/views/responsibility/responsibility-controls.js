@@ -3,13 +3,12 @@ import { getPanes } from '../panes/panes.js';
 import { PROJECT } from '../../utils/controls.js';
 import { initFilteringControls, updateStateResponsibility, clearFiltering } from './filtering.js';
 import { initComparisonControls, clearComparison, exportComparisonCSV } from './comparison.js';
-import { cacheResponsibilityData, clearExplanationCache } from './explanation.js';
 
 let isRunning = false;
 let isPaused = false;
-let lastComponentResponsibility = null; // cache latest component map
-let lastStateResponsibility = null; // cache latest state responsibility data
-let lastGroupingMode = null; // track if last result was grouped (null = individual)
+let lastComponentResponsibility = null;
+let lastStateResponsibility = null;
+let lastGroupingMode = null;
 
 function getActiveProjectId() {
   const el = document.getElementById('project-id');
@@ -17,12 +16,9 @@ function getActiveProjectId() {
   return uiId || PROJECT;
 }
 
-// Initialize responsibility controls
-// Track if controls have been initialized to prevent duplicate event listeners
 let controlsInitialized = false;
 
 export function initResponsibilityControls() {
-  // Only initialize once to prevent duplicate event listeners
   if (controlsInitialized) {
     return;
   }
@@ -34,22 +30,16 @@ export function initResponsibilityControls() {
   const statusDiv = document.getElementById('resp-status');
   const statusText = document.getElementById('resp-status-text');
 
-  // Load saved configuration from localStorage
   loadSavedConfig();
-  
-  // Initialize filtering controls
   initFilteringControls();
-  
-  // Initialize comparison controls
   initComparisonControls();
   
-  // CSV export button
   const exportCsvBtn = document.getElementById('export-comparison-csv');
   if (exportCsvBtn) {
     exportCsvBtn.addEventListener('click', exportComparisonCSV);
   }
 
-  // Large model support: toggle sampling input based on checkbox
+  // toggle sampling input based on checkbox
   const useSamplingCheckbox = document.getElementById('resp-use-sampling');
   const samplingConfigInput = document.getElementById('resp-sampling-config');
   if (useSamplingCheckbox && samplingConfigInput) {
@@ -65,12 +55,10 @@ export function initResponsibilityControls() {
     const mode = document.getElementById('resp-mode').value;
     const powerIndex = document.getElementById('resp-power-index').value;
     
-    // Large model support: get sampling and grouping configuration
     const useSampling = document.getElementById('resp-use-sampling')?.checked || false;
     const samplingInput = document.getElementById('resp-sampling-config')?.value || '';
     const groupingMode = document.getElementById('resp-grouping-mode')?.value || 'individual';
 
-    // Save configuration
     saveConfig();
 
     const payload = {
@@ -81,14 +69,12 @@ export function initResponsibilityControls() {
       powerIndex: powerIndex,
       counterexample: null,
       projectId: getActiveProjectId(),
-      // Large model support fields
       samplingConfig: useSampling && samplingInput ? samplingInput : null,
       groupingMode: groupingMode !== 'individual' ? groupingMode : null
     };
 
     socket.emit('responsibility:start', payload);
 
-    // Update UI state
     isRunning = true;
     isPaused = false;
     updateButtonStates();
@@ -111,11 +97,11 @@ export function initResponsibilityControls() {
     clearResponsibilityVisualization();
     clearFiltering();
     clearComparison();
-    clearExplanationCache();
+
     statusDiv.style.display = 'none';
   });
 
-  // Copy button for state responsibility
+  // Copy button
   const copyBtn = document.getElementById('copy-state-resp-btn');
   if (copyBtn) {
     copyBtn.addEventListener('click', () => {
@@ -123,11 +109,9 @@ export function initResponsibilityControls() {
     });
   }
 
-  // Listen for status updates
   socket.on('responsibility:status', (data) => {
-    const state = data.state || data.status; // backend sends 'state'
+    const state = data.state || data.status;
     const message = data.message || state;
-    // surface model upload feedback in the same area
     if (state === 'completed') {
       isRunning = false;
       isPaused = false;
@@ -146,42 +130,35 @@ export function initResponsibilityControls() {
     }
   });
 
-  // Listen for results and aggregate components from current graph + state responsibilities
   socket.on('responsibility:result', (_data) => {
     if (_data && _data.stateResponsibility) {
       lastStateResponsibility = _data.stateResponsibility;
-
-      // Cache data for explanation panel
-      cacheResponsibilityData(_data);
       
-      // If grouped mode, render the group table instead of state table
       if (_data.groupedMode && _data.groups) {
         lastGroupingMode = _data.groupingMode || 'group';
         renderGroupResponsibilityTable(_data.groups, _data.groupingMode);
-        // Don't apply state-level graph coloring for grouped results
-        // (Graph coloring listener in node-link.js will skip if groupedMode=true)
       } else {
         lastGroupingMode = null;
         updateStateResponsibility(_data.stateResponsibility);
         renderStateResponsibilityTable(_data.stateResponsibility);
       }
       
-      // Show approximate/grouped mode indicator if applicable
+      // Show approximate/grouped indicator
       const statusText = document.getElementById('resp-status-text');
       if (statusText && _data.approximate) {
         const samplingInfo = _data.samplingConfig ? ` (${_data.samplingConfig})` : '';
         statusText.textContent = `Completed (approx${samplingInfo})`;
-        statusText.style.color = '#e67e22'; // orange to indicate approximate
+        statusText.style.color = '#e67e22';
       } else if (statusText && _data.groupedMode) {
         const groupInfo = _data.groupingMode ? ` by ${_data.groupingMode}` : '';
         statusText.textContent = `Completed (grouped${groupInfo})`;
-        statusText.style.color = '#3498db'; // blue for grouped
+        statusText.style.color = '#3498db';
       } else if (statusText) {
-        statusText.style.color = ''; // reset to default
+        statusText.style.color = '';
       }
     }
     
-    // Defer aggregation slightly to allow graph updater to set node responsibility
+    // Defer so graph updater can set node responsibility first
     setTimeout(() => {
       const fromGraph = aggregateComponentsFromGraph() || {};
       const fromBackend = (_data && _data.componentResponsibility) ? _data.componentResponsibility : {};
@@ -217,14 +194,12 @@ function clearResponsibilityVisualization() {
     }
   });
 
-  // Clear component table
   lastComponentResponsibility = null;
   const tbody = document.querySelector('#component-resp-table tbody');
   if (tbody) {
     tbody.innerHTML = '<tr><td colspan="3" style="color:#888; text-align:center">No data yet</td></tr>';
   }
   
-  // Clear state table
   lastStateResponsibility = null;
   const stateTbody = document.querySelector('#state-resp-table tbody');
   if (stateTbody) {
@@ -236,7 +211,6 @@ function saveConfig() {
   localStorage.setItem('resp_mode', document.getElementById('resp-mode').value);
   localStorage.setItem('resp_powerIndex', document.getElementById('resp-power-index').value);
   
-  // Large model support: save sampling and grouping settings
   const useSampling = document.getElementById('resp-use-sampling');
   const samplingConfig = document.getElementById('resp-sampling-config');
   const groupingMode = document.getElementById('resp-grouping-mode');
@@ -252,7 +226,6 @@ function loadSavedConfig() {
   if (mode) document.getElementById('resp-mode').value = mode;
   if (powerIndex) document.getElementById('resp-power-index').value = powerIndex;
   
-  // Large model support: load sampling and grouping settings
   const useSampling = localStorage.getItem('resp_useSampling');
   const samplingConfig = localStorage.getItem('resp_samplingConfig');
   const groupingMode = localStorage.getItem('resp_groupingMode');
@@ -273,7 +246,6 @@ function loadSavedConfig() {
   }
 }
 
-// Helpers for component panel
 function aggregateComponentsFromGraph() {
   // Aggregate action labels: average responsibility of source states over edges with that label
   const panes = getPanes();
@@ -301,7 +273,7 @@ function aggregateComponentsFromGraph() {
   const result = {};
   Array.from(sums.entries()).forEach(([k, s]) => {
     const c = counts.get(k) || 1;
-    result[k] = s / c; // average responsibility
+    result[k] = s / c;
   });
   return result;
 }
@@ -315,17 +287,14 @@ function renderComponentTable(componentMap) {
     return;
   }
 
-  // Sort by value desc
   const rows = Object.entries(componentMap)
     .map(([name, value]) => ({ name, value: Number(value) }))
     .sort((a, b) => b.value - a.value);
 
-  // Determine max for scale width
   const max = rows[0].value || 1;
 
   const format = (v) => (v * 100).toFixed(2) + '%';
   const colorFor = (v) => {
-    // simple green->orange->red ramp based on thresholds
     if (v > 0.7) return '#c74444';
     if (v > 0.4) return '#e87d1e';
     return '#5ca65c';
@@ -367,18 +336,14 @@ function renderGroupResponsibilityTable(groups, groupingMode) {
     .filter(r => !isNaN(r.value))
     .sort((a, b) => b.value - a.value);
 
-  // Calculate total for percentage
   const total = rows.reduce((sum, r) => sum + r.value, 0);
-
-  // Determine grouping label for display
   const modeLabel = (groupingMode || 'group').charAt(0).toUpperCase() + (groupingMode || 'group').slice(1);
 
-  // Determine thresholds for coloring
   const positives = rows.filter(r => r.value > 0);
   const highCutoff = Math.max(1, Math.ceil(positives.length * 0.3));
   const medCutoff = Math.max(highCutoff + 1, Math.ceil(positives.length * 0.7));
 
-  // Update table header to show group mode
+  // Update header to show group mode
   const tableHeader = document.querySelector('#state-resp-table thead tr');
   if (tableHeader) {
     const firstTh = tableHeader.querySelector('th');
@@ -389,7 +354,6 @@ function renderGroupResponsibilityTable(groups, groupingMode) {
     const percentage = total > 0 ? ((r.value / total) * 100).toFixed(2) : '0.00';
     const valueStr = r.value.toFixed(8);
 
-    // Determine color based on quantile
     let colorClass = '';
     let badge = '';
     if (r.value > 0) {
@@ -406,7 +370,6 @@ function renderGroupResponsibilityTable(groups, groupingMode) {
       }
     }
 
-    // Display the group name (label name, module name, action name, etc.)
     const displayName = escapeHtml(r.name);
 
     return `
@@ -418,7 +381,6 @@ function renderGroupResponsibilityTable(groups, groupingMode) {
     `;
   }).join('');
 
-  // Store the data for copying (use group names as keys)
   lastStateResponsibility = {};
   rows.forEach(r => { lastStateResponsibility[r.name] = r.value; });
 }
@@ -427,7 +389,7 @@ function renderStateResponsibilityTable(stateResponsibilityMap) {
   const tbody = document.querySelector('#state-resp-table tbody');
   if (!tbody) return;
 
-  // Reset table header back to "State" (in case it was changed to group mode)
+  // Reset header back to "State" in case it was in group mode
   const tableHeader = document.querySelector('#state-resp-table thead tr');
   if (tableHeader) {
     const firstTh = tableHeader.querySelector('th');
@@ -439,19 +401,13 @@ function renderStateResponsibilityTable(stateResponsibilityMap) {
     return;
   }
 
-  // Sort states by responsibility value (descending)
   const rows = Object.entries(stateResponsibilityMap)
     .map(([stateId, value]) => ({ stateId, value: Number(value) }))
     .filter(r => !isNaN(r.value))
     .sort((a, b) => b.value - a.value);
 
-  // Show top 10 only
   const top10 = rows.slice(0, 10);
-
-  // Calculate total for percentage
   const total = rows.reduce((sum, r) => sum + r.value, 0);
-  
-  // Determine thresholds for coloring (same as graph: top 30% = high, next 40% = medium)
   const positives = rows.filter(r => r.value > 0);
   const highCutoff = Math.max(1, Math.ceil(positives.length * 0.3));
   const medCutoff = Math.max(highCutoff + 1, Math.ceil(positives.length * 0.7));
@@ -460,7 +416,6 @@ function renderStateResponsibilityTable(stateResponsibilityMap) {
     const percentage = total > 0 ? ((r.value / total) * 100).toFixed(2) : '0.00';
     const valueStr = r.value.toFixed(8);
     
-    // Determine color based on quantile
     let colorClass = '';
     let badge = '';
     if (r.value > 0) {
@@ -477,7 +432,6 @@ function renderStateResponsibilityTable(stateResponsibilityMap) {
       }
     }
     
-    // Only add "State " prefix if stateId is purely numeric
     const isPureNumber = /^\d+$/.test(r.stateId);
     const stateLabel = isPureNumber ? `State ${r.stateId}` : r.stateId;
     
@@ -490,7 +444,6 @@ function renderStateResponsibilityTable(stateResponsibilityMap) {
     `;
   }).join('');
   
-  // Store the data for copying
   lastStateResponsibility = stateResponsibilityMap;
 }
 
@@ -500,23 +453,19 @@ function copyStateResponsibilityToClipboard() {
     return;
   }
 
-  // Determine label based on whether we're in grouped mode
   const isGrouped = lastGroupingMode != null;
   const modeLabel = isGrouped 
     ? lastGroupingMode.charAt(0).toUpperCase() + lastGroupingMode.slice(1)
     : 'State';
   const itemLabel = isGrouped ? 'groups' : 'states';
 
-  // Sort by responsibility value (descending)
   const rows = Object.entries(lastStateResponsibility)
     .map(([stateId, value]) => ({ stateId, value: Number(value) }))
     .filter(r => !isNaN(r.value))
     .sort((a, b) => b.value - a.value);
 
-  // Calculate total for percentage
   const total = rows.reduce((sum, r) => sum + r.value, 0);
 
-  // Create text format
   let text = `${modeLabel} Responsibility Values\n`;
   text += '='.repeat(50) + '\n\n';
   text += `${modeLabel}\tValue\t\t% of Total\n`;
@@ -532,7 +481,6 @@ function copyStateResponsibilityToClipboard() {
   text += `Total: ${rows.length} ${itemLabel}\n`;
   text += `Sum: ${total.toFixed(8)}\n`;
 
-  // Copy to clipboard
   navigator.clipboard.writeText(text).then(() => {
     const btn = document.getElementById('copy-state-resp-btn');
     if (btn) {

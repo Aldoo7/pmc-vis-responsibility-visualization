@@ -4,28 +4,8 @@ import java.util.*;
 import prism.responsibility.ResponsibilityEnums.PowerIndex;
 
 /**
- * CORRECTED Optimistic responsibility strategy implementing the algorithm from:
- * "Backward Responsibility in Transition Systems Using General Power Indices"
- * (Baier et al., 2024) - https://arxiv.org/abs/2402.01539
- * 
- * KEY FORMULAS (extracted from paper):
- * 
- * Definition 3.1: Optimistic cooperative game
- * v_opt(C) = 1 if Safe wins G_ρ^TS(C ∪ (S \ ρ)), 0 otherwise
- * 
- * Theorem 4: Characterization of optimistic responsibility
- * R(v_opt, s) = K if s ∈ WS_opt, 0 otherwise
- * where WS_opt = {s ∈ S | v_opt({s}) = 1}
- * 
- * Proposition 4.1: For Shapley and Banzhaf values
- * Shapley:  S(v_opt, s) = 1/|WS_opt| for s ∈ WS_opt
- * Banzhaf:  B(v_opt, s) = 1/2^(|WS_opt| - 1) for s ∈ WS_opt
- * 
- * CORRECTIONS from original implementation:
- * 1. Players are states on counterexample ρ, not successors
- * 2. Coalition value uses SafetyGame solver, not set membership
- * 3. Uses characterization theorem (uniform K for all WS_opt states)
- * 4. No extra /n normalization
+ * Optimistic responsibility strategy (Baier et al., 2024).
+ * Uses Theorem 4 characterization: R(v_opt, s) = K for s in WS_opt, 0 otherwise.
  */
 public class OptimisticExactStrategyCorrected implements ResponsibilityStrategy {
 
@@ -140,16 +120,6 @@ public class OptimisticExactStrategyCorrected implements ResponsibilityStrategy 
         return wsOpt;
     }
     
-    /**
-     * Aggregate state-level responsibility to component-level.
-     * 
-     * Components can be:
-     * - Modules (if model has module structure)
-     * - Variables (aggregate states by variable values)
-     * - Actions (aggregate by enabled actions)
-     * 
-     * For now, implements a simple heuristic based on state naming.
-     */
     private Map<String, Double> aggregateToComponents(
             TransitionSystem ts, 
             Map<String, Double> stateResponsibility) {

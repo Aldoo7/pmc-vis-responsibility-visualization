@@ -9,13 +9,12 @@ const red = "#ff9999";   // now: allowed action
 const yellow = "#ffff99"; // existing meaning: partially blocked action (local ok, global blocked)
 const grey = "#f2f2f2";  // variable highlight border
 
-// Responsibility heatmap colors (low -> high suspicion)
-const respCool = "#e1f5fe";      // very low responsibility (exonerated)
+const respCool = "#e1f5fe";
 const respLow = "#b3e5fc";
 const respMid = "#81d4fa";
 const respHigh = "#29b6f6";
-const respHot = "#0288d1";      // high responsibility (suspicious)
-const respMax = "#01579b";      // top responsibility (most suspicious)
+const respHot = "#0288d1";
+const respMax = "#01579b";
 
 //RegExpressions used
 const constantRegExp = /^\s*const\s+(int|bool)\s+(\w+)\s*=\s*(.+?)\s*;$/
@@ -98,8 +97,6 @@ const varDecoration = vscode.window.createTextEditorDecorationType({
     }
 });
 
-// Responsibility gradient decorations (overlays independent from action enablement)
-// We use subtle backgrounds so they can coexist; user may toggle later (future enhancement)
 function makeRespDecoration(color) {
     return vscode.window.createTextEditorDecorationType({
         borderWidth: '1px',
@@ -713,7 +710,6 @@ Decorator.prototype._applyResponsibility = function(activeEditor, componentResp)
         rangeList.push({ range, hoverMessage: hover });
     };
 
-    // Normalize scores 0..1 (backend already 0..1 but guard anyway)
     for (const [id, val] of Object.entries(componentResp)) {
         const score = Math.max(0, Math.min(1, val));
         let range = null;

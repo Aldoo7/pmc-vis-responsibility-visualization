@@ -73,7 +73,6 @@
         <select id="resp-power-index" class="ui dropdown">
           <option value="shapley" selected>Shapley Value</option>
           <option value="banzhaf">Banzhaf Index</option>
-          <option value="custom">Custom</option>
         </select>
         <small style="color:#888">Method for computing responsibility values</small>
       </div>
@@ -81,7 +80,7 @@
       <!-- Large Model Support -->
       <details class="param" style="border:1px solid #3498db; border-radius:8px; padding:10px; margin:12px 0; background:#f0f8ff">
         <summary style="cursor:pointer; font-weight:bold; color:#3498db; user-select:none; font-size:0.95em">
-          ⚡ Large Model Options (Sampling & Grouping)
+          Large Model Options
         </summary>
         <div style="margin-top:10px">
           <div style="margin-bottom:10px">
@@ -98,7 +97,7 @@
           <div>
             <label style="display:block; margin-bottom:4px; font-weight:500">State Grouping</label>
             <select id="resp-grouping-mode" style="padding:4px 8px; border:1px solid #ccc; border-radius:4px; width:180px">
-              <option value="individual" selected>Individual (exact)</option>
+              <option value="individual" selected>None</option>
               <option value="module">By Module</option>
               <option value="label">By Label</option>
               <option value="action">By Action</option>
@@ -127,7 +126,7 @@
       <!-- CRITICAL SUSPECTS (RED NODES) PANEL -->
       <details class="param" style="border:2px solid #e74c3c; border-radius:8px; padding:10px; margin:12px 0; background:#fff5f5" open>
         <summary style="cursor:pointer; font-weight:bold; color:#e74c3c; user-select:none; font-size:1.05em">
-          🔴 Critical Suspects (<span id="red-nodes-count">0</span> red nodes)
+          Critical Suspects (<span id="red-nodes-count">0</span> red nodes)
         </summary>
         <div id="red-nodes-container" style="max-height:160px; overflow-y:auto; margin-top:10px">
           <ul id="red-nodes-list" style="list-style:none; padding:0; margin:0; font-size:0.9em">
@@ -136,15 +135,39 @@
         </div>
       </details>
 
-      <!-- EXPLANATION PANEL (populated when user clicks a node) -->
-      <details id="explanation-panel" class="param" style="border:2px solid #1565c0; border-radius:8px; padding:10px; margin:12px 0; background:#e3f2fd; display:none">
-        <summary style="cursor:pointer; font-weight:bold; color:#1565c0; user-select:none; font-size:1.05em">
-          🔍 Why is this state responsible?
+      <!-- SWITCHING PAIR ANALYSIS PANEL -->
+      <details id="switching-pair-panel" class="param" style="border:2px solid #2980b9; border-radius:8px; padding:10px; margin:12px 0; background:#eaf4fb;" open>
+        <summary style="cursor:pointer; font-weight:bold; color:#2980b9; user-select:none; font-size:1.05em">
+          Switching Pair Analysis
         </summary>
-        <div id="explanation-body" style="margin-top:10px; font-size:0.92em; line-height:1.5">
-          <p style="color:#888; font-style:italic">Click a node in the graph or the Critical Suspects list to see its explanation.</p>
+        <div style="margin-top:10px">
+          <p style="font-size:0.85em; color:#555; margin-bottom:8px">
+            Analyze winning strategies for coalitions of responsible states.
+            Run responsibility analysis first, then click Analyze.
+          </p>
+          <button id="sp-analyze-btn" style="
+            width:100%; padding:8px 12px; margin-bottom:10px;
+            background:#2980b9; color:white; border:none; border-radius:4px;
+            font-size:0.9em; font-weight:600; cursor:pointer;
+            transition:background 0.2s;
+          " title="Run switching pair analysis on the latest responsibility results">
+            Analyze Switching Pairs
+          </button>
+          <div id="sp-status" style="display:none; font-size:0.85em; color:#555; margin-bottom:8px; font-style:italic"></div>
+          <select id="switching-pair-select" style="width:100%; padding:6px 8px; border:1px solid #aaa; border-radius:4px; font-size:0.9em; margin-bottom:8px; display:none">
+            <option value="">— Select a coalition —</option>
+          </select>
+          <div id="switching-pair-info" style="display:none; font-size:0.88em; line-height:1.6; background:white; border:1px solid #cde; border-radius:4px; padding:8px 10px">
+            <div id="sp-switching-details" style="display:none; margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid #cde;"></div>
+            <div><strong>Safe wins:</strong> <span id="sp-safe-wins"></span></div>
+            <div><strong>Coalition:</strong> <span id="sp-coalition" style="color:#2980b9"></span></div>
+            <div><strong>Winning region:</strong> <span id="sp-win-count" style="color:#27ae60; font-weight:bold"></span> states</div>
+            <div><strong>Strategy:</strong> <span id="sp-strat-count" style="color:#27ae60; font-weight:bold"></span> choices</div>
+            <div id="sp-cex-row"><strong>Counterexample:</strong> <span id="sp-cex-count" style="color:#8e44ad; font-weight:bold"></span> states</div>
+          </div>
         </div>
       </details>
+
 
       <!-- STATE RESPONSIBILITY TABLE -->
       <div class="ui divider"></div>
@@ -299,6 +322,25 @@
           <div style="display:flex; align-items:center; margin:4px 0">
             <span class="legend-node resp-low"></span>
             <p class="legend-p">Low (≤40%)</p>
+          </div>
+          <div style="margin-top:8px">
+            <b>Safety Game</b>
+            <div style="display:flex; align-items:center; margin:4px 0">
+              <span class="legend-node legend-resp-winning"></span>
+              <p class="legend-p">Winning region</p>
+            </div>
+            <div style="display:flex; align-items:center; margin:4px 0">
+              <span class="legend-node legend-resp-trace"></span>
+              <p class="legend-p">Counterexample trace</p>
+            </div>
+            <div style="display:flex; align-items:center; margin:4px 0">
+              <span class="legend-edge" style="border-top:3px dashed #c0392b; width:20px; height:0; display:inline-block; margin-right:6px"></span>
+              <p class="legend-p">Counterexample path (bad)</p>
+            </div>
+            <div style="display:flex; align-items:center; margin:4px 0">
+              <span class="legend-edge" style="border-top:4px solid #27ae60; width:20px; height:0; display:inline-block; margin-right:6px"></span>
+              <p class="legend-p">Strategy edge (safe alternative)</p>
+            </div>
           </div>
 
         </div>

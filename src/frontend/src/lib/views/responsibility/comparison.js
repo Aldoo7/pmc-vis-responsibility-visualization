@@ -1,20 +1,7 @@
-/**
- * Mode Comparison Feature
- * 
- * Computes and displays responsibility values across all 4 modes:
- * - Shapley + Optimistic
- * - Shapley + Pessimistic
- * - Banzhaf + Optimistic
- * - Banzhaf + Pessimistic
- * 
- * Shows a comparison table to identify states with high responsibility.
- */
-
 import { socket } from '../imports/import-socket.js';
 import { getPanes } from '../panes/panes.js';
 import { PROJECT } from '../../utils/controls.js';
 
-// Store results from all 4 modes
 let comparisonResults = {
   'shapley-optimistic': null,
   'shapley-pessimistic': null,
@@ -22,7 +9,6 @@ let comparisonResults = {
   'banzhaf-pessimistic': null
 };
 
-// Store state ID to graph node ID mapping (from first response)
 let stateIdToGraphId = null;
 
 let isComputing = false;
@@ -40,9 +26,6 @@ function getActiveProjectId() {
   return uiId || PROJECT;
 }
 
-/**
- * Initialize comparison controls
- */
 export function initComparisonControls() {
   const compareBtn = document.getElementById('resp-compare-all');
   const comparisonStatus = document.getElementById('comparison-status');
@@ -60,9 +43,6 @@ export function initComparisonControls() {
   socket.on('responsibility:status', handleComparisonStatus);
 }
 
-/**
- * Start computing all 4 modes sequentially
- */
 function startComparison() {
   comparisonResults = {
     'shapley-optimistic': null,
@@ -88,14 +68,10 @@ function startComparison() {
     statusSpan.style.display = 'inline';
   }
 
-  // Clear previous results
   renderComparisonTable(null);
   computeNextMode();
 }
 
-/**
- * Compute the next mode in sequence
- */
 function computeNextMode() {
   if (currentModeIndex >= MODES.length) {
     finishComparison();
@@ -123,9 +99,6 @@ function computeNextMode() {
   socket.emit('responsibility:start', payload);
 }
 
-/**
- * Handle result from backend
- */
 function handleComparisonResult(data) {
   if (!isComputing) return;
 
@@ -151,9 +124,6 @@ function handleComparisonResult(data) {
   comparisonResults[actualModeKey] = mappedResults;
 }
 
-/**
- * Handle status events from backend (used to detect completion)
- */
 function handleComparisonStatus(data) {
   if (!isComputing) return;
 
@@ -165,9 +135,6 @@ function handleComparisonStatus(data) {
   }
 }
 
-/**
- * Finish comparison and render results
- */
 function finishComparison() {
   isComputing = false;
 
@@ -187,13 +154,9 @@ function finishComparison() {
     }, 2000);
   }
 
-  // Render comparison table
   renderComparisonTable(comparisonResults);
 }
 
-/**
- * Render the comparison table
- */
 function renderComparisonTable(results) {
   const tbody = document.querySelector('#comparison-table tbody');
   if (!tbody) return;
@@ -203,7 +166,6 @@ function renderComparisonTable(results) {
     return;
   }
 
-  // Collect all unique state IDs
   const allStates = new Set();
   Object.values(results).forEach(modeResults => {
     if (modeResults) {
@@ -211,7 +173,6 @@ function renderComparisonTable(results) {
     }
   });
 
-  // Build rows
   const rows = [];
   allStates.forEach(stateId => {
     const values = MODES.map(m => {
@@ -221,7 +182,6 @@ function renderComparisonTable(results) {
 
     const validValues = values.filter(v => v !== null);
 
-    // Max value across modes (for sorting)
     const maxVal = Math.max(...validValues.filter(v => v > 0), 0);
 
     rows.push({
@@ -231,13 +191,9 @@ function renderComparisonTable(results) {
     });
   });
 
-  // Sort by max value descending
   rows.sort((a, b) => b.maxVal - a.maxVal);
-
-  // Take top 15
   const topRows = rows.slice(0, 15);
 
-  // Render
   const format = (v) => v === null ? '-' : (v * 100).toFixed(1) + '%';
   const colorFor = (v) => {
     if (v === null || v === 0) return '';
@@ -255,7 +211,6 @@ function renderComparisonTable(results) {
     `;
   }).join('');
 
-  // Add click handlers for row selection
   document.querySelectorAll('.comparison-row').forEach(row => {
     row.addEventListener('click', () => {
       const stateId = row.dataset.state;
@@ -264,9 +219,6 @@ function renderComparisonTable(results) {
   });
 }
 
-/**
- * Highlight a state in all graph panes
- */
 function highlightStateInGraph(stateId) {
   const panes = getPanes();
   Object.values(panes).forEach(pane => {
@@ -283,11 +235,9 @@ function highlightStateInGraph(stateId) {
     }
     
     if (node.length > 0) {
-      // Deselect all, then select this one
       cy.nodes().unselect();
       node.select();
       
-      // Center view on this node
       cy.animate({
         center: { eles: node },
         duration: 300
@@ -296,17 +246,10 @@ function highlightStateInGraph(stateId) {
   });
 }
 
-/**
- * Expose comparison results for other modules (e.g. explanation panel).
- * Returns the comparisonResults object (may contain nulls for un-computed modes).
- */
 export function getComparisonResults() {
   return comparisonResults;
 }
 
-/**
- * Clear comparison results
- */
 export function clearComparison() {
   comparisonResults = {
     'shapley-optimistic': null,
@@ -326,12 +269,7 @@ export function clearComparison() {
   }
 }
 
-/**
- * Normalize a state name to values-only format for comparison.
- * "(d1=0,d2=0,s1=0,s2=0)" -> "(0,0,0,0)"
- * "(0,0,0,0)" -> "(0,0,0,0)" (unchanged)
- * "(true,false)" -> "(true,false)" (unchanged)
- */
+// "(d1=0,d2=0)" -> "(0,0)"
 function normalizeStateName(name) {
   if (!name || !name.startsWith('(') || !name.endsWith(')')) return name;
   const inner = name.slice(1, -1);
@@ -342,22 +280,11 @@ function normalizeStateName(name) {
   return '(' + parts.join(',') + ')';
 }
 
-/**
- * Build mapping from state ID (from responsibility tool) to graph node ID.
- * The stateIdToName from backend maps: toolStateId -> stateName (variable assignment string)
- * We need to find graph nodes whose 'name' matches these state names.
- *
- * Note: stateIdToName values are values-only like "(0,0,0,0)" while
- * node.data('name') includes variable names like "(d1=0,d2=0,s1=0,s2=0)".
- * We normalize both to values-only for matching.
- */
+// Maps tool state IDs -> graph node IDs via normalized name matching
 function buildStateIdToGraphIdMapping(stateIdToName) {
   const mapping = {};
   const panes = getPanes();
   
-  // Build a lookup from state name to graph node ID.
-  // Store BOTH the original name and the normalized (values-only) version
-  // so we match regardless of whether names include variable prefixes.
   const nameToGraphId = new Map();
   
   Object.values(panes).forEach(pane => {
@@ -374,10 +301,8 @@ function buildStateIdToGraphIdMapping(stateIdToName) {
     });
   });
   
-  // Map each tool state ID to graph node ID via the name
   let mapped = 0, fallback = 0;
   Object.entries(stateIdToName).forEach(([toolStateId, stateName]) => {
-    // Try exact match first, then normalized
     let graphId = nameToGraphId.get(stateName);
     if (!graphId) {
       graphId = nameToGraphId.get(normalizeStateName(stateName));
@@ -386,7 +311,6 @@ function buildStateIdToGraphIdMapping(stateIdToName) {
       mapping[toolStateId] = graphId;
       mapped++;
     } else {
-      // Fallback: use tool state ID directly
       mapping[toolStateId] = toolStateId;
       fallback++;
     }
@@ -400,9 +324,6 @@ function buildStateIdToGraphIdMapping(stateIdToName) {
   return mapping;
 }
 
-/**
- * Map responsibility results from tool state IDs to graph node IDs.
- */
 function mapStateIdsToGraphIds(stateResponsibility) {
   if (!stateIdToGraphId) {
     return stateResponsibility;
@@ -417,16 +338,12 @@ function mapStateIdsToGraphIds(stateResponsibility) {
   return mapped;
 }
 
-/**
- * Export comparison data as CSV
- */
 export function exportComparisonCSV() {
   if (Object.values(comparisonResults).every(r => r === null)) {
     alert('No comparison data to export. Run "Compare All" first.');
     return;
   }
 
-  // Collect all states
   const allStates = new Set();
   Object.values(comparisonResults).forEach(modeResults => {
     if (modeResults) {
@@ -434,7 +351,6 @@ export function exportComparisonCSV() {
     }
   });
 
-  // Build CSV
   let csv = 'State,Shapley-Optimistic,Shapley-Pessimistic,Banzhaf-Optimistic,Banzhaf-Pessimistic\n';
   
   [...allStates].sort((a, b) => Number(a) - Number(b)).forEach(stateId => {

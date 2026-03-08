@@ -4,24 +4,8 @@ import java.util.*;
 import prism.responsibility.ResponsibilityEnums.PowerIndex;
 
 /**
- *  Pessimistic responsibility strategy implementing the algorithm from:
- * "Backward Responsibility in Transition Systems Using General Power Indices"
- * (Baier et al., 2024) - https://arxiv.org/abs/2402.01539
- * 
- * KEY FORMULAS (extracted from paper):
- * 
- * Definition 3.1: Pessimistic cooperative game
- * v_pes(C) = 1 if Safe wins G_ρ^TS(C), 0 otherwise
- * 
- * General power index formula:
- * R(v, i) = Σ_{C ⊆ N \ {i}} p_{|C|} · [v(C ∪ {i}) - v(C)]
- * 
- * Shapley value weights:
- * p_i = (n - i - 1)! · i! / n!
- * 
- * Banzhaf index weights:
- * p_i = 1 / 2^(n-1)
- * 
+ * Pessimistic responsibility strategy (Baier et al., 2024).
+ * Uses the general power index formula with coalition enumeration.
  */
 public class PessimisticExactStrategyCorrected implements ResponsibilityStrategy {
 
@@ -57,7 +41,6 @@ public class PessimisticExactStrategyCorrected implements ResponsibilityStrategy
             int numCoalitions = 1 << (n - 1); // 2^(n-1)
             
             for (int mask = 0; mask < numCoalitions; mask++) {
-                // Build coalition C from mask (excluding player)
                 Set<String> coalition = new HashSet<>();
                 int bitPos = 0;
                 for (int i = 0; i < n; i++) {
@@ -122,7 +105,14 @@ public class PessimisticExactStrategyCorrected implements ResponsibilityStrategy
             stateMetadata.put(state, info);
         }
         output.setStateMetadata(stateMetadata);
-        
+
+        // Compute winning region for the grand coalition (all players) and expose it
+        // so the frontend can render the safe winning region overlay.
+        Set<String> grandCoalition = new HashSet<>(players);
+        SafetyGame grandGame = SafetyGame.fromTransitionSystem(ts, counterexample, grandCoalition);
+        Set<String> winningRegion = grandGame.computeSafeWinningRegion();
+        output.setWinningStates(new ArrayList<>(winningRegion));
+
         return output;
     }
     

@@ -10,40 +10,15 @@ import java.util.Map;
 import java.util.List;
 
 /**
- * Socket.IO Event Handler for Responsibility Features
- * 
- * Listens for events from the frontend and coordinates responsibility computation.
- * 
- * Events IN (from frontend):
- *   - responsibility:start    -> Start refinement process
- *   - responsibility:pause    -> Pause refinement
- *   - responsibility:resume   -> Resume refinement
- *   - responsibility:cancel   -> Cancel refinement
- * 
- * Events OUT (to frontend):
- *   - responsibility:result   -> Progressive refinement results
- *   - responsibility:error    -> Error messages
- *   - responsibility:status   -> Status updates (running/paused/completed)
- * 
- * Example frontend usage:
- *   socket.emit('responsibility:start', {
- *     modelFile: '/path/to/model.prism',
- *     property: 'Pmax=?[F error]',
- *     targetLevel: 10
- *   });
- *   
- *   socket.on('responsibility:result', (data) => {
- *     console.log('Level', data.level, 'complete!');
- *     updateVisualization(data);
- *   });
+ * Socket.IO event handler for responsibility computation.
+ *
+ * Bridges frontend socket events (start/pause/resume/cancel/analyze-switching)
+ * to the {@link ResponsibilityEngine} via a {@link RefinementController}.
  */
 public class ResponsibilitySocketHandler {
     
     private static final Logger logger = LoggerFactory.getLogger(ResponsibilitySocketHandler.class);
     
-    /**
-     * DTO for the responsibility:start event payload
-     */
     public static class StartRequestData {
         @JsonProperty("modelFile")
         private String modelFile;
@@ -55,23 +30,22 @@ public class ResponsibilitySocketHandler {
         private int targetLevel;
         
         @JsonProperty("mode")
-        private String mode; // optimistic | pessimistic
+        private String mode;
         
         @JsonProperty("powerIndex")
-        private String powerIndex; // shapley | banzhaf | custom
+        private String powerIndex;
         
         @JsonProperty("counterexample")
-        private List<String> counterexample; // optional explicit rho
+        private List<String> counterexample;
 
         @JsonProperty("projectId")
-        private String projectId; // active project identifier
+        private String projectId;
         
-        // Large model support fields
         @JsonProperty("samplingConfig")
-        private String samplingConfig; // e.g., "10000" (samples) or "60s" (duration)
+        private String samplingConfig;
         
         @JsonProperty("groupingMode")
-        private String groupingMode; // e.g., "individual", "module", "label", "action", "value_of=x,y"
+        private String groupingMode;
         
         // Getters and setters
         public String getModelFile() { return modelFile; }
@@ -102,9 +76,6 @@ public class ResponsibilitySocketHandler {
         public void setGroupingMode(String groupingMode) { this.groupingMode = groupingMode; }
     }
 
-    /**
-     * DTO for the model:upload event payload
-     */
     public static class ModelUploadData {
         @JsonProperty("projectId")
         private String projectId;
@@ -125,7 +96,6 @@ public class ResponsibilitySocketHandler {
         public void setPropsContent(String propsContent) { this.propsContent = propsContent; }
     }
     
-    // Socket.IO event names (constants to avoid typos)
     private static final String EVENT_START = "responsibility:start";
     private static final String EVENT_PAUSE = "responsibility:pause";
     private static final String EVENT_RESUME = "responsibility:resume";
@@ -138,42 +108,28 @@ public class ResponsibilitySocketHandler {
     private final SocketServer socketServer;
     private final ResponsibilityEngine engine;
     private final RefinementController controller;
-    private final String basePath; // for resolving model file paths
+    private final String basePath;
     
-    /**
-     * Constructor - wire up all event listeners
-     */
     public ResponsibilitySocketHandler(SocketServer socketServer, String toolPath) {
         this(socketServer, toolPath, "volume");
     }
 
-    /**
-     * Full constructor with basePath for model resolution
-     */
     public ResponsibilitySocketHandler(SocketServer socketServer, String toolPath, String basePath) {
         this.socketServer = socketServer;
         this.engine = new ResponsibilityEngine(toolPath);
         this.controller = new RefinementController(engine);
         this.basePath = basePath;
         
-        // Set callbacks for controller
         controller.setProgressCallback(this::handleProgress);
         controller.setErrorCallback(this::handleError);
         controller.setCompletionCallback(this::handleCompleted);
         
-        // Register event listeners
         registerEventListeners();
         
         logger.info("Responsibility Socket Handler initialized");
     }
     
-    /**
-     * Register all Socket.IO event listeners
-     */
     private void registerEventListeners() {
-        
-        // Event: responsibility:start
-        // Payload: { modelFile: string, property: string, targetLevel: number }
         socketServer.addEventListener(EVENT_START, StartRequestData.class,
             (client, data, ackRequest) -> {
                 try {
@@ -187,7 +143,6 @@ public class ResponsibilitySocketHandler {
                     String projectId = request.getProjectId();
                     if (projectId == null || projectId.trim().isEmpty()) projectId = "0";
                     
-                    // Resolve "current" to the actual loaded model file path
                     if ("current".equalsIgnoreCase(modelFile)) {
                         modelFile = basePath + "/" + projectId + "/model.prism";
                         logger.info("Resolved 'current' model file for project {} to {}", projectId, modelFile);
@@ -196,7 +151,6 @@ public class ResponsibilitySocketHandler {
                     logger.info("Received START command: project={}, model={}, property={}, targetLevel={}", 
                         projectId, modelFile, property, targetLevel);
                     
-                    // Basic validation for mode/powerIndex
                     if (mode != null) mode = mode.trim().toLowerCase();
                     if (powerIndex != null) powerIndex = powerIndex.trim().toLowerCase();
                     java.util.Set<String> allowedModes = new java.util.HashSet<>(java.util.Arrays.asList("optimistic", "pessimistic"));
@@ -210,7 +164,6 @@ public class ResponsibilitySocketHandler {
                         return;
                     }
 
-                    // Apply configuration to engine (mock or real)
                     if (mode != null) {
                         engine.setMode(mode);
                     }
@@ -221,17 +174,14 @@ public class ResponsibilitySocketHandler {
                         engine.setOverrideCounterexample(rho);
                     }
                     
-                    // Large model support: apply sampling and grouping configuration
                     String samplingConfig = request.getSamplingConfig();
                     String groupingMode = request.getGroupingMode();
                     
-                    // Validation: sampling only supports pessimistic mode
                     if (samplingConfig != null && !samplingConfig.isBlank()) {
                         if ("optimistic".equals(mode)) {
                             sendStatus("invalid-config", "Stochastic sampling only supports pessimistic mode. Please disable sampling or switch to pessimistic.");
                             return;
                         }
-                        // Force pessimistic mode for sampling if no mode specified
                         if (mode == null) {
                             mode = "pessimistic";
                             engine.setMode(mode);
@@ -262,7 +212,6 @@ public class ResponsibilitySocketHandler {
                 }
             });
         
-        // Event: responsibility:pause
         socketServer.addEventListener(EVENT_PAUSE, Object.class,
             (client, data, ackRequest) -> {
                 logger.info("Received PAUSE command");
@@ -274,7 +223,6 @@ public class ResponsibilitySocketHandler {
                 }
             });
         
-        // Event: responsibility:resume
         socketServer.addEventListener(EVENT_RESUME, Object.class,
             (client, data, ackRequest) -> {
                 logger.info("Received RESUME command");
@@ -286,7 +234,6 @@ public class ResponsibilitySocketHandler {
                 }
             });
         
-        // Event: responsibility:cancel
         socketServer.addEventListener(EVENT_CANCEL, Object.class,
             (client, data, ackRequest) -> {
                 logger.info("Received CANCEL command");
@@ -299,8 +246,22 @@ public class ResponsibilitySocketHandler {
                 }
             });
 
-        // Event: model:upload
-        // Payload: { projectId: string, modelContent: string, propsContent?: string }
+        socketServer.addEventListener("responsibility:analyze-switching", Object.class,
+            (client, data, ackRequest) -> {
+                logger.info("Received ANALYZE-SWITCHING command");
+                sendStatus("running", "Running switching pair analysis...");
+                new Thread(() -> {
+                    try {
+                        ResponsibilityOutput result = engine.runSwitchingPairAnalysis();
+                        socketServer.send(EVENT_RESULT, result);
+                        sendStatus("completed", "Switching pair analysis complete");
+                    } catch (Exception e) {
+                        logger.error("Switching pair analysis failed", e);
+                        sendError("Switching pair analysis failed: " + e.getMessage(), e);
+                    }
+                }, "switching-pair-analysis").start();
+            });
+
         socketServer.addEventListener(EVENT_MODEL_UPLOAD, ModelUploadData.class,
             (client, data, ackRequest) -> {
                 try {
@@ -329,22 +290,12 @@ public class ResponsibilitySocketHandler {
             });
     }
     
-    /**
-     * Called by RefinementController when a level completes
-     */
     private void handleProgress(Integer level, ResponsibilityOutput result) {
         logger.info("Level {} complete, sending to frontend", level);
-        
-        // Send result to ALL connected clients
         socketServer.send(EVENT_RESULT, result);
-        
-        // Send status update
         sendStatus("running", "Completed level " + level);
     }
 
-    /**
-     * Called once when refinement reaches COMPLETED state.
-     */
     private void handleCompleted(Integer finalLevel, RefinementController.RefinementState state) {
         if (state == RefinementController.RefinementState.COMPLETED) {
             logger.info("Refinement COMPLETED at level {}", finalLevel);
@@ -352,17 +303,11 @@ public class ResponsibilitySocketHandler {
         }
     }
     
-    /**
-     * Called by RefinementController on error
-     */
     private void handleError(String message, Exception exception) {
         logger.error("Refinement error: {}", message, exception);
         sendError(message, exception);
     }
     
-    /**
-     * Send error message to frontend
-     */
     private void sendError(String message, Exception exception) {
         Map<String, Object> errorData = new HashMap<>();
         errorData.put("message", message);
@@ -374,9 +319,6 @@ public class ResponsibilitySocketHandler {
         socketServer.send(EVENT_ERROR, errorData);
     }
     
-    /**
-     * Send status update to frontend
-     */
     private void sendStatus(String state, String message) {
         Map<String, Object> statusData = new HashMap<>();
         statusData.put("state", state);
@@ -388,9 +330,6 @@ public class ResponsibilitySocketHandler {
         socketServer.send(EVENT_STATUS, statusData);
     }
     
-    /**
-     * Shutdown handler (call on server shutdown)
-     */
     public void shutdown() {
         logger.info("Shutting down responsibility socket handler");
         controller.shutdown();

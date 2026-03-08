@@ -119,8 +119,6 @@ async function start() {
     const pane = spawnPane(paneConfig, nodesIds);
     spawnGraph(pane, data, params);
 
-    // Initialize responsibility controls on every page load
-    // This ensures event listeners work even after backend restarts
     initResponsibilityControls();
   });
 }

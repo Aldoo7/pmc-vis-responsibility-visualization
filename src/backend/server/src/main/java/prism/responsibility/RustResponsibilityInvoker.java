@@ -34,14 +34,6 @@ public class RustResponsibilityInvoker {
 
     /**
      * Execute the external tool and parse the result.
-     * @param modelFile PRISM model path
-     * @param property (ignored for current Rust tool; responsibility is driven by -b bad label)
-     * @param mode optimistic|pessimistic (maps to -v o | -v p)
-     * @param index shapley|banzhaf|count (maps to -m)
-     * @param level refinement level (>0 enables refinement engine via -a)
-     * @param overrideTrace optional explicit counterexample trace (requires -c support if implemented)
-     * @return ResponsibilityOutput mapped from tool output
-     * @throws Exception on execution or parsing errors
      */
     public ResponsibilityOutput run(String modelFile,
                                      String property,
@@ -49,22 +41,11 @@ public class RustResponsibilityInvoker {
                                      String index,
                                      int level,
                                      List<String> overrideTrace) throws Exception {
-        // Delegate to new method with default (exact) computation settings
         return run(modelFile, property, mode, index, level, overrideTrace, null, null);
     }
 
     /**
      * Execute the external tool with optional sampling and grouping for large models.
-     * @param modelFile PRISM model path
-     * @param property (ignored for current Rust tool; responsibility is driven by -b bad label)
-     * @param mode optimistic|pessimistic (maps to -v o | -v p)
-     * @param index shapley|banzhaf|count (maps to -m)
-     * @param level refinement level (>0 enables refinement engine via -a)
-     * @param overrideTrace optional explicit counterexample trace
-     * @param samplingConfig optional sampling configuration (e.g., "10000" for samples or "60s" for duration)
-     * @param groupingMode optional grouping mode (individual|label|module|action|value_of=x,y,z)
-     * @return ResponsibilityOutput mapped from tool output
-     * @throws Exception on execution or parsing errors
      */
     public ResponsibilityOutput run(String modelFile,
                                      String property,
@@ -76,7 +57,6 @@ public class RustResponsibilityInvoker {
                                      String groupingMode) throws Exception {
         long start = System.currentTimeMillis();
         
-        // Convert model file to absolute path to avoid issues with working directory
         Path modelPath = java.nio.file.Paths.get(modelFile).toAbsolutePath();
         if (!Files.exists(modelPath)) {
             throw new Exception("Model file does not exist: " + modelPath);
@@ -100,7 +80,6 @@ public class RustResponsibilityInvoker {
             throw new Exception("Failed to start responsibility tool: " + ioe.getMessage(), ioe);
         }
 
-        // Capture output (for diagnostics – JSON may also go to file)
         StringBuilder console = new StringBuilder();
         try (BufferedReader br = new BufferedReader(new InputStreamReader(proc.getInputStream(), StandardCharsets.UTF_8))) {
             String line;
@@ -144,16 +123,13 @@ public class RustResponsibilityInvoker {
                     groupMap.put(groupName, new ResponsibilityOutput.GroupInfo(null, value));
                 }
                 output.setGroups(groupMap);
-                // Also keep in stateResponsibility for backward compatibility with graph coloring
-                // but log that these are groups, not individual states
+                // Keep in stateResponsibility for backward compatibility
                 logger.info("Grouped mode ({}): {} groups detected: {}", groupingMode, groupMap.size(), groupMap.keySet());
             }
         }
         
         output.setStateMetadata(enrichStateMetadata(output.getStateResponsibility(), overrideTrace));
 
-        // Extract state ID to name mapping using lightweight PRISM CLI
-        // (avoids slow Java API - see Nov 26 report: "dropped from 18s to 8s")
         Map<String, String> stateMapping = PrismStateMapper.extractStateMapping(absoluteModelFile);
         if (!stateMapping.isEmpty()) {
             output.setStateIdToName(stateMapping);
@@ -166,7 +142,6 @@ public class RustResponsibilityInvoker {
                 output.getStateResponsibility() != null ? output.getStateResponsibility().size() : 0,
                 output.getComponentResponsibility() != null ? output.getComponentResponsibility().size() : 0);
 
-        // Clean up temp dir lazily (keep if DEBUG env set)
         if (System.getenv("RESP_TOOL_DEBUG") == null) {
             safeDelete(workDir);
         } else {
@@ -226,9 +201,7 @@ public class RustResponsibilityInvoker {
             logger.info("Using stochastic sampling with config: {}", samplingConfig);
         }
 
-        // NOTE: Refinement (-a flag) disabled to get stable, verified values
-        // that match the November 2025 report. The refinement engine produces
-        // grouped results with different responsibility values.
+        // Refinement (-a flag) disabled for stable values
         // if (level > 0) {
         //     cmd.add("-a");
         // }
@@ -393,12 +366,7 @@ public class RustResponsibilityInvoker {
     }
 
     /**
-     * Parse fallback line-based format:
-     *   s42 0.75
-     *   s17 0.12
-     * Also handles Rust tool grouped format:
-     *   (label_name): 0.12345678
-     *   (state=1): 1.00000000
+     * Parse line-based output format (e.g. "s42 0.75" or "(label): 0.123").
      */
     private Map<String, Double> parseLineFormat(List<String> lines, boolean isGrouped) {
         Map<String, Double> stateResp = new LinkedHashMap<>();
@@ -416,7 +384,6 @@ public class RustResponsibilityInvoker {
             String trimmed = line.trim();
             if (trimmed.isEmpty() || trimmed.startsWith("#") || trimmed.startsWith("Metric:") || trimmed.startsWith("Sum of")) continue;
             
-            // Try Rust format with ID first: "(0): (g1=false, ...): 0.333"
             Matcher rustMatcher = rustPattern.matcher(trimmed);
             if (rustMatcher.find()) {
                 String id = rustMatcher.group("id");
@@ -427,19 +394,14 @@ public class RustResponsibilityInvoker {
                 }
                 continue;
             }
-            // Try named format: (name): VALUE
             Matcher namedMatcher = namedPattern.matcher(trimmed);
             if (namedMatcher.find()) {
                 String name = namedMatcher.group("name").trim();
                 try {
                     double v = Double.parseDouble(namedMatcher.group("val"));
                     if (isGrouped) {
-                        // For grouped mode, preserve the group name (e.g., "scheduler", "unlabelled")
                         stateResp.put(name, v);
                     } else {
-                        // For individual mode, use auto-incrementing numeric ID
-                        // (descriptive names like "g1=false, g2=false" break graph coloring
-                        //  which needs numeric IDs to match via stateIdToName mapping)
                         stateResp.put(String.valueOf(autoId++), v);
                     }
                 } catch (NumberFormatException ignore) {
@@ -467,8 +429,8 @@ public class RustResponsibilityInvoker {
         for (String id : stateResp.keySet()) {
             ResponsibilityOutput.StateInfo info = new ResponsibilityOutput.StateInfo();
             info.setOnTrace(traceSet.contains(id));
-            info.setBranchingDegree(null); // Unknown – could derive from a TS extractor later
-            info.setCanWinAlone(null); // Unknown until tool exposes this directly
+            info.setBranchingDegree(null);
+            info.setCanWinAlone(null);
             meta.put(id, info);
         }
         return meta;

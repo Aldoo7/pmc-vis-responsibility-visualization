@@ -34,11 +34,14 @@ import { CONSTANTS } from '../../utils/names.js';
 import events from '../../utils/events.js';
 import { cytoscape } from '../imports/import-cytoscape.js';
 import { socket } from '../imports/import-socket.js';
-import { showExplanation } from '../responsibility/explanation.js';
 
 const THROTTLE_DEBOUNCE_DELAY = 100;
 var iteration = 0;
 var maxIteration = 5;
+
+let _switchingPairs = [];
+let _lastRespData = null;
+let _activePairIndex = -1;
 
 const setMaxIteration = (value) => {
   maxIteration = value;
@@ -49,11 +52,7 @@ let selectedPanesData = {
   paneCy: null,
 };
 
-/**
- * Normalize a state name to values-only format for comparison.
- * "(d1=0,d2=0,s1=0,s2=0)" -> "(0,0,0,0)"
- * "(0,0,0,0)" -> "(0,0,0,0)" (unchanged)
- */
+// "(d1=0,d2=0)" -> "(0,0)"
 function _normalizeStateName(name) {
   if (!name || !name.startsWith('(') || !name.endsWith(')')) return name;
   const inner = name.slice(1, -1);
@@ -68,7 +67,6 @@ function getEdgeId(edge) {
   return edge.data.source + edge.data.label + edge.data.target;
 }
 
-// used to avoid duplication and wrong removal of nodes and edges
 function setElementMapper(cy, elements) {
   cy.elementMapper = {
     nodes: new Map(),
@@ -83,7 +81,6 @@ function setElementMapper(cy, elements) {
   });
 }
 
-// applies data dependent styling to nodes
 function setStyles(cy) {
   cy.startBatch();
   cy.$('node[type = "s"]').addClass('s');
@@ -122,7 +119,6 @@ function setStyles(cy) {
   cy.endBatch();
 }
 
-// updates responsibility values and styling for nodes
 function updateResponsibility(cy, data) {
   const graphNodes = cy.$('node.s');
   
@@ -152,9 +148,7 @@ function updateResponsibility(cy, data) {
   const stateIdToName = data.stateIdToName || {};
   const hasStateMapping = Object.keys(stateIdToName).length > 0;
   
-  // Also build a normalized lookup for values-only state names.
-  // stateIdToName values may be "(0,0,0,0)" while node names are "(d1=0,d2=0,s1=0,s2=0)".
-  // Build a normalized-name-to-node map so both formats match.
+  // Build normalized lookup so "(0,0,0,0)" matches "(d1=0,d2=0,s1=0,s2=0)"
   const normalizedToNode = new Map();
   graphNodes.forEach(node => {
     const name = node.data('name');
@@ -168,10 +162,8 @@ function updateResponsibility(cy, data) {
   
   cy.startBatch();
   
-  // Clear existing responsibility classes
-  cy.$('node.s').removeClass('resp-high resp-medium resp-low');
-  
-  // Update state responsibilities
+  cy.$('node.s').removeClass('resp-high resp-medium resp-low resp-winning resp-trace');
+
   if (data.stateResponsibility) {
     let updatedCount = 0;
     const entries = [];
@@ -182,7 +174,6 @@ function updateResponsibility(cy, data) {
       if (hasStateMapping && stateIdToName[stateId]) {
         const stateName = stateIdToName[stateId];
         node = idToNode.get(stateName);
-        // If exact name didn't match, try normalized (values-only) lookup
         if (!node) {
           node = normalizedToNode.get(_normalizeStateName(stateName));
         }
@@ -200,8 +191,6 @@ function updateResponsibility(cy, data) {
 
     const positives = entries.filter(e => e.value > 0).sort((a, b) => b.value - a.value);
     const n = positives.length;
-    
-    // Track which nodes got responsibility set from the backend response
     const updatedNodeIds = new Set(entries.map(e => e.node.id()));
 
     entries.forEach(({ node, value }) => {
@@ -209,8 +198,7 @@ function updateResponsibility(cy, data) {
       node.removeClass('resp-high resp-medium resp-low');
     });
 
-    // Set responsibility = 0 for all graph nodes NOT in the backend response
-    // so that clicking grey nodes can still open the explanation panel.
+    // resp=0 for nodes not in backend response (so explanation panel works)
     graphNodes.forEach(node => {
       if (!updatedNodeIds.has(node.id())) {
         node.data('responsibility', 0);
@@ -218,13 +206,11 @@ function updateResponsibility(cy, data) {
     });
 
     if (n > 0) {
-      // Top ~30% = high (red), next ~40% = medium (orange), rest = low (green)
-      // Ties: states with equal values get the same color class.
+      // top 30% = high, next 40% = medium, rest = low; ties get same class
       const highCutoff = Math.max(1, Math.ceil(n * 0.3));
       const medCutoff = Math.max(highCutoff + 1, Math.ceil(n * 0.7));
       
       positives.forEach((e, idx) => {
-        // Handle ties: find the first index in this tie group
         let effectiveIdx = idx;
         while (effectiveIdx > 0 && Math.abs(positives[effectiveIdx - 1].value - e.value) < 0.0001) {
           effectiveIdx--;
@@ -243,42 +229,42 @@ function updateResponsibility(cy, data) {
       updateRedNodesPanel([]);
     }
     
-    if (updatedCount === 0 && n === 0 && graphNodes.length > 0) {
-      const demoNodes = graphNodes.slice(0, Math.min(10, graphNodes.length));
-      demoNodes.forEach((node, idx) => {
-        const demoValue = Math.random();
-        node.data('responsibility', demoValue);
-        if (idx < 3) {
-          node.addClass('resp-high');
-        } else if (idx < 7) {
-          node.addClass('resp-medium');
-        } else {
-          node.addClass('resp-low');
-        }
-      });
-      
-      updateRedNodesPanel(demoNodes.slice(0, 3).map(n => ({ node: n, value: 1.0 })));
-    }
-    
     if (updatedCount < Object.keys(data.stateResponsibility).length * 0.5) {
       const missing = Object.keys(data.stateResponsibility).length - updatedCount;
       
       const statusDiv = document.getElementById('resp-status');
       if (statusDiv) {
         const warningMsg = document.createElement('div');
-        warningMsg.style.cssText = 'color: orange; font-weight: bold; margin-top: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px;';
-        warningMsg.innerHTML = `Graph shows only ${updatedCount}/${Object.keys(data.stateResponsibility).length} states.<br>` +
-          `${missing} states with responsibility values are not visible.<br>` +
-          `<span style=\"color: #666; font-weight: normal;\">Tip: Click on nodes and explore the graph to load more states.</span>`;
+        warningMsg.className = 'resp-warning';
+        warningMsg.innerHTML = `Graph shows ${updatedCount}/${Object.keys(data.stateResponsibility).length} states. ` +
+          `${missing} states not visible.`;
         statusDiv.appendChild(warningMsg);
         setTimeout(() => warningMsg.remove(), 10000);
       }
     }
   }
   
+  if (data.switchingPairs && data.switchingPairs.length > 0) {
+    _switchingPairs = data.switchingPairs;
+    _lastRespData = data;
+    _populateSwitchingPairSelector(data.switchingPairs);
+    // Auto-select the first (grand coalition) pair
+    _activePairIndex = 0;
+    const sel = document.getElementById('switching-pair-select');
+    if (sel) { sel.style.display = ''; sel.value = '0'; }
+    _applySwitchingPairOverlay(cy, data.switchingPairs[0], data.stateIdToName || {});
+    // Update status
+    const spStatus = document.getElementById('sp-status');
+    if (spStatus) { spStatus.textContent = ''; spStatus.style.display = 'none'; }
+    const spBtn = document.getElementById('sp-analyze-btn');
+    if (spBtn) { spBtn.disabled = false; spBtn.textContent = 'Analyze Switching Pairs'; }
+  } else {
+    _lastRespData = data;
+  }
+
   cy.endBatch();
   
-  // Update tooltips with responsibility info (value only)
+  // Update tooltips
   cy.$('node.s').forEach(node => {
     const respValue = node.data('responsibility');
     if (respValue && respValue > 0) {
@@ -288,9 +274,291 @@ function updateResponsibility(cy, data) {
       node.removeData('responsibilityTooltip');
     }
   });
+
+  // Rebuild PCP with responsibility axis
+  spawnPCP(cy);
 }
 
-// Update red-nodes panel with critical suspects
+function _zoomToState(stateId) {
+  const panes = getPanes();
+  const stateIdToName = (_lastRespData && _lastRespData.stateIdToName) || {};
+  Object.values(panes).forEach(pane => {
+    if (!pane.cy) return;
+    const { idToNode, normalizedToNode } = _buildNodeLookups(pane.cy);
+    const node = _resolveNode(stateId, idToNode, normalizedToNode, stateIdToName);
+    if (node) {
+      pane.cy.animate({ center: { eles: node }, zoom: Math.max(pane.cy.zoom(), 1.5) }, { duration: 400 });
+      pane.cy.nodes().unselect();
+      node.select();
+    }
+  });
+}
+
+function _fitToTrace(cy, pair, stateIdToName) {
+  if (!pair.counterexample || pair.counterexample.length === 0) return;
+  const { idToNode, normalizedToNode } = _buildNodeLookups(cy);
+  const traceNodes = cy.collection();
+  pair.counterexample.forEach(sid => {
+    const node = _resolveNode(sid, idToNode, normalizedToNode, stateIdToName);
+    if (node) traceNodes.merge(node);
+  });
+  if (traceNodes.length > 0) {
+    cy.animate({ fit: { eles: traceNodes, padding: 80 } }, { duration: 500 });
+  }
+}
+
+function _buildNodeLookups(cy) {
+  const graphNodes = cy.$('node.s');
+  const idToNode = new Map();
+  const normalizedToNode = new Map();
+  graphNodes.forEach(node => {
+    const nodeId = node.id();
+    const nodeName = node.data('name');
+    const nodeLabel = node.data('label');
+    idToNode.set(nodeId, node);
+    if (nodeName) {
+      idToNode.set(nodeName, node);
+      if (nodeName.startsWith('s')) idToNode.set(nodeName.substring(1), node);
+    }
+    if (nodeLabel) {
+      idToNode.set(nodeLabel, node);
+      if (nodeLabel.startsWith('s')) idToNode.set(nodeLabel.substring(1), node);
+    }
+    if (nodeName) {
+      const normalized = _normalizeStateName(nodeName);
+      if (normalized !== nodeName) normalizedToNode.set(normalized, node);
+    }
+  });
+  return { idToNode, normalizedToNode };
+}
+
+function _resolveNode(stateId, idToNode, normalizedToNode, stateIdToName) {
+  let node = idToNode.get(String(stateId));
+  if (!node && stateIdToName[stateId]) {
+    const stateName = stateIdToName[stateId];
+    node = idToNode.get(stateName) || normalizedToNode.get(_normalizeStateName(stateName));
+  }
+  return node || null;
+}
+
+function _populateSwitchingPairSelector(pairs) {
+  const panel = document.getElementById('switching-pair-panel');
+  const select = document.getElementById('switching-pair-select');
+  if (!panel || !select) return;
+
+  panel.style.display = '';
+  // Clear existing options
+  select.innerHTML = '<option value="">— Select a coalition —</option>';
+  pairs.forEach((pair, idx) => {
+    const opt = document.createElement('option');
+    opt.value = String(idx);
+    const winStr = pair.safeWins ? '\u2713' : '\u2717';
+    opt.textContent = `${winStr} ${pair.label} (${pair.winningRegion.length} winning states)`;
+    select.appendChild(opt);
+  });
+}
+
+function _updateSwitchingPairInfo(pair, switchingDetails) {
+  const infoDiv = document.getElementById('switching-pair-info');
+  if (!infoDiv) return;
+  infoDiv.style.display = '';
+
+  // Coalition: show count for large coalitions, names for small
+  const coalEl = document.getElementById('sp-coalition');
+  if (pair.coalition.length > 5) {
+    coalEl.textContent = pair.coalition.length + ' states';
+  } else {
+    coalEl.textContent = pair.coalition.join(', ') || '(all)';
+  }
+
+  document.getElementById('sp-safe-wins').innerHTML = pair.safeWins
+    ? '<span style="color:#27ae60">Yes</span>'
+    : '<span style="color:#c0392b">No</span>';
+  document.getElementById('sp-win-count').textContent = pair.winningRegion.length;
+  document.getElementById('sp-strat-count').textContent = Object.keys(pair.strategy || {}).length;
+  const cexRow = document.getElementById('sp-cex-row');
+  const cexCount = document.getElementById('sp-cex-count');
+  if (pair.counterexample && pair.counterexample.length > 0) {
+    cexRow.style.display = '';
+    cexCount.textContent = pair.counterexample.length;
+  } else {
+    cexRow.style.display = 'none';
+  }
+
+  // Show switching pair details with short IDs, tooltips, and click-to-zoom
+  let detailsDiv = document.getElementById('sp-switching-details');
+  if (switchingDetails && switchingDetails.length > 0) {
+    const divergent = switchingDetails.filter(d => d.divergent);
+    let html = `<strong style="font-size:0.95em">Switching points:</strong> `;
+    html += `<span style="color:#27ae60; font-weight:bold">${divergent.length}</span> of ${switchingDetails.length} trace states`;
+    if (divergent.length > 0) {
+      html += '<div style="margin-top:6px">';
+      divergent.forEach(d => {
+        const fromLabel = _shortLabel(d.fromId, d.from);
+        const traceLabel = _shortLabel(d.traceToId, d.traceTo);
+        const stratLabel = _shortLabel(d.stratToId, d.stratTo);
+        html += `<div class="sp-detail-entry" data-state-id="${d.fromId}" style="
+          margin:4px 0; padding:6px 8px; background:#e8f5e9; border-radius:4px;
+          border-left:3px solid #27ae60; cursor:pointer; transition:background 0.15s;
+        " title="Click to zoom to this state">`;
+        html += `<div style="font-weight:600; margin-bottom:2px">`;
+        html += `<span title="${(d.from || '').replace(/"/g, '&quot;')}" style="color:#2c3e50">${fromLabel}</span>`;
+        html += `</div>`;
+        html += `<div style="font-size:0.88em; display:flex; gap:4px; align-items:center; flex-wrap:wrap">`;
+        html += `<span style="color:#999">took</span> `;
+        html += `<span title="${(d.traceTo || '').replace(/"/g, '&quot;')}" style="color:#c0392b; text-decoration:line-through; font-weight:500">${traceLabel}</span>`;
+        html += `<span style="color:#999; margin:0 2px">→ should take</span> `;
+        html += `<span title="${(d.stratTo || '').replace(/"/g, '&quot;')}" style="color:#27ae60; font-weight:700">${stratLabel}</span>`;
+        html += `</div></div>`;
+      });
+      html += '</div>';
+    } else {
+      html += '<div style="color:#888; font-style:italic; margin-top:4px">Strategy follows the same path as the counterexample.</div>';
+    }
+    detailsDiv.innerHTML = html;
+    detailsDiv.style.display = '';
+
+    // Attach click-to-zoom handlers on switching entries
+    detailsDiv.querySelectorAll('.sp-detail-entry').forEach(el => {
+      el.addEventListener('mouseenter', () => { el.style.background = '#c8e6c9'; });
+      el.addEventListener('mouseleave', () => { el.style.background = '#e8f5e9'; });
+      el.addEventListener('click', () => {
+        const sid = el.dataset.stateId;
+        _zoomToState(sid);
+      });
+    });
+  } else {
+    detailsDiv.innerHTML = '';
+    detailsDiv.style.display = 'none';
+  }
+}
+
+function _shortLabel(stateId, name) {
+  // If stateId is a small number, show sN
+  const id = String(stateId);
+  if (/^\d+$/.test(id)) return `s${id}`;
+  // If it's already short, use it directly
+  if (id.length <= 12) return id;
+  // Otherwise truncate
+  return id.substring(0, 10) + '…';
+}
+
+function _truncName(name) {
+  if (!name || name.length <= 30) return name || '?';
+  return name.substring(0, 27) + '…';
+}
+
+function _classifyEdgePath(srcNode, tgtNode, className) {
+  if (!srcNode || !tgtNode) return false;
+  let found = false;
+  const outEdges = srcNode.connectedEdges().filter(e => e.source().id() === srcNode.id());
+  outEdges.forEach(e1 => {
+    const mid = e1.target();
+    if (!mid.hasClass('t')) return;
+    const midOut = mid.connectedEdges().filter(e => e.source().id() === mid.id());
+    midOut.forEach(e2 => {
+      if (e2.target().id() === tgtNode.id()) {
+        e1.addClass(className);
+        e2.addClass(className);
+        found = true;
+      }
+    });
+  });
+  return found;
+}
+
+function _applySwitchingPairOverlay(cy, pair, stateIdToName) {
+  const { idToNode, normalizedToNode } = _buildNodeLookups(cy);
+  cy.startBatch();
+
+  // Clear previous overlays
+  cy.$('node.s').removeClass('resp-winning resp-trace');
+  cy.$('edge').removeClass('strategy-edge cex-edge');
+
+  // Mark winning-region states on the trace
+  const traceList = pair.counterexample || [];
+  const winSet = new Set((pair.winningRegion || []).map(String));
+  traceList.forEach(stateId => {
+    if (winSet.has(String(stateId))) {
+      const node = _resolveNode(stateId, idToNode, normalizedToNode, stateIdToName);
+      if (node) node.addClass('resp-winning');
+    }
+  });
+
+  // Counterexample trace
+  const traceSet = new Set(pair.counterexample || []);
+  if (pair.counterexample && pair.counterexample.length > 1) {
+    for (let i = 0; i < pair.counterexample.length; i++) {
+      const stateId = pair.counterexample[i];
+      const node = _resolveNode(stateId, idToNode, normalizedToNode, stateIdToName);
+      if (node) node.addClass('resp-trace');
+      // Red edge to next state on trace
+      if (i < pair.counterexample.length - 1) {
+        const nextId = pair.counterexample[i + 1];
+        const srcNode = _resolveNode(stateId, idToNode, normalizedToNode, stateIdToName);
+        const tgtNode = _resolveNode(nextId, idToNode, normalizedToNode, stateIdToName);
+        _classifyEdgePath(srcNode, tgtNode, 'cex-edge');
+      }
+    }
+  } else if (pair.counterexample) {
+    pair.counterexample.forEach(stateId => {
+      const node = _resolveNode(stateId, idToNode, normalizedToNode, stateIdToName);
+      if (node) node.addClass('resp-trace');
+    });
+  }
+
+  // Strategy edges at divergence points
+  const switchingDetails = [];
+  if (pair.strategy && pair.counterexample && pair.counterexample.length > 1) {
+    for (let i = 0; i < pair.counterexample.length - 1; i++) {
+      const stateId = pair.counterexample[i];
+      const traceNext = pair.counterexample[i + 1];
+      const strategyNext = pair.strategy[String(stateId)];
+      if (!strategyNext) continue;
+
+      const srcNode = _resolveNode(stateId, idToNode, normalizedToNode, stateIdToName);
+      const tgtNode = _resolveNode(strategyNext, idToNode, normalizedToNode, stateIdToName);
+      if (srcNode && tgtNode) {
+        _classifyEdgePath(srcNode, tgtNode, 'strategy-edge');
+      }
+
+      // Record switching detail
+      const fromName = (stateIdToName && stateIdToName[stateId]) || stateId;
+      const toTraceName = (stateIdToName && stateIdToName[traceNext]) || traceNext;
+      const toStratName = (stateIdToName && stateIdToName[strategyNext]) || strategyNext;
+      const isDivergent = String(strategyNext) !== String(traceNext);
+      switchingDetails.push({
+        fromId: stateId, from: fromName,
+        traceToId: traceNext, traceTo: toTraceName,
+        stratToId: strategyNext, stratTo: toStratName,
+        divergent: isDivergent
+      });
+    }
+  }
+
+  cy.endBatch();
+  _updateSwitchingPairInfo(pair, switchingDetails);
+
+  // Auto-fit to counterexample trace
+  _fitToTrace(cy, pair, stateIdToName);
+}
+
+function _applySingleOverlay(cy, winningStates, counterexample, stateIdToName) {
+  const { idToNode, normalizedToNode } = _buildNodeLookups(cy);
+  if (winningStates) {
+    winningStates.forEach(stateId => {
+      const node = _resolveNode(stateId, idToNode, normalizedToNode, stateIdToName);
+      if (node) node.addClass('resp-winning');
+    });
+  }
+  if (counterexample) {
+    counterexample.forEach(stateId => {
+      const node = _resolveNode(stateId, idToNode, normalizedToNode, stateIdToName);
+      if (node) node.addClass('resp-trace');
+    });
+  }
+}
+
 function updateRedNodesPanel(redNodes) {
   const countEl = document.getElementById('red-nodes-count');
   const listEl = document.getElementById('red-nodes-list');
@@ -304,7 +572,7 @@ function updateRedNodesPanel(redNodes) {
     return;
   }
   
-  // Build list items
+  // Build list
   const items = redNodes.map((entry, idx) => {
     const node = entry.node;
     const value = entry.value;
@@ -337,27 +605,15 @@ function updateRedNodesPanel(redNodes) {
   
   listEl.innerHTML = items;
   
-  // Add click handlers to highlight node in graph + show explanation
+  // Click handlers to highlight + show explanation
   listEl.querySelectorAll('.red-node-item').forEach(item => {
     item.addEventListener('click', () => {
       const nodeId = item.getAttribute('data-node-id');
       highlightNodeInAllPanes(nodeId);
-      // Open explanation panel for this node
-      const panes = getPanes();
-      for (const pane of Object.values(panes)) {
-        if (pane.cy) {
-          const node = pane.cy.$('#' + nodeId);
-          if (node.length > 0) {
-            showExplanation(node, pane.cy);
-            break;
-          }
-        }
-      }
     });
   });
 }
 
-// Highlight a node across all panes
 function highlightNodeInAllPanes(nodeId) {
   const panes = getPanes();
   Object.values(panes).forEach(pane => {
@@ -1002,11 +1258,6 @@ function bindListeners(cy) {
 
     if (!e.originalEvent.shiftKey) {
       hideAllTippies();
-      // Show explanation panel if responsibility data has been computed
-      const respVal = n.data('responsibility');
-      if (respVal != null) {
-        showExplanation(n, cy);
-      }
     }
 
     if (e.originalEvent.shiftKey) {
@@ -1813,17 +2064,7 @@ function ctxmenu(cy) {
         },
         hasTrailingDivider: false,
       },
-      {
-        id: 'explain-responsibility',
-        content: '🔍 Explain Responsibility',
-        tooltipText: 'Show why this state has its responsibility value',
-        selector: 'node.s',
-        onClickFunction: (event) => {
-          const target = event.target || event.cyTarget;
-          showExplanation(target, cy);
-        },
-        hasTrailingDivider: true,
-      },
+
 
       // pane controls
       {
@@ -2135,6 +2376,47 @@ socket.on('responsibility:error', (data) => {
     text: data.message || 'An error occurred during responsibility analysis',
     icon: 'error',
   });
+});
+
+// Switching pair selector
+document.addEventListener('DOMContentLoaded', () => {
+  const sel = document.getElementById('switching-pair-select');
+  if (sel) {
+    sel.addEventListener('change', () => {
+      const idx = parseInt(sel.value, 10);
+      if (isNaN(idx) || idx < 0 || idx >= _switchingPairs.length) return;
+      _activePairIndex = idx;
+      const pair = _switchingPairs[idx];
+      const stateIdToName = (_lastRespData && _lastRespData.stateIdToName) || {};
+      const panes = getPanes();
+      Object.values(panes).forEach(pane => {
+        if (pane.cy) _applySwitchingPairOverlay(pane.cy, pair, stateIdToName);
+      });
+    });
+  }
+
+  // Analyze button
+  const spBtn = document.getElementById('sp-analyze-btn');
+  if (spBtn) {
+    spBtn.addEventListener('click', () => {
+      if (!_lastRespData) {
+        const spStatus = document.getElementById('sp-status');
+        if (spStatus) {
+          spStatus.textContent = 'Run responsibility analysis first.';
+          spStatus.style.display = '';
+          spStatus.style.color = '#e67e22';
+        }
+        return;
+      }
+      spBtn.disabled = true;
+      spBtn.textContent = 'Analyzing...';
+      const spStatus = document.getElementById('sp-status');
+      if (spStatus) { spStatus.textContent = 'Computing safety games...'; spStatus.style.display = ''; spStatus.style.color = '#555'; }
+      socket.emit('responsibility:analyze-switching');
+    });
+    spBtn.addEventListener('mouseenter', () => { if (!spBtn.disabled) spBtn.style.background = '#2471a3'; });
+    spBtn.addEventListener('mouseleave', () => { spBtn.style.background = '#2980b9'; });
+  }
 });
 
 // cy.vars stores the settings of the application

@@ -3,17 +3,9 @@ package prism.responsibility;
 import java.util.*;
 
 /**
- * Safety game arena as defined in the paper (Section 2).
- * 
- * A safety game consists of:
- * - S_Safe: states controlled by player Safe
- * - S_Reach: states controlled by player Reach
- * - T: transition relation
- * - s0: initial state
- * - Bad: set of bad states (Safe wins if Bad is never reached)
- * 
- * This class implements the game construction from Definition 3.1:
- * G_ρ^TS(C) where coalition C controls certain states.
+ * Safety game arena (Definition 3.1).
+ * Players Safe and Reach control disjoint state sets;
+ * Safe wins by avoiding Bad states indefinitely.
  */
 public class SafetyGame {
     
@@ -23,9 +15,6 @@ public class SafetyGame {
     private final String initial;
     private final Set<String> badStates;
     
-    /**
-     * Constructor for explicit game construction.
-     */
     public SafetyGame(Set<String> safeStates, Set<String> reachStates,
                       Map<String, Set<String>> transitions,
                       String initial, Set<String> badStates) {
@@ -40,18 +29,9 @@ public class SafetyGame {
     }
     
     /**
-     * Build game G_ρ^TS(C) from transition system and coalition C.
-     * 
-     * From Definition 3.1 in the paper:
-     * - States in C are controlled by Safe
-     * - States not in C are controlled by Reach
-     * - For states on counterexample ρ not in C: only transition following ρ is kept
-     * - For states not on ρ or states in C: all original transitions are kept
-     * 
-     * @param ts Transition system
-     * @param rho Counterexample trace (ρ_0, ..., ρ_k)
-     * @param coalition Coalition C ⊆ S
-     * @return Safety game G_ρ^TS(C)
+     * Build game G_ρ^TS(C) from a transition system and coalition C.
+     * States in C are controlled by Safe; states not in C by Reach.
+     * For Reach states on ρ, only the trace-following transition is kept.
      */
     public static SafetyGame fromTransitionSystem(TransitionSystem ts, 
                                                   Counterexample rho,
@@ -61,8 +41,6 @@ public class SafetyGame {
         reachStates.removeAll(coalition);
         
         Map<String, Set<String>> gameTransitions = new HashMap<>();
-        
-        // Build transition relation following Definition 3.1
         List<String> trace = rho.getTrace();
         Set<String> traceSet = new HashSet<>(trace);
         
@@ -73,9 +51,7 @@ public class SafetyGame {
                 continue;
             }
             
-            // Check if state is on counterexample and not in coalition
             if (traceSet.contains(state) && !coalition.contains(state)) {
-                // For states on ρ not in C: only keep transition following ρ
                 int idx = trace.indexOf(state);
                 if (idx >= 0 && idx < trace.size() - 1) {
                     String nextOnTrace = trace.get(idx + 1);
@@ -83,11 +59,9 @@ public class SafetyGame {
                     restricted.add(nextOnTrace);
                     gameTransitions.put(state, restricted);
                 } else {
-                    // Last state on trace or not found: keep all transitions
                     gameTransitions.put(state, new HashSet<>(successors));
                 }
             } else {
-                // For states not on ρ or states in C: keep all transitions
                 gameTransitions.put(state, new HashSet<>(successors));
             }
         }
@@ -97,17 +71,9 @@ public class SafetyGame {
     }
     
     /**
-     * Solve the safety game: compute winning region for Safe.
-     * Uses the attractor algorithm (linear time, from Grädel et al. 2002).
-     * 
-     * Safe wins from states where she can force avoiding Bad states forever.
-     * 
-     * @return Set of states from which Safe has a winning strategy
+     * Compute Safe's winning region via Reach-attractor complement.
      */
     public Set<String> computeSafeWinningRegion() {
-        // Algorithm: Compute attractor to Bad for Reach, then complement
-        // Attractor_Reach(Bad) = states from which Reach can force reaching Bad
-        // Safe wins from all other states
         
         Set<String> allStates = new HashSet<>();
         allStates.addAll(safeStates);
@@ -120,18 +86,47 @@ public class SafetyGame {
         
         return safeWinning;
     }
+
+    /**
+     * Result of solving the safety game.
+     */
+    public static class GameResult {
+        public final Set<String> winningRegion;
+        public final Map<String, String> strategy;
+        public final boolean safeWinsFromInitial;
+
+        public GameResult(Set<String> winningRegion, Map<String, String> strategy, boolean safeWinsFromInitial) {
+            this.winningRegion = winningRegion;
+            this.strategy = strategy;
+            this.safeWinsFromInitial = safeWinsFromInitial;
+        }
+    }
+
+    /**
+     * Solve the game: compute winning region and extract Safe's strategy.
+     */
+    public GameResult solve() {
+        Set<String> winningRegion = computeSafeWinningRegion();
+
+        Map<String, String> strategy = new HashMap<>();
+        for (String state : winningRegion) {
+            if (!safeStates.contains(state)) continue;
+            Set<String> successors = transitions.get(state);
+            if (successors == null || successors.isEmpty()) continue;
+            for (String succ : successors) {
+                if (winningRegion.contains(succ)) {
+                    strategy.put(state, succ);
+                    break;
+                }
+            }
+        }
+
+        boolean safeWins = winningRegion.contains(initial);
+        return new GameResult(winningRegion, strategy, safeWins);
+    }
     
     /**
-     * Compute attractor for Reach player to target set.
-     * States from which Reach can force reaching target.
-     * 
-     * Fixed-point iteration:
-     * - Start with target
-     * - Add predecessors where Reach can force entry
-     * - Continue until no new states are added
-     * 
-     * @param target Target set
-     * @return Attractor set
+     * Compute Reach-attractor to target set (fixed-point iteration).
      */
     private Set<String> computeReachAttractor(Set<String> target) {
         Set<String> attractor = new HashSet<>(target);
@@ -149,11 +144,9 @@ public class SafetyGame {
                     continue;
                 }
                 
-                // Check if state should be added to attractor
                 boolean shouldAdd = false;
                 
                 if (reachStates.contains(state)) {
-                    // Reach-controlled state: add if ANY successor is in attractor
                     for (String succ : successors) {
                         if (attractor.contains(succ)) {
                             shouldAdd = true;
@@ -161,7 +154,6 @@ public class SafetyGame {
                         }
                     }
                 } else {
-                    // Safe-controlled state: add if ALL successors are in attractor
                     shouldAdd = true;
                     for (String succ : successors) {
                         if (!attractor.contains(succ)) {
@@ -181,15 +173,11 @@ public class SafetyGame {
         return attractor;
     }
     
-    /**
-     * Check if Safe wins this game (from initial state).
-     */
     public boolean doesSafeWin() {
         Set<String> safeWinning = computeSafeWinningRegion();
         return safeWinning.contains(initial);
     }
     
-    // Getters
     public Set<String> getSafeStates() { return new HashSet<>(safeStates); }
     public Set<String> getReachStates() { return new HashSet<>(reachStates); }
     public Map<String, Set<String>> getTransitions() { return new HashMap<>(transitions); }

@@ -1,8 +1,3 @@
-// The module 'vscode' contains the VS Code extensibility API
-
-//import { constants } from 'buffer';
-
-// Import the module and reference it with the alias vscode in your code below
 const vscode = require('vscode');
 
 //Semantic tokenizer
@@ -19,8 +14,6 @@ const decorations = require("./decorations.js");
 
 let connectionProvider;
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
 /**
  * @param {vscode.ExtensionContext} context
  */
@@ -73,19 +66,12 @@ function activate(context) {
 
 	comm.register(constants.EVENT_STATE, update_state);
 
-	// Listen for responsibility results from backend (Socket.IO on 8082)
 	comm.register('responsibility:result', (data) => {
-		try {
-			if (data && data.componentResponsibility) {
-				// Apply overlay in the active MDP document
-				decorator.updateResponsibility(vscode.window.activeTextEditor, data.componentResponsibility);
-			}
-		} catch (e) {
-			console.error('Failed to apply responsibility overlay', e);
+		if (data && data.componentResponsibility) {
+			decorator.updateResponsibility(vscode.window.activeTextEditor, data.componentResponsibility);
 		}
 	});
 
-	// Handle responsibility error events
 	comm.register('responsibility:error', (e) => vscode.window.showErrorMessage(`Responsibility error: ${e?.message || e}`));
 }
 

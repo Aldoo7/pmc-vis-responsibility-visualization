@@ -285,6 +285,16 @@ summary>.trigger-check-prop {
   background-color: #5ca65c;
 }
 
+.legend-resp-winning {
+  border: 3px solid #2980b9;
+  background-color: transparent;
+}
+
+.legend-resp-trace {
+  border: 3px double #8e44ad;
+  background-color: transparent;
+}
+
 .legend-badge {
   display: inline-block;
   background-color: #555;

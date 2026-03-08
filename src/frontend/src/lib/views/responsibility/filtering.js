@@ -1,16 +1,8 @@
-/**
- * Responsibility-based state filtering
- * Allows filtering graph nodes by responsibility threshold
- */
-
 import { getPanes } from '../panes/panes.js';
 
 let currentThreshold = 0;
 let lastStateResponsibility = null;
 
-/**
- * Initialize filtering controls
- */
 export function initFilteringControls() {
   const thresholdSlider = document.getElementById('resp-threshold');
   const thresholdValueSpan = document.getElementById('resp-threshold-value');
@@ -19,14 +11,12 @@ export function initFilteringControls() {
     return;
   }
 
-  // Update threshold display
   thresholdSlider.addEventListener('input', (e) => {
     const value = parseInt(e.target.value);
     thresholdValueSpan.textContent = `${value}%`;
     currentThreshold = value / 100;
   });
 
-  // Apply filter when slider is released
   thresholdSlider.addEventListener('change', (e) => {
     const value = parseInt(e.target.value);
     currentThreshold = value / 100;
@@ -34,16 +24,10 @@ export function initFilteringControls() {
   });
 }
 
-/**
- * Store state responsibility data from backend
- */
 export function updateStateResponsibility(stateRespMap) {
   lastStateResponsibility = stateRespMap;
 }
 
-/**
- * Apply responsibility-based filtering to graph
- */
 function applyResponsibilityFilter() {
   if (!lastStateResponsibility) return;
 
@@ -56,10 +40,8 @@ function applyResponsibilityFilter() {
     const cy = pane.cy;
     cy.startBatch();
 
-    // Clear previous filtering
     cy.$('node, edge').removeClass('filtered-out');
 
-    // Get all state nodes
     const stateNodes = cy.$('node.s');
     
     stateNodes.forEach(node => {
@@ -79,7 +61,6 @@ function applyResponsibilityFilter() {
       }
     });
 
-    // Dim edges connected to dimmed nodes
     cy.edges().forEach(edge => {
       const source = edge.source();
       const target = edge.target();
@@ -97,9 +78,6 @@ function applyResponsibilityFilter() {
   updateFilterStats(totalFiltered);
 }
 
-/**
- * Update filter statistics display
- */
 function updateFilterStats(filteredCount) {
   const statsDiv = document.getElementById('filter-stats');
   const filteredSpan = document.getElementById('filtered-count');
@@ -116,9 +94,6 @@ function updateFilterStats(filteredCount) {
   }
 }
 
-/**
- * Clear all filtering
- */
 export function clearFiltering() {
   const panes = getPanes();
   

@@ -199,18 +199,6 @@ const stylesheet = [
     },
   },
   {
-    selector: 'node.s.resp-winning',
-    style: {
-      'border-width': '4px',
-    },
-  },
-  {
-    selector: 'node.s.resp-trace',
-    style: {
-      'border-style': 'double',
-    },
-  },
-  {
     selector: 'node.s.resp-high[[outdegree > 0]]',
     style: {
       'background-opacity': 0,
@@ -229,6 +217,43 @@ const stylesheet = [
     style: {
       'background-opacity': 0,
       'border-color': '#5ca65c',
+    },
+  },
+  {
+    selector: 'node.s.resp-winning',
+    style: {
+      'border-width': '4px',
+      'border-color': '#2980b9',  // blue = safe winning region
+      'border-style': 'solid',
+    },
+  },
+  {
+    selector: 'node.s.resp-trace',
+    style: {
+      'border-style': 'double',
+      'border-color': '#8e44ad',  // purple = counterexample trace
+      'border-width': '4px',
+    },
+  },
+  {
+    selector: 'edge.cex-edge',
+    style: {
+      'line-color': '#c0392b',
+      'target-arrow-color': '#c0392b',
+      'width': 3,
+      'line-style': 'dashed',
+      'line-dash-pattern': [8, 4],
+      'z-index': 997,
+    },
+  },
+  {
+    selector: 'edge.strategy-edge',
+    style: {
+      'line-color': '#27ae60',
+      'target-arrow-color': '#27ae60',
+      'width': 4,
+      'line-style': 'solid',
+      'z-index': 999,
     },
   },
   {

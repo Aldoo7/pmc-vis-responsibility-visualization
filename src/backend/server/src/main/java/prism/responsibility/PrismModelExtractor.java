@@ -14,20 +14,19 @@ import simulator.TransitionList;
 import parser.State;
 import prism.core.Utility.Prism.Updater;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
- * Extracts a TransitionSystem from a real PRISM model using the PRISM Java API.
- *
- * Minimal implementation goals (MVP):
- *  - Parse and load model (.prism) as MDP/DTMC (default: MDP)
- *  - Enumerate reachable states and assign stable string IDs (use PRISM state string directly)
- *  - Identify initial states
- *  - Enumerate transitions (successor relation without probabilities yet)
- *  - Detect bad states via label named "bad" if present (otherwise empty set)
- *  - Provide fallback handling/logging on errors
+ * Extracts a TransitionSystem from a PRISM model using the Java API or CLI export.
  */
 public class PrismModelExtractor {
     private static final Logger logger = LoggerFactory.getLogger(PrismModelExtractor.class);
@@ -47,9 +46,6 @@ public class PrismModelExtractor {
 
     /**
      * Build a TransitionSystem from a PRISM model file.
-     * @param modelFilePath path to .prism file
-     * @param modelType PRISM model type (MDP, DTMC, etc.) default MDP
-     * @return ExtractionResult or null if failure
      */
     public ExtractionResult extract(String modelFilePath) {
         File modelFile = new File(modelFilePath);
@@ -69,16 +65,9 @@ public class PrismModelExtractor {
                 logger.warn("PRISM did not return a built model for {}", modelFilePath);
                 return null;
             }
-            // Gather reachable states
             List<String> rawStates = built.getReachableStates().exportToStringList();
             TransitionSystem ts = new TransitionSystem();
-            // Map PRISM state description -> ID (for now use normalized numeric index or original string?)
-            // We'll keep numeric indices to better match existing frontend node IDs where possible.
-            // Provide a mapping PRISM string -> numeric (string) index.
             Map<String,String> stateIdMap = new LinkedHashMap<>();
-            // ModelParser requires a Project instance; for extraction we mimic minimal parsing using ModulesFile directly.
-            // We'll manually parse states using internal normalization similar to ModelChecker logic.
-            // (Future improvement: refactor ModelParser to allow lightweight construction.)
             int index = 0;
             for (String desc : rawStates) {
                 String id = Integer.toString(index); // numeric IDs
@@ -91,9 +80,6 @@ public class PrismModelExtractor {
             State defaultInit = modulesFile.getDefaultInitialState();
             // Evaluate initial condition expression if present
             for (String desc : rawStates) {
-                // PRISM does not expose parseState on ModulesFile; reuse stored string directly for initial detection
-                // Approach: iterate through states again evaluating initial expression by reconstructing State via project-style parser
-                // Simplification: use default initial or expression evaluation via modulesFile.getInitialStates() on created varList
                 State s = parseStateFallback(modulesFile, desc);
                 boolean isInit;
                 if (modulesFile.getInitialStates() != null) {
@@ -111,8 +97,8 @@ public class PrismModelExtractor {
             }
             ts.setInitial(initials.get(0));
 
-            // Transitions: use Updater similar to ModelChecker, but simpler.
-            logger.info("Building transitions using Updater for {} states", rawStates.size());
+            // Transitions
+            logger.info("Building transitions for {} states", rawStates.size());
             Updater updater = new Updater(modulesFile, prism);
             int totalTransitions = 0;
             int statesWithNoTransitions = 0;
@@ -133,7 +119,7 @@ public class PrismModelExtractor {
                     
                     if (numChoices == 0) {
                         statesWithNoTransitions++;
-                        continue; // deadlock state (no successors)
+                        continue;
                     }
                     
                     for (int c = 0; c < numChoices; c++) {
@@ -160,13 +146,8 @@ public class PrismModelExtractor {
             logger.info("Extracted {} transitions from {} states ({} states have no outgoing transitions)", 
                 totalTransitions, rawStates.size(), statesWithNoTransitions);
 
-            // TEMPORARY FALLBACK (synthetic transitions):
-            // If PRISM failed to yield any transitions we inject a simple linear chain so that downstream
-            // responsibility and counterexample logic has structural data to work with. This should be
-            // removed once full transition extraction (incl. probabilities) is implemented.
-            // TODO (Responsibility Visualization Hardening): remove synthetic chain + bad state marker after
-            // implementing proper transition enumeration for all supported model types.
-            // Fallback: if no transitions were extracted at all, synthesize a simple chain across first K states
+            // Fallback: synthesize linear chain if no transitions extracted
+            // TODO: remove after proper transition enumeration is implemented
             if (totalTransitions == 0 && rawStates.size() > 1) {
                 int K = Math.min(rawStates.size(), 12); // limit chain length to avoid huge synthetic path
                 logger.warn("PRISM transition extraction produced 0 transitions. Injecting synthetic linear chain over first {} states as fallback.", K);
@@ -175,13 +156,12 @@ public class PrismModelExtractor {
                     String toId = stateIdMap.get(rawStates.get(i + 1));
                     ts.addTransition(fromId, toId);
                 }
-                // Mark last state of chain as bad to allow counterexample termination if no labels provided
                 String lastId = stateIdMap.get(rawStates.get(K - 1));
                 ts.addBadState(lastId);
                 logger.warn("Synthetic transitions injected: {} (chain) | Marked state {} as bad.", K - 1, lastId);
             }
 
-            // Bad states via label "bad", "deadlock", "error", or "violation" (if defined)
+            // Bad states via label "bad", "deadlock", "error", or "violation"
             Set<String> badStates = new HashSet<>();
             int numLabels = modulesFile.getLabelList().size();
             int badIndex = -1;
@@ -214,12 +194,10 @@ public class PrismModelExtractor {
                     String.join(", ", errorLabelNames));
             }
 
-            // Build reverse map: numeric ID -> state description (ensure parentheses to match frontend node names)
             Map<String, String> idToName = new LinkedHashMap<>();
             for (Map.Entry<String, String> entry : stateIdMap.entrySet()) {
                 String original = entry.getKey(); // as exported by PRISM reachable states list
                 String display = original;
-                // Frontend graph node names include parentheses e.g. "(0,0,0,0)"; add them if absent
                 if (!display.startsWith("(")) {
                     display = "(" + display + ")";
                 }
@@ -247,8 +225,7 @@ public class PrismModelExtractor {
     }
 
     /**
-     * Fallback state parsing replicating basic formatting handled in ModelParser.parseState.
-     * This avoids needing a full Project/ModelParser instance.
+     * Fallback state parsing (avoids needing a full Project/ModelParser instance).
      */
     private State parseStateFallback(ModulesFile modulesFile, String raw) throws PrismLangException {
         String intern = raw;
@@ -279,6 +256,130 @@ public class PrismModelExtractor {
             case "double": return Double.valueOf(str);
             case "bool": return Boolean.valueOf(str);
             default: throw new PrismLangException("Unsupported type: " + type.getTypeString());
+        }
+    }
+
+    /**
+     * Extract TransitionSystem via PRISM CLI export (more reliable for MDPs).
+     */
+    public static ExtractionResult extractViaCli(String modelFilePath) {
+        String prismPath = System.getenv("RESP_PRISM_PATH");
+        if (prismPath == null || prismPath.isEmpty()) {
+            // Check if it was set via system property by the responsibility invoker
+            prismPath = System.getProperty("prism.path", "prism");
+        }
+        try {
+            Path tempDir = Files.createTempDirectory("prism_extract_");
+            Path statesFile = tempDir.resolve("states.txt");
+            Path transFile  = tempDir.resolve("trans.txt");
+            Path labFile    = tempDir.resolve("labels.txt");
+
+            ProcessBuilder pb = new ProcessBuilder(
+                prismPath, modelFilePath,
+                "-exportstates", statesFile.toString(),
+                "-exporttrans",  transFile.toString(),
+                "-exportlabels", labFile.toString()
+            );
+            pb.redirectErrorStream(true);
+            Process proc = pb.start();
+            try (BufferedReader br = new BufferedReader(new InputStreamReader(proc.getInputStream(), StandardCharsets.UTF_8))) {
+                while (br.readLine() != null) {}
+            }
+            int code = proc.waitFor();
+            if (code != 0) {
+                logger.warn("extractViaCli: PRISM exited with code {}", code);
+                return null;
+            }
+
+            // Parse states file: header then "id:(val1,val2,...)"
+            Map<String, String> idToName = new LinkedHashMap<>();
+            TransitionSystem ts = new TransitionSystem();
+            if (Files.exists(statesFile)) {
+                Pattern staPat = Pattern.compile("^(\\d+):\\((.+)\\)$");
+                for (String line : Files.readAllLines(statesFile, StandardCharsets.UTF_8)) {
+                    Matcher m = staPat.matcher(line.trim());
+                    if (m.matches()) {
+                        String id   = m.group(1);
+                        String name = "(" + m.group(2) + ")";
+                        idToName.put(id, name);
+                        ts.addState(id);
+                    }
+                }
+            }
+            if (idToName.isEmpty()) {
+                logger.warn("extractViaCli: no states parsed from {}", statesFile);
+                return null;
+            }
+
+            if (Files.exists(transFile)) {
+                boolean headerSkipped = false;
+                for (String line : Files.readAllLines(transFile, StandardCharsets.UTF_8)) {
+                    line = line.trim();
+                    if (line.isEmpty()) continue;
+                    if (!headerSkipped) { headerSkipped = true; continue; }
+                    String[] parts = line.split("\\s+");
+                    if (parts.length >= 3) {
+                        ts.addTransition(parts[0], parts[2]);
+                    }
+                }
+            }
+
+            Set<String> badStates = new HashSet<>();
+            String initialStateId = "0";
+            if (Files.exists(labFile)) {
+                List<String> labLines = Files.readAllLines(labFile, StandardCharsets.UTF_8);
+                if (!labLines.isEmpty()) {
+                    // Parse header
+                    Set<Integer> badLabelIds  = new HashSet<>();
+                    Set<Integer> initLabelIds = new HashSet<>();
+                    Pattern hdrPat = Pattern.compile("(\\d+)=\"([^\"]+)\"");
+                    Matcher hm = hdrPat.matcher(labLines.get(0));
+                    while (hm.find()) {
+                        int idx   = Integer.parseInt(hm.group(1));
+                        String nm = hm.group(2).toLowerCase();
+                        if (nm.equals("init")) {
+                            initLabelIds.add(idx);
+                        } else if (nm.equals("error") || nm.equals("bad") || nm.equals("sbad")
+                                || nm.equals("fail") || nm.equals("failure")) {
+                            badLabelIds.add(idx);
+                        }
+                    }
+                    // Parse state rows
+                    Pattern rowPat = Pattern.compile("^(\\d+):\\s*(.*)");
+                    for (int i = 1; i < labLines.size(); i++) {
+                        Matcher rm = rowPat.matcher(labLines.get(i).trim());
+                        if (!rm.matches()) continue;
+                        String sid    = rm.group(1);
+                        String labels = rm.group(2).trim();
+                        if (labels.isEmpty()) continue;
+                        for (String tok : labels.split("\\s+")) {
+                            try {
+                                int li = Integer.parseInt(tok);
+                                if (initLabelIds.contains(li)) initialStateId = sid;
+                                if (badLabelIds.contains(li)) {
+                                    badStates.add(sid);
+                                    ts.addBadState(sid);
+                                }
+                            } catch (NumberFormatException ignored) {}
+                        }
+                    }
+                }
+            }
+
+            ts.setInitial(initialStateId);
+            logger.info("extractViaCli: {} states, {} bad, initial={}, transitions={}",
+                    idToName.size(), badStates.size(), initialStateId, ts.getTransitionCount());
+
+            // Clean up
+            try { Files.deleteIfExists(statesFile); Files.deleteIfExists(transFile);
+                  Files.deleteIfExists(labFile);    Files.deleteIfExists(tempDir); }
+            catch (Exception ignored) {}
+
+            return new ExtractionResult(ts, Collections.singletonList(initialStateId), badStates, idToName);
+
+        } catch (Exception e) {
+            logger.warn("extractViaCli failed: {}", e.getMessage());
+            return null;
         }
     }
 }

@@ -7,30 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Data Transfer Object for Responsibility Analysis Results
- * 
- * This class holds the output from the responsibility computation tool.
- * It includes:
- * - Refinement level (how detailed the analysis is)
- * - State responsibility values (stateId -> responsibility score 0.0-1.0)
- * - Component responsibility values (optional, for modules/variables/actions)
- * 
- * Example JSON output:
- * {
- *   "level": 3,
- *   "stateResponsibility": {
- *     "s_0": 0.123,
- *     "s_1": 0.856,
- *     "s_2": 0.432
- *   },
- *   "componentResponsibility": {
- *     "module_die1": 0.745,
- *     "variable_s1": 0.621
- *   }
- * }
- */
-@JsonInclude(JsonInclude.Include.NON_NULL)  // Don't include null fields in JSON
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ResponsibilityOutput {
     
     @JsonProperty("level")
@@ -42,8 +19,7 @@ public class ResponsibilityOutput {
     @JsonProperty("componentResponsibility")
     private Map<String, Double> componentResponsibility;
 
-    /* === Extended fields aligned with paper semantics === */
-    @JsonProperty("responsibilityType") // optimistic | pessimistic
+    @JsonProperty("responsibilityType")
     private String responsibilityType;
 
     @JsonProperty("powerIndex") // shapley | banzhaf | custom
@@ -77,15 +53,17 @@ public class ResponsibilityOutput {
     private Map<String, GroupInfo> groups; // groupId -> info
     
     @JsonProperty("stateIdToName")
-    private Map<String, String> stateIdToName; // Maps state ID -> human-readable name
+    private Map<String, String> stateIdToName;
     
     @JsonProperty("samplingConfig")
     private String samplingConfig; // Sampling configuration used (e.g., "10000" or "60s")
     
     @JsonProperty("groupingMode")
-    private String groupingMode; // Grouping mode used (e.g., "module", "label", "value_of=x,y")
+    private String groupingMode;
+
+    @JsonProperty("switchingPairs")
+    private List<SwitchingPairInfo> switchingPairs; // Per-coalition safety game results
     
-    // Default constructor (required for Jackson deserialization)
     public ResponsibilityOutput() {
         this.stateResponsibility = new HashMap<>();
         this.componentResponsibility = new HashMap<>();
@@ -93,14 +71,12 @@ public class ResponsibilityOutput {
         this.groups = new HashMap<>();
     }
     
-    // Constructor with initial data
     public ResponsibilityOutput(int level, Map<String, Double> stateResponsibility) {
         this();
         this.level = level;
         this.stateResponsibility = stateResponsibility != null ? stateResponsibility : new HashMap<>();
     }
     
-    // Getters and Setters
     public int getLevel() {
         return level;
     }
@@ -166,6 +142,9 @@ public class ResponsibilityOutput {
     
     public String getGroupingMode() { return groupingMode; }
     public void setGroupingMode(String groupingMode) { this.groupingMode = groupingMode; }
+
+    public List<SwitchingPairInfo> getSwitchingPairs() { return switchingPairs; }
+    public void setSwitchingPairs(List<SwitchingPairInfo> switchingPairs) { this.switchingPairs = switchingPairs; }
     
     @Override
     public String toString() {
@@ -180,7 +159,6 @@ public class ResponsibilityOutput {
             Boolean.TRUE.equals(approximate));
     }
 
-    /* === Helper inner classes === */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class StateInfo {
         @JsonProperty("onTrace")

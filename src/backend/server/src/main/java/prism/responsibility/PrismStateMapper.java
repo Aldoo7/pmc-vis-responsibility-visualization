@@ -14,26 +14,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Lightweight state ID to name mapper using PRISM CLI.
- * 
- * This avoids the slow PRISM Java API (which loads the entire model).
- * Instead, we run: prism model.prism -exportstates states.txt
- * 
- * Based on the solution from November 26, 2025 report:
- * "I switched to using PRISM's command-line tool instead...
- *  This just dumps the state IDs and their representations to a file.
- *  Super simple. Super fast."
+ * Extracts state ID to name mapping using the PRISM CLI
+ * (prism model.prism -exportstates states.txt).
  */
 public class PrismStateMapper {
     
     private static final Logger logger = LoggerFactory.getLogger(PrismStateMapper.class);
     
-    /**
-     * Extract state ID to name mapping using PRISM CLI.
-     * 
-     * @param modelFile Path to .prism model file
-     * @return Map of state ID (0, 1, 2...) to state name ((false,false,...))
-     */
     public static Map<String, String> extractStateMapping(String modelFile) {
         Map<String, String> mapping = new LinkedHashMap<>();
         
@@ -41,7 +28,7 @@ public class PrismStateMapper {
             // Get PRISM path from environment or use default
             String prismPath = System.getenv("RESP_PRISM_PATH");
             if (prismPath == null || prismPath.isEmpty()) {
-                prismPath = "prism"; // assume in PATH
+                prismPath = "prism";
             }
             
             // Create temp file for state export
@@ -61,7 +48,6 @@ public class PrismStateMapper {
             
             Process proc = pb.start();
             
-            // Capture output (mostly for error diagnosis)
             StringBuilder output = new StringBuilder();
             try (BufferedReader br = new BufferedReader(new InputStreamReader(proc.getInputStream(), StandardCharsets.UTF_8))) {
                 String line;
@@ -94,11 +80,10 @@ public class PrismStateMapper {
                     Matcher m = pattern.matcher(line);
                     if (m.matches()) {
                         String id = m.group(1);
-                        String stateName = "(" + m.group(2) + ")"; // Add parentheses back
+                        String stateName = "(" + m.group(2) + ")";
                         mapping.put(id, stateName);
                         count++;
                         
-                        // Log first few for debugging
                         if (count <= 3) {
                             logger.debug("Matched state: {} -> {}", id, stateName);
                         }
@@ -109,7 +94,6 @@ public class PrismStateMapper {
                 logger.warn("States file not created: {}", statesFile);
             }
             
-            // Clean up temp files
             Files.deleteIfExists(statesFile);
             Files.deleteIfExists(tempDir);
             
