@@ -70,5 +70,8 @@ TestLibrary.java
 *.bbl
 *.blg
 
+# Thesis (separate from code repository)
+thesis/
+
 # Preprocessed PRISM files
 *_preprocessed.prism
