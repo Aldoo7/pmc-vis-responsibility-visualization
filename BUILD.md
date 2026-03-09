@@ -77,15 +77,16 @@ npm run build
 **Important:** Set required environment variables first:
 
 ```bash
-export DYLD_LIBRARY_PATH=/Users/aldo/opt/prism-source/prism/lib
-export RESP_PRISM_PATH=~/opt/prism-source/prism/bin/prism
-# Optional: export RESP_TOOL_PATH=/path/to/bw-responsibility
+export DYLD_LIBRARY_PATH=/path/to/prism/lib
+export RESP_PRISM_PATH=/path/to/prism/bin/prism
+# Optional — if not set, backend runs in MOCK mode with demo data:
+# export RESP_TOOL_PATH=/path/to/bw-responsibility
 ```
 
 Update classpath in `start_server_direct.sh` to include PRISM classes:
 
 ```bash
-CLASSPATH="target/classes:/Users/aldo/opt/prism-source/prism/classes:../prism/prism/lib/prism.jar:$CLASSPATH"
+CLASSPATH="target/classes:/path/to/prism/classes:../prism/prism/lib/prism.jar:$CLASSPATH"
 ```
 
 Then start the backend:
@@ -148,12 +149,12 @@ pmc-vis2/
 ### For Backend
 
 - `DYLD_LIBRARY_PATH`: Path to PRISM native libraries (macOS)
-  - Example: `/Users/aldo/opt/prism-source/prism/lib`
+  - Example: `/path/to/prism/lib`
   
 - `RESP_PRISM_PATH`: Path to PRISM binary executable
-  - Example: `~/opt/prism-source/prism/bin/prism`
+  - Example: `/path/to/prism/bin/prism`
   
-- `RESP_TOOL_PATH`: Path to Rust responsibility analysis tool (optional)
+- `RESP_TOOL_PATH`: Path to Rust `bw-responsibility` tool ([Zenodo artifact](https://zenodo.org/records/13738447), optional)
   - Example: `/path/to/bw-responsibility`
   - If not set, backend runs in MOCK mode with demo data
 

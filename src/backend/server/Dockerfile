@@ -28,9 +28,11 @@ RUN make
 
 RUN make binary
 
-# Build bw-responsibility tool from Zenodo
+# Build bw-responsibility tool from Zenodo artifact (DOI: 10.5281/zenodo.13738447)
 WORKDIR /home/prismServer
-RUN git clone https://github.com/convince-project/actor-based-responsibility.git
+RUN apt update && apt install -y unzip wget && rm -rf /var/lib/apt/lists/*
+RUN wget -q -O actor-based-responsibility.zip "https://zenodo.org/api/records/13738447/files/actor-based-responsibility.zip/content"
+RUN unzip -q actor-based-responsibility.zip
 WORKDIR /home/prismServer/actor-based-responsibility
 RUN /root/.cargo/bin/cargo build --release
 RUN cp target/release/bw-responsibility /usr/local/bin/bw-responsibility

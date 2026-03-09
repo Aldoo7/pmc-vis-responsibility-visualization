@@ -12,10 +12,10 @@ echo "Cleaning up existing processes..."
 ./stop.sh 2>/dev/null || true
 sleep 2
 
-# Environment variables
-export RESP_TOOL_PATH=/Users/aldo/Downloads/actor-based-responsibility/target/release/bw-responsibility
-export RESP_PRISM_PATH=~/opt/prism-source/prism/bin/prism
-export DYLD_LIBRARY_PATH=/Users/aldo/opt/prism-source/prism/lib
+# Environment variables — set these to your local paths before running
+export RESP_TOOL_PATH=${RESP_TOOL_PATH:-}
+export RESP_PRISM_PATH=${RESP_PRISM_PATH:-~/opt/prism-source/prism/bin/prism}
+export DYLD_LIBRARY_PATH=${DYLD_LIBRARY_PATH:-~/opt/prism-source/prism/lib}
 
 # Check if backend needs compilation
 if [ ! -d "src/backend/server/target/classes" ] || [ ! -f "src/backend/server/target/classes/prism/core/View/ViewType.class" ]; then

@@ -65,8 +65,8 @@ The graph shows the **counterexample trace** (a specific path through the model)
 - Java 11+
 - Node.js 16+
 - Maven
-- PRISM (installed at `/Users/aldo/opt/prism-source/prism`)
-- Responsibility tool (at `/Users/aldo/Downloads/actor-based-responsibility/target/release/bw-responsibility`)
+- PRISM (built from source, see `BUILD.md`)
+- `bw-responsibility` tool ([Zenodo artifact](https://zenodo.org/records/13738447), optional — backend runs in MOCK mode without it)
 
 ## Troubleshooting
 
