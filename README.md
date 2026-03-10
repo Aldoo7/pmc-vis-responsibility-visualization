@@ -1,5 +1,8 @@
 # PMC-VIS: Responsibility Visualization Extension
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18945243.svg)](https://doi.org/10.5281/zenodo.18945243)
+
+
 This repository contains the source code for the Master's thesis:
 
 > **Interactive Visualization of Responsibility within Markov Decision Processes for PMC-VIS**
