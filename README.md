@@ -5,7 +5,7 @@ This repository contains the source code for the Master's thesis:
 > **Interactive Visualization of Responsibility within Markov Decision Processes for PMC-VIS**
 > Aldo Kurmeta, Technische Universität Dresden, 2026
 
-The thesis extends [PMC-VIS](https://doi.org/10.1007/978-3-031-47115-5_20) (Korn et al., SEFM 2023), an interactive web-based visualization tool for probabilistic model checking, with **backward responsibility analysis** for transition systems based on the framework of [Baier et al. (AAAI 2024)](https://doi.org/10.1609/aaai.v38i20.30181).
+The thesis extends [PMC-VIS](https://doi.org/10.1007/978-3-031-47115-5_20) (Korn et al., SEFM 2023), an interactive web-based visualization tool for probabilistic model checking, with **backward responsibility analysis** for transition systems based on the framework of [Baier et al. (AAAI 2024)](https://doi.org/10.1609/aaai.v38i18.30013).
 
 ## What This Extension Adds
 
@@ -129,7 +129,7 @@ npm run dev
 
 The frontend starts on **http://localhost:3000**.
 
-## Benchmark Models
+## Example Models
 
 The `data/zenodo-examples/` directory contains the PRISM models used in the thesis evaluation, sourced from the [Zenodo artifact](https://zenodo.org/records/13738447) accompanying Baier et al. (AAAI 2024):
 
@@ -154,7 +154,7 @@ The `evaluation_corpus/` directory contains five PRISM models with seeded bugs a
 ## References
 
 - Korn, M., Méndez, A., Klüppelholz, S., Langner, R., Baier, C., & Dachselt, R. (2023). *PMC-VIS: Interactive Visualization for Probabilistic Model Checking.* SEFM 2023. [DOI: 10.1007/978-3-031-47115-5_20](https://doi.org/10.1007/978-3-031-47115-5_20)
-- Baier, C., van den Bossche, R., Klüppelholz, S., Lehmann, J., & Piribauer, J. (2024). *Backward Responsibility in Transition Systems Using General Power Indices.* AAAI 2024. [DOI: 10.1609/aaai.v38i20.30181](https://doi.org/10.1609/aaai.v38i20.30181)
+- Baier, C., van den Bossche, R., Klüppelholz, S., Lehmann, J., & Piribauer, J. (2024). *Backward Responsibility in Transition Systems Using General Power Indices.* AAAI 2024. [DOI: 10.1609/aaai.v38i18.30013](https://doi.org/10.1609/aaai.v38i18.30013)
 
 ## License
 
