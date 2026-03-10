@@ -2,29 +2,19 @@
 
 ## Docker (recommended)
 
-The simplest way to get everything running:
-
 ```bash
 cd src
-docker compose up --build -d
+docker compose up --build -d    # starts backend (8080), frontend (3000), editor (3002)
+docker compose down             # stop
 ```
 
-This starts the backend (port 8080), frontend (port 3000), and a web-based code editor (port 3002). Open http://localhost:3000 in a Chromium-based browser.
-
-To stop:
-
-```bash
-cd src
-docker compose down
-```
+Open http://localhost:3000 in a Chromium-based browser.
 
 ## Building from source
 
-You need Java 11+, Maven 3.9+, Node.js 18+, and Git.
+Prerequisites: Java 11+, Maven 3.9+, Node.js 18+, Git, make/gcc.
 
-### 1. Build PRISM from source
-
-The backend links against PRISM's Java classes directly, so you need a source build:
+### 1. Build PRISM
 
 ```bash
 cd src/backend
@@ -36,75 +26,39 @@ make
 
 ### 2. Get the bw-responsibility tool
 
-Download the pre-built binary from the [Zenodo artifact](https://zenodo.org/records/13738447) (DOI: 10.5281/zenodo.13738447), or build it yourself with `cargo build --release` if you have a Rust toolchain.
+Download from the [Zenodo artifact](https://zenodo.org/records/13738447), or build with `cargo build --release` (requires Rust).
 
 ### 3. Set environment variables
 
 ```bash
 export DYLD_LIBRARY_PATH=/path/to/prism/lib        # macOS; use LD_LIBRARY_PATH on Linux
 export RESP_PRISM_PATH=/path/to/prism/bin/prism
-export RESP_TOOL_PATH=/path/to/bw-responsibility    # required for responsibility computation
+export RESP_TOOL_PATH=/path/to/bw-responsibility
 ```
 
-If `RESP_TOOL_PATH` is not set, the backend will start normally but throw an error when you try to compute responsibility values.
+If `RESP_TOOL_PATH` is not set, the backend starts but responsibility computation will fail.
 
-### 4. Build and run the backend
+### 4. Build and run
 
 ```bash
+# Backend
 cd src/backend/server
-mvn clean compile -DskipTests
-mvn package -DskipTests
-./bin/run server PRISMDefault.yml
-```
+mvn clean package -DskipTests
+./bin/run server PRISMDefault.yml    # ports 8080, 8082
 
-The backend listens on port 8080 (REST API) and 8082 (Socket.IO).
-
-### 5. Build and run the frontend
-
-In a separate terminal:
-
-```bash
+# Frontend (separate terminal)
 cd src/frontend
 npm install
-npm run dev
+npm run dev                          # port 3000
 ```
 
-The frontend is available at http://localhost:3000.
-
-### Using the start/stop scripts
-
-Alternatively, `start.sh` and `stop.sh` in the repo root handle compilation, environment setup, and process management:
-
-```bash
-./start.sh   # compiles if needed, starts backend + frontend
-./stop.sh    # kills both processes
-```
-
-You still need to set `RESP_TOOL_PATH` before running `start.sh`.
-
-## Project layout
-
-```
-src/
-├── backend/server/          Java backend (Dropwizard, PRISM integration)
-├── frontend/                JavaScript frontend (Cytoscape.js, D3.js)
-├── editor/                  Web-based VS Code with PRISM extension
-├── docker-compose.yml
-└── Dockerfile
-data/                        Example PRISM models
-evaluation_corpus/           Evaluation benchmark models with ground truth
-```
+Alternatively, `./start.sh` and `./stop.sh` in the repo root handle compilation and process management. You still need `RESP_TOOL_PATH` set.
 
 ## Troubleshooting
 
-**Backend fails with NoClassDefFoundError** — PRISM classes are not on the classpath. Make sure you built PRISM from source (step 1) and that `DYLD_LIBRARY_PATH` points to its `lib/` directory.
-
-**Port already in use** — Run `./stop.sh` or kill the processes on ports 3000/8080/8082 manually:
-```bash
-lsof -ti:3000,8080,8082 | xargs kill -9
-```
-
-**Docker build is slow the first time** — This is normal; it downloads PRISM and Maven dependencies. Subsequent builds use cached layers and finish in seconds.
+- **NoClassDefFoundError** — PRISM not on classpath. Rebuild PRISM (step 1) and check `DYLD_LIBRARY_PATH`.
+- **Port in use** — `./stop.sh` or `lsof -ti:3000,8080,8082 | xargs kill -9`.
+- **Slow first Docker build** — Normal; subsequent builds use cached layers.
 
 ## License
 
