@@ -1,6 +1,6 @@
 # PMC-VIS: Responsibility Visualization Extension
 
-This repository contains the source code for the Diploma thesis:
+This repository contains the source code for the Master's thesis:
 
 > **Interactive Visualization of Responsibility within Markov Decision Processes for PMC-VIS**
 > Aldo Kurmeta, Technische Universität Dresden, 2026
