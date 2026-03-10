@@ -1,0 +1,5 @@
+// Properties for Dining Philosophers (variant B - with fork modules)
+// Error state: deadlock - all forks taken but no philosopher is eating
+
+// Can the error state be reached?
+P=? [ F "sbad" ]

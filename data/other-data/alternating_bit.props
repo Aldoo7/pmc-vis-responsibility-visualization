@@ -1,0 +1,5 @@
+// Properties for the Alternating Bit Protocol
+// Error state: duplicate file delivery due to missing sequence bit check in receiver
+
+// Can the error state be reached?
+P=? [ F "sbad" ]

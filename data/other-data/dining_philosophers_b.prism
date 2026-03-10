@@ -1,0 +1,109 @@
+// Dining Philosophers - Variant B (with explicit fork modules)
+// Source: Zenodo artifact for "Responsibility in actor systems" (Baier et al.)
+//
+// Richer model than variant A: philosophers have a two-phase choice
+// (decide left or right, then attempt to take), separate fork modules
+// enforce mutual exclusion, and eating/returning phases are explicit.
+// Error: deadlock - all forks taken but no philosopher is eating.
+//
+// 6 modules: P1, P2, P3, F1, F2, F3
+// Has philosopher labels (p1, p2, p3) for label-based grouping.
+
+mdp
+
+// N = 3
+// n philosophers P1 ... PN
+// n forks F1 ... FN
+// Seating order: F1 - P1 - F2 - ... - FN - PN
+
+label "sbad" = !f1 & !f2 & !f3 & !(p1l & p1r) & !(p2l & p2r) & !(p3l & p3r);
+label "error" = !f1 & !f2 & !f3 & !(p1l & p1r) & !(p2l & p2r) & !(p3l & p3r); // for PMCVis compatibility
+
+label "p1" = p1l | p1r;
+label "p2" = p2l | p2r;
+label "p3" = p3l | p3r;
+
+module P1
+    p1l: bool init false;
+    p1r: bool init false;
+
+    e1: bool init false;
+
+    p1state: [0..2] init 0; // 0: Needs to make choice, 1: Wants to take left fork, 2: Wants to take right fork
+
+    [] p1state=0 -> (p1state'=1);
+    [] p1state=0 -> (p1state'=2);
+
+    [TakeF1P1] !p1l & p1state=1 -> (p1l'= true)&(p1state'=0);
+    [] p1l & p1state=1 -> (p1state'=0);
+    [TakeF2P1] !p1r & p1state=2 -> (p1r'= true)&(p1state'=0);
+    [] p1r & p1state=2 -> (p1state'=0);
+
+    [] p1l & p1r & !e1 & p1state=0 -> (e1'=true);
+    [ReturnP1] p1l & p1r & e1 & p1state=0 -> (p1l'= false) & (p1r'= false) & (e1'=false);
+endmodule
+
+module P2
+    p2l: bool init false;
+    p2r: bool init false;
+
+    e2: bool init false;
+
+    p2state: [0..2] init 0; // 0: Needs to make choice, 1: Wants to take left fork, 2: Wants to take right fork
+
+    [] p2state=0 -> (p2state'=1);
+    [] p2state=0 -> (p2state'=2);
+
+    [TakeF2P2] !p2l & p2state=1 -> (p2l'= true)&(p2state'=0);
+    [] p2l & p2state=1 -> (p2state'=0);
+    [TakeF3P2] !p2r & p2state=2 -> (p2r'= true)&(p2state'=0);
+    [] p2r & p2state=2 -> (p2state'=0);
+    [] p2l & p2r & !e2 -> (e2'= true);
+    [ReturnP2] p2l & p2r & e2 -> (p2l'= false) & (p2r'= false) & (e2'= false);
+endmodule
+
+module P3
+    p3l: bool init false;
+    p3r: bool init false;
+
+    e3: bool init false;
+
+    p3state: [0..2] init 0; // 0: Needs to make choice, 1: Wants to take left fork, 2: Wants to take right fork
+
+    [] p3state=0 -> (p3state'=1);
+    [] p3state=0 -> (p3state'=2);
+
+    [TakeF3P3] !p3l & p3state=1 -> (p3l'= true)&(p3state'=0);
+    [] p3l & p3state=1 -> (p3state'=0);
+    [TakeF1P3] !p3r & p3state=2 -> (p3r'= true)&(p3state'=0);
+    [] p3r & p3state=2 -> (p3state'=0);
+    [] p3l & p3r & !e3 -> (e3'= true);
+    [ReturnP3] p3l & p3r & e3 -> (p3l'= false) & (p3r'= false) & (e3'= false);
+endmodule
+
+module F1
+    f1: bool init true;
+
+    [TakeF1P1] f1 -> (f1'= false);
+    [TakeF1P3] f1 -> (f1'= false);
+    [ReturnP1] !f1 -> (f1'= true);
+    [ReturnP3] !f1 -> (f1'= true);
+endmodule
+
+module F2
+    f2: bool init true;
+
+    [TakeF2P2] f2 -> (f2'= false);
+    [TakeF2P1] f2 -> (f2'= false);
+    [ReturnP2] !f2 -> (f2'= true);
+    [ReturnP1] !f2 -> (f2'= true);
+endmodule
+
+module F3
+    f3: bool init true;
+
+    [TakeF3P3] f3 -> (f3'= false);
+    [TakeF3P2] f3 -> (f3'= false);
+    [ReturnP3] !f3 -> (f3'= true);
+    [ReturnP2] !f3 -> (f3'= true);
+endmodule

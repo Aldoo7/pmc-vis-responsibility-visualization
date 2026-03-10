@@ -1,0 +1,51 @@
+// Three Generals Problem - Variant B (two-phase decision)
+// Source: Zenodo artifact for "Responsibility in actor systems" (Baier et al.)
+//
+// Extended version of the Byzantine generals problem.
+// Each general first decides privately (phase 0->1), then transmits (phase 1->2).
+// Error: castle takes partial damage (0 < damage < 3) and all generals are done.
+// More states than variant A due to the two-phase decision structure.
+//
+// 4 modules: General1, General2, General3, Castle
+
+mdp
+
+label "sbad" = damage > 0 & damage < 3 & g1=2 & g2=2 & g3=2;
+label "error" = damage > 0 & damage < 3 & g1=2 & g2=2 & g3=2; // for PMCVis compatibility
+
+module General1
+    g1: [0..2] init 0; //0: needs to make choice, 1: needs to transmit choice, 2: done
+    g1_choice: bool init false;
+
+    [] g1=0 -> (g1'=1)&(g1_choice'=false);
+    [] g1=0 -> (g1'=1)&(g1_choice'=true);
+    [G1Attack] g1=1&g1_choice -> (g1'=2);
+    [] g1=1&!g1_choice -> (g1'=2);
+endmodule
+
+module General2
+    g2: [0..2] init 0; //0: needs to make choice, 1: needs to transmit choice, 2: done
+    g2_choice: bool init false;
+
+    [] g2=0 -> (g2'=1)&(g2_choice'=false);
+    [] g2=0 -> (g2'=1)&(g2_choice'=true);
+    [G2Attack] g2=1&g2_choice -> (g2'=2);
+    [] g2=1&!g2_choice -> (g2'=2);
+endmodule
+
+module General3
+    g3: [0..2] init 0; //0: needs to make choice, 1: needs to transmit choice, 2: done
+    g3_choice: bool init false;
+
+    [] g3=0 -> (g3'=1)&(g3_choice'=false);
+    [] g3=0 -> (g3'=1)&(g3_choice'=true);
+    [G3Attack] g3=1&g3_choice -> (g3'=2);
+    [] g3=1&!g3_choice -> (g3'=2);
+endmodule
+
+module Castle
+    damage: [0..10] init 0;
+    [G1Attack] damage < 10 -> (damage'= damage + 1);
+    [G2Attack] damage < 10 -> (damage'= damage + 1);
+    [G3Attack] damage < 10 -> (damage'= damage + 1);
+endmodule

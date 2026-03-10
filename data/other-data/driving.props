@@ -1,0 +1,5 @@
+// Properties for the Driving Route Planning model
+// Error state: car has not reached Västerås (location 9) by time 20
+
+// Can the error state be reached?
+P=? [ F "sbad" ]

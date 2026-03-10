@@ -1,0 +1,5 @@
+// Properties for 3 Generals Problem (variant B - two-phase decision)
+// Error state: partial damage with all generals done
+
+// Can the error state be reached?
+P=? [ F "sbad" ]

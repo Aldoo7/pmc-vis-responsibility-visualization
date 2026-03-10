@@ -1,0 +1,99 @@
+// Driving Route Planning - Swedish Cities
+// Source: Zenodo artifact for "Responsibility in actor systems" (Baier et al.)
+//
+// A car starts in Malmö at time 8 and must reach Västerås (location 9)
+// by time 20. Nondeterministic route choices at each city.
+// Error: failing to arrive at the destination by the deadline.
+//
+// 14 locations, clock 0-24, 2 modules: Clock, Car
+
+mdp
+
+label "sbad" = time=20&location!=9;
+label "error" = time=20&location!=9; // for PMCVis compatibility
+
+label "t0" = time=0;
+label "t1" = time=1;
+label "t2" = time=2;
+label "t3" = time=3;
+label "t4" = time=4;
+label "t5" = time=5;
+label "t6" = time=6;
+label "t7" = time=7;
+label "t8" = time=8;
+label "t9" = time=9;
+label "t10" = time=10;
+label "t11" = time=11;
+label "t12" = time=12;
+label "t13" = time=13;
+label "t14" = time=14;
+label "t15" = time=15;
+label "t16" = time=16;
+label "t17" = time=17;
+label "t18" = time=18;
+label "t19" = time=19;
+label "t20" = time=20;
+label "t21" = time=21;
+label "t22" = time=22;
+label "t23" = time=23;
+label "t24" = time=24;
+
+module Clock
+    time: [0..24] init 8;
+    [tick] time<24 -> (time'=time+1);
+    [tick] time=24 -> true;
+endmodule
+
+module Car
+    location: [0..13] init 0;
+
+    // Malmö (0)
+    [tick] location=0 -> (location'=1);
+    [tick] location=0 -> (location'=2);
+    [tick] location=0 -> (location'=7);
+
+    // Helsingborg (1)
+    [tick] location=1 -> (location'=3);
+    [tick] location=1 -> (location'=4);
+
+    // Ystad (2) - dead end
+    [tick] location=2 -> (location'=2);
+
+    // Jönköping (3)
+    [tick] location=3 -> (location'=6);
+    [tick] location=3 -> (location'=10);
+
+    // Göteborg (4)
+    [tick] location=4 -> (location'=3);
+    [tick] location=4 -> (location'=10);
+    [tick] location=4 -> (location'=11);
+    [tick] location=4 -> (location'=12);
+
+    // Kalmar (5)
+    [tick] location=5 -> (location'=7);
+
+    // Linköping (6)
+    [tick] location=6-> (location'=7);
+
+    // Norrköping (7)
+    [tick] location=7 -> (location'=8);
+
+    // Stockholm (8)
+    [tick] location=8 -> (location'=9);
+    [tick] location=8 -> (location'=13);
+
+    // Västerås (9) - destination
+    [tick] location=9 -> (location'=9);
+
+    // Örebro (10)
+    [tick] location=10 -> (location'=9);
+
+    // Karlstad (11)
+    [tick] location=11 -> (location'=10);
+
+    // Oslo (12) - dead end
+    [tick] location=12 -> (location'=12);
+
+    // Luleå (13) - dead end
+    [tick] location=13 -> (location'=13);
+endmodule

@@ -75,3 +75,8 @@ thesis/
 
 # Preprocessed PRISM files
 *_preprocessed.prism
+
+# Build artifacts
+*.vsix
+*-javadoc.jar
+*-sources.jar
