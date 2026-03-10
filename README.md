@@ -46,6 +46,7 @@ data/
 │   ├── 3_generals_a.prism/.props
 │   └── broken_window.prism/.props
 └── ...                            ← Additional PRISM example models
+evaluation_corpus/                     ← 5 benchmark models with ground-truth bug annotations
 ```
 
 ## Quick Start (Docker)
@@ -83,7 +84,7 @@ docker compose down
 
 - Java 11+
 - Maven 3.9+
-- Node.js 16+, npm
+- Node.js 18+, npm
 - GNU make, gcc, git
 - Rust toolchain (for building `bw-responsibility` from source, optional)
 
@@ -109,7 +110,7 @@ mvn clean compile -DskipTests
 mvn package -DskipTests
 
 # Set environment variables pointing to PRISM and bw-responsibility
-export DYLD_LIBRARY_PATH=/path/to/prism/lib        # macOS
+export DYLD_LIBRARY_PATH=/path/to/prism/lib        # macOS (use LD_LIBRARY_PATH on Linux)
 export RESP_PRISM_PATH=/path/to/prism/bin/prism
 export RESP_TOOL_PATH=/path/to/bw-responsibility
 
@@ -137,6 +138,8 @@ The `data/zenodo-examples/` directory contains the PRISM models used in the thes
 | Dining Philosophers | 36 | Visual encoding, cross-mode comparison |
 | Bounded Retransmission Protocol | 5,192 | Grouping, stochastic sampling |
 | Quality Control Pipeline | 6 | Switching pair debugging workflow |
+
+The `evaluation_corpus/` directory contains five PRISM models with seeded bugs and ground-truth annotations (`ground_truth.yaml`), used to validate the tool's ability to identify responsible states.
 
 ## External Dependencies
 

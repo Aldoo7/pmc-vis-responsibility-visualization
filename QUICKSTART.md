@@ -4,7 +4,7 @@
 
 Simply run:
 ```bash
-./start_all.sh
+./start.sh
 ```
 
 This will:
@@ -16,7 +16,7 @@ This will:
 ## Stopping the Application
 
 ```bash
-./stop_all.sh
+./stop.sh
 ```
 
 ## Accessing the Application
@@ -63,10 +63,10 @@ The graph shows the **counterexample trace** (a specific path through the model)
 ## Environment Requirements
 
 - Java 11+
-- Node.js 16+
+- Node.js 18+
 - Maven
 - PRISM (built from source, see `BUILD.md`)
-- `bw-responsibility` tool ([Zenodo artifact](https://zenodo.org/records/13738447), optional — backend runs in MOCK mode without it)
+- `bw-responsibility` tool ([Zenodo artifact](https://zenodo.org/records/13738447)) — required for responsibility computation
 
 ## Troubleshooting
 
@@ -90,7 +90,7 @@ cd src/frontend && npm install
 
 **Ports already in use:**
 ```bash
-./stop_all.sh
+./stop.sh
 # Wait 3 seconds
-./start_all.sh
+./start.sh
 ```
